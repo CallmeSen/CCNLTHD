@@ -1,0 +1,7 @@
+Sprint_15_1_2026
+3 hướng đi chính:
+1-Tiếp tục survey tìm hiểu để hoàn thiện (chỉnh sửa) ý tưởng design floor tính khả dụng của ý tưởng này (đâm lao theo lao)
+2-Bỏ qua ý tưởng ban đầu này khi thấy khó khăn trong tính khả thi thực hiện, chuyển hướng suy nghĩ đến 1 ý tưởng mới khác trong quá trình học hỏi công nghệ lập trình mới và các ý tưởng mới có đầy đủ các tính khả dụng cần (hướng đi mới)
+3-Trường hợp khó khăn nhất nếu không thể tìm được ý tưởng nào phù hợp thì làm hoàn chỉnh đề tài cơ bản của thầy
+
+Ưu tiên: hoàn thiện tính khả dụng của ý tưởng ban đầu (hướng 1): survey, dataset (public), chuẩn đầu ra, lý do thực hiện
