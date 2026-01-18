@@ -1,5 +1,6 @@
 Sprint_18_1_2026
 Đóng góp mới của:
+Khôi: https://www.mdpi.com/2673-2688/6/4/67 - Chưa đọc rõ nội dung để trình bày
 Nghĩa: https://github.com/KarimAbdElRazek25/floor-plan-object-detection - Chỉ mới detect đối tượng nhất định
 Triết: https://github.com/art-programmer/FloorplanTransformation?utm_source=chatgpt.com - Tô sàn không tô nội thất theo ý tưởng ban đầu (chatgpt)
 Công nghệ phân tách (đa chức năng): https://github.com/IDEA-Research/Grounded-Segment-Anything
