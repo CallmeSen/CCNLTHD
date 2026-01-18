@@ -1,8 +1,10 @@
 Sprint_18_1_2026
 Đóng góp mới của:
 Khôi: https://www.mdpi.com/2673-2688/6/4/67 - Chưa đọc rõ nội dung để trình bày
+|- Bài báo đã tải: Survey of Architectural Floor Plan Retrieval Technology Based
 Nghĩa: https://github.com/KarimAbdElRazek25/floor-plan-object-detection - Chỉ mới detect đối tượng nhất định
 Triết: https://github.com/art-programmer/FloorplanTransformation?utm_source=chatgpt.com - Tô sàn không tô nội thất theo ý tưởng ban đầu (chatgpt)
+|- Bài báo đã tải: Raster-to-Vector Revisiting Floorplan Transformation
 Công nghệ phân tách (đa chức năng): https://github.com/IDEA-Research/Grounded-Segment-Anything
 --> Ý tưởng vẫn chưa xác định concept rõ ràng, cần requirement chi tiết từ chủ ý tưởng (Tuấn) để làm rõ hơn quy trình thực hiện
 --> Lùi ý tưởng cho thêm 1 tuần để tìm tài liệu (Nếu không được thì bỏ qua)
