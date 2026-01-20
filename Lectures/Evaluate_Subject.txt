@@ -1,0 +1,12 @@
++ Đánh giá môn học:
+   * Tiểu luận cuối kỳ: 50% (làm theo nhóm không quá 4 thành viên)
+   * Chuyên cần đi học: 10% (nghĩ phép ko quá 3 buổi (80%) >=4 --> 0%) --> Báo trước
+   * Đánh giá giữa kỳ (tuần 10 trở đi): seminar công nghệ: 30% (làm theo nhóm)
+   * Chuyên cần làm bài: 10% (nhóm + cá nhân)
+   * Github cá nhân: lưu trữ tất cả bài làm lý thuyết + thực hành
+      --> Tổ chức theo tuần
+      --> Tuan01, Tuan02, Tuan03, …, Tuần09, DuAn, …
+      * Github nhóm (cho đề tài thực hành hay bài tập nhóm)
+      * Các bài tập khác …
+      * Ghi rõ trong commit message là: Tuan??/Bai??/Làm cái gì?
++ Tránh xài ChatGPT một cách sao chép

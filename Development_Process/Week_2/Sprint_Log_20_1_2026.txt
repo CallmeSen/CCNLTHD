@@ -1,0 +1,15 @@
+Sprint_20_1_2026
+Tuấn bảo vệ ý tưởng floor plan.
+
+Công trình liên quan: 
+- https://arxiv.org/pdf/2302.05543, Adding Conditional Control to Text-to-Image Diffusion Models
+- https://arxiv.org/pdf/2103.02574, House-GAN++: Generative Adversarial Layout Refinement Networks, https://github.com/ennauata/houseganpp
+- https://arxiv.org/pdf/1611.07004, Image-to-ImageTranslationwithConditionalAdversarialNetworks
+- Dataset: https://github.com/MLSTRUCT/MLSTRUCT-FP, https://floorplancad.github.io/
+Đô đo liên quan
+- SSIM
+- CLIP 
+- FID
+Pitching ý tưởng: Image-to-Image, nhiều hơn trong word
+
+--> Cần thêm thời gian để xem qua các tư liệu và độ đo. Chưa xác định phần thực hành và xác định khả năng thực hiện của nhóm.
