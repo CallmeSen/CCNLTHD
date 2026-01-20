@@ -1,5 +1,5 @@
 Sprint_20_1_2026
-Tuấn bảo vệ ý tưởng floor plan.
+Chủ đề: Tuấn bảo vệ ý tưởng floor plan.
 
 Công trình liên quan: 
 - https://arxiv.org/pdf/2302.05543, Adding Conditional Control to Text-to-Image Diffusion Models
