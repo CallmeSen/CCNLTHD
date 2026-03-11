@@ -1,0 +1,28 @@
+khảo sát các loại ứng dung :  copilot money , money lover
+đang tập trung về gì ? : tài chính cá nhân ? , danh mục đầu tư ? , nếu không muốn đầu tư thì sao?
+làm sao quản lý hóa don từ ngân hang? 
+thế nào là quản lý tài chính cá nhân?
+quản lý dòng tiền thế nào? : chi tiêu , lương , đầu tư.
+quản lý dòng tiền , hóa don , thu chi , tiết kiệm , đầu tư
+
+CLEO ai
+
+phân tích thu nhập , theo dõi tiến độ , điều chỉnh kế hoạch
+robo advisor
+scope lại về lĩnh vực tài chính cá nhân 
+
+chỉ cần tập trung vào đầu tư , vector database
+đại học quốc gia : quản lý danh mục đầu tư 
+
+coolstore business context 
+github ddd monolith : domain , conceptual model
+quy trình tư van : chủ dong ? bị dông? khao sát
+
+
+rã service theo nghiệp vụ
+
+phaân tich api thế nao ? 
+gắn api gateway tương tác 
+
+thiết kế kiến trúc câầ lý luan về api communication , chia theo nghiệp vụ khong phải kich ban
+có nhu cau mới đay ra microservice
