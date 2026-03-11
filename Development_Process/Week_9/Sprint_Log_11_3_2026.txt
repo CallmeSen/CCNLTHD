@@ -1,0 +1,14 @@
+Sprint_11_3_2026
+Xác định thời gian họp cố định nhằm thống nhất việc họp và phân chia các việc khác:
+- Thứ 2 và thứ 6 mỗi tối 9h họp tối đa 30p (nếu có thể)
+- Mục tiêu thứ 2: Rút ra kết luận cần thiết cho buổi báo cáo sau buổi học sáng
+- Mục tiêu thứ 6: Kết luận và báo cáo những khó khăn, tiến độ công việc
+
+Xác định các đầu việc:
+- Viết lại định nghĩa vấn đề "danh mục đầu tư"
+- Khảo sát thêm các ứng dụng có robo advisor
+- Sửa lại chương 2 thành công nghệ áp dụng
+
+Cần rút kinh nghiệm:
+- Chuẩn bị sẵn các template cần cho báo cáo khảo sát
+- Tiết kiệm thời gian cho các giờ họp
