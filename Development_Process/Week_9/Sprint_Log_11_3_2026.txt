@@ -12,3 +12,4 @@ Xác định các đầu việc:
 Cần rút kinh nghiệm:
 - Chuẩn bị sẵn các template cần cho báo cáo khảo sát
 - Tiết kiệm thời gian cho các giờ họp
+- Nhớ tổng hợp lại note của mọi người để buổi họp hoàn thiện và nhanh chóng
