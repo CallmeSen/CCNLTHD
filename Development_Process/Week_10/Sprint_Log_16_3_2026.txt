@@ -1,0 +1,19 @@
+Sprint 16_3_2026
+Nội dung cuộc họp:
+- Đã khảo sát đa dạng các công trình hiện có hợp lý --> Gợi ý của thầy:
+    .Xác định bài toán nhỏ định nghĩa quy trình muốn input output là gì khi xài chatbot (làm file excel).
+    --> Xác định công nghệ áp dụng (Thử nghiệm OpenClaw, n8n, hoặc công nghệ hỗ trợ quy trình huấn luyện mô hình).
+    .Huấn luyện mô hình dự đoán (đơn giản trước rồi từ đó lên cao) (Lấy scope nhỏ để thực hiện).
+    .Kịch bản thực hiện đề xuất hiện tại: Làm PoC phân tích cơ bản các chỉ báo kỹ thuật.
+    .Tìm kịch bản quy trình nghiệp vụ: Chấm điểm cổ phiếu.
+    .Chọn quy trình thực hiện gì vừa đủ để thực hiện tối ngày mai (17/3).
+
+- Dự trù công việc offline: Hiện số lượng công việc đã tăng gấp 2 (gấp 3 nếu tính cả BT6)
+    .Khuyến nghị mọi người xem qua note handout của thầy để setup môi trường, biến môi trường, chạy folder minh họa mẫu của thầy.
+    .Tải trước Maven:
+    PS D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices> mvn -version
+    Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b)
+    Maven home: D:\apache-maven-3.9.11
+    Java version: 21.0.8, vendor: Eclipse Adoptium, runtime: C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot
+    Default locale: en_US, platform encoding: UTF-8
+    OS name: "windows 11", version: "10.0", arch: "amd64", family: "windows"
