@@ -1,0 +1,12 @@
+Sprint 16_3_2026
+Nội dung cuộc họp:
+- Đã khảo sát đa dạng các công trình hiện có hợp lý --> Gợi ý của thầy:
+    .Xác định bài toán nhỏ định nghĩa quy trình muốn input output là gì khi xài chatbot (làm file excel).
+    --> Xác định công nghệ áp dụng (Thử nghiệm OpenClaw, n8n, hoặc công nghệ hỗ trợ quy trình huấn luyện mô hình).
+    .Huấn luyện mô hình dự đoán (đơn giản trước rồi từ đó lên cao) (Lấy scope nhỏ để thực hiện).
+    .Kịch bản thực hiện đề xuất hiện tại: Làm PoC phân tích cơ bản các chỉ báo kỹ thuật.
+    .Tìm kịch bản quy trình nghiệp vụ: Chấm điểm cổ phiếu.
+    .Chọn quy trình thực hiện gì vừa đủ để thực hiện
+
+- Dự trù công việc offline: Hiện số lượng công việc đã tăng gấp 2 (gấp 3 nếu tính cả BT6)
+    .Khuyến nghị mọi người xem qua note handout của thầy để setup môi trường, biến môi trường, chạy folder minh họa mẫu của thầy.
