@@ -1,0 +1,91 @@
+name: Monorepo CI/CD for Microservices
+
+on:
+  push:
+    branches: [BE]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      KUBECONFIG: ${{ secrets.KUBECONFIG }}
+
+    steps:
+
+      - name: Checkout source code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Detect changed services
+        id: detect-changes
+        run: |
+          echo "🕵️ Detecting changes..."
+          CHANGED_SERVICES=""
+          SERVICES=("order-service" "user-service" "product-service" "payment-service" "notification-service" "eureka-server" "api-gateway")
+
+          for SERVICE in "${SERVICES[@]}"; do
+            if git diff --name-only HEAD^ HEAD | grep "^$SERVICE/"; then
+              CHANGED_SERVICES+="$SERVICE "
+            fi
+          done
+
+          echo "Changed services: $CHANGED_SERVICES"
+          echo "changed_services=$CHANGED_SERVICES" >> $GITHUB_OUTPUT
+
+      - name: Build & push changed services
+        if: steps.detect-changes.outputs.changed_services != ''
+        run: |
+          for SERVICE in ${{ steps.detect-changes.outputs.changed_services }}; do
+            echo "🚀 Building & pushing $SERVICE..."
+          
+            cd $SERVICE
+            mvn clean package -DskipTests
+            IMAGE_NAME=${{ secrets.DOCKER_USERNAME }}/$SERVICE
+          
+            docker build -t $IMAGE_NAME:latest .
+            docker push $IMAGE_NAME:latest
+            cd ..
+          done
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+
+
+      - name: Deploy changed services to Kubernetes
+        if: steps.detect-changes.outputs.changed_services != ''
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig
+        run: |
+          for SERVICE in ${{ steps.detect-changes.outputs.changed_services }}; do
+            echo "📦 Deploying $SERVICE to Kubernetes..."
+            kubectl apply -f k8s/${SERVICE}-deployment.yaml
+            kubectl rollout status deployment/${SERVICE}-deployment --timeout=60s || true
+          done
+      
