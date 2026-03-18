@@ -4,6 +4,7 @@ import com.nhom1.order_service.exception.InventoryServiceUnavailableException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,22 +58,34 @@ public class InventoryServiceClient {
             return value;
         }
 
+        if (body instanceof List<?> list) {
+            if (list.isEmpty()) return false;
+            Object firstItem = list.get(0);
+            if (firstItem instanceof Map<?, ?> map) {
+                return parseMapInStock(map, requestedQuantity);
+            }
+            return false;
+        }
+
         if (body instanceof Map<?, ?> map) {
-            Object inStockValue = map.containsKey("inStock")
-                    ? map.get("inStock")
-                    : map.get("isInStock");
-            if (inStockValue instanceof Boolean inStockFlag && !inStockFlag) {
-                return false;
-            }
+            return parseMapInStock(map, requestedQuantity);
+        }
 
-            Object quantityValue = map.get("quantity");
-            if (quantityValue instanceof Number quantityNumber) {
-                return quantityNumber.intValue() >= requestedQuantity;
-            }
+        return false;
+    }
 
-            if (inStockValue instanceof Boolean inStockFlag) {
-                return inStockFlag;
-            }
+    private boolean parseMapInStock(Map<?, ?> map, int requestedQuantity) {
+        Object inStockValue = map.containsKey("inStock")
+                ? map.get("inStock")
+                : map.get("isInStock");
+
+        Object quantityValue = map.get("quantity");
+        if (quantityValue instanceof Number quantityNumber) {
+            return quantityNumber.intValue() >= requestedQuantity;
+        }
+
+        if (inStockValue instanceof Boolean inStockFlag) {
+            return inStockFlag;
         }
 
         return false;

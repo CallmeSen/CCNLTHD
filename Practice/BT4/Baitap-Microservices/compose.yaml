@@ -27,15 +27,21 @@ services:
 
   postgres:
     image: postgres:16
+    container_name: inventory-postgres
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_password
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 
   mysql:
     image: mysql:8.4
@@ -43,11 +49,17 @@ services:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: inventory_db
-      MYSQL_USER: inventory_user
-      MYSQL_PASSWORD: inventory_password
+      MYSQL_DATABASE: order_db
+      MYSQL_USER: order_user
+      MYSQL_PASSWORD: order_password
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   mongodb:
     image: mongo:7
@@ -72,6 +84,7 @@ services:
     depends_on:
       - eureka-server
       - postgres
+      - kafka
       - zipkin
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka
@@ -79,6 +92,7 @@ services:
       INVENTORY_DB_URL: jdbc:postgresql://postgres:5432/inventory_db
       INVENTORY_DB_USERNAME: inventory_user
       INVENTORY_DB_PASSWORD: inventory_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "8081:8081"
 
@@ -86,17 +100,22 @@ services:
     build:
       context: ./order_service
     depends_on:
-      - eureka-server
-      - postgres
-      - kafka
-      - inventory-service
-      - zipkin
+      eureka-server:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      zipkin:
+        condition: service_started
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
-      ORDER_DB_URL: jdbc:postgresql://postgres:5432/order_db
-      ORDER_DB_USERNAME: order_user
-      ORDER_DB_PASSWORD: order_password
+      ORDER_DB_URL: jdbc:mysql://mysql:3306/order_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      ORDER_DB_USERNAME: root
+      ORDER_DB_PASSWORD: root
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       INVENTORY_SERVICE_URL: http://inventory-service:8081
     ports:
