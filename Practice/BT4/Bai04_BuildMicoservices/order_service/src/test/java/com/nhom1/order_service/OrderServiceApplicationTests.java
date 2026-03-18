@@ -1,13 +1,10 @@
 package com.nhom1.order_service;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.platform.suite.api.SelectPackages;
+import org.junit.platform.suite.api.Suite;
 
-@SpringBootTest
+@Suite
+@SelectPackages({"unit_test", "integration_test"})
 class OrderServiceApplicationTests {
-
-	@Test
-	void contextLoads() {
-	}
 
 }
