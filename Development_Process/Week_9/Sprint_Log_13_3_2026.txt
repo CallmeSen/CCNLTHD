@@ -1,5 +1,14 @@
 Sprint 13_3_2026
 Quá trình khảo sát
-
+- Triết: Khảo sát iboard SSI pro; Đánh giá: Tốt, có tích hợp Agent, chưa rút ra kết luận user stories và chụp lại giao diện.
+- Tuấn: Bắt đầu tìm hiểu SoFi
+- Khôi: Khó khăn do Copilot Money chỉ tiếp nhận thẻ US, sẽ tìm hiểu thêm qua youtube với thông tin vừa đủ, sẽ chuyển sang ứng dụng khác để lấy thêm thông tin.
+- Nghĩa: Bổ sung sau.
 Làm bài tập 4
-- Nơi làm tổ chức project nhỏ: Tạo 1 branch riêng
+- Nơi làm tổ chức project nhỏ: Tạo 1 branch riêng với các nhánh con.
+- Cần xác định các config, docker, dependencies.
+- Ngoài chia ra các đầu việc đã xác định hôm nay để làm, nhóm sẽ mở thêm 1 buổi họp offline để tập trung hoàn thành bài tập 4.
+
+Việc cần hoàn thiện
+- Hoàn thành công việc khảo sát, tổng hợp thông tin theo template lấy được các thông tin user stories, giao diện từ các chức năng chính là investment và AI hỗ trợ.
+- Viết lại phần xác định vấn đề tập trung vào quản lý đầU tư theo các heading có sẵn.
