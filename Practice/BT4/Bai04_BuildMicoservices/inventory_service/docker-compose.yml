@@ -1,0 +1,60 @@
+name: inventory-service-stack
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: inventory-postgres
+    environment:
+      POSTGRES_DB: inventory
+      POSTGRES_USER: thaituan
+      POSTGRES_PASSWORD: 123
+    ports:
+      - "5432:5432"
+    volumes:
+      - inventory-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U thaituan -d inventory"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  eureka-server:
+    build:
+      context: ../eureka_server
+    container_name: inventory-eureka-server
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: inventory-zipkin
+    ports:
+      - "9411:9411"
+
+  inventory-service:
+    build:
+      context: .
+    container_name: inventory-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      zipkin:
+        condition: service_started
+    environment:
+      INVENTORY_DB_URL: jdbc:postgresql://postgres:5432/inventory
+      INVENTORY_DB_USERNAME: thaituan
+      INVENTORY_DB_PASSWORD: 123
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    ports:
+      - "8081:8081"
+
+volumes:
+  inventory-postgres-data:
