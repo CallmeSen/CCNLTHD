@@ -6,11 +6,15 @@ import com.nhom1.order_service.dto.CreateOrderLineItemRequest;
 import com.nhom1.order_service.dto.CreateOrderRequest;
 import com.nhom1.order_service.dto.OrderLineItemResponse;
 import com.nhom1.order_service.dto.OrderResponse;
+import com.nhom1.order_service.exception.OutOfStockException;
 import com.nhom1.order_service.exception.ResourceNotFoundException;
+import com.nhom1.order_service.integration.InventoryServiceClient;
+import com.nhom1.order_service.listener.OrderEventProducer;
 import com.nhom1.order_service.repository.OrderRepository;
 import com.nhom1.order_service.service.OrderService;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,14 +22,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final InventoryServiceClient inventoryServiceClient;
+    private final OrderEventProducer orderEventProducer;
 
-    public OrderServiceImpl(OrderRepository orderRepository) {
+    public OrderServiceImpl(
+            OrderRepository orderRepository,
+            InventoryServiceClient inventoryServiceClient,
+            OrderEventProducer orderEventProducer) {
         this.orderRepository = orderRepository;
+        this.inventoryServiceClient = inventoryServiceClient;
+        this.orderEventProducer = orderEventProducer;
     }
 
     @Override
     @Transactional
     public void placeOrder(CreateOrderRequest request) {
+        verifyItemsInStock(request);
+
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
 
@@ -35,7 +48,9 @@ public class OrderServiceImpl implements OrderService {
                 .toList();
 
         order.setOrderLineItemsList(lineItems);
-        orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+
+        orderEventProducer.sendOrderPlacedEvent(savedOrder.getOrderNumber());
     }
 
     @Override
@@ -53,6 +68,24 @@ public class OrderServiceImpl implements OrderService {
         lineItem.setPrice(request.getPrice());
         lineItem.setQuantity(request.getQuantity());
         return lineItem;
+    }
+
+    private void verifyItemsInStock(CreateOrderRequest request) {
+        boolean allItemsInStock;
+        try {
+            allItemsInStock = request.getOrderLineItemsDtoList()
+                    .stream()
+                    .allMatch(item -> inventoryServiceClient.isInStock(item.getSkuCode(), item.getQuantity()).join());
+        } catch (CompletionException ex) {
+            if (ex.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw ex;
+        }
+
+        if (!allItemsInStock) {
+            throw new OutOfStockException("One or more products are out of stock");
+        }
     }
 
     private OrderResponse toOrderResponse(Order order) {

@@ -28,4 +28,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(new ApiError("VALIDATION_ERROR", "Request body is invalid", details));
     }
+
+    @ExceptionHandler(OutOfStockException.class)
+    public ResponseEntity<ApiError> handleOutOfStock(OutOfStockException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiError("OUT_OF_STOCK", ex.getMessage(), Map.of()));
+    }
+
+    @ExceptionHandler(InventoryServiceUnavailableException.class)
+    public ResponseEntity<ApiError> handleInventoryUnavailable(InventoryServiceUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ApiError("INVENTORY_UNAVAILABLE", ex.getMessage(), Map.of()));
+    }
 }
