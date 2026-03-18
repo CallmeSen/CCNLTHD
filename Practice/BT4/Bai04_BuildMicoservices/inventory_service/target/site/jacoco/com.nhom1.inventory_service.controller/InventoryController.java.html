@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InventoryController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.nhom1.inventory_service.controller</a> &gt; <span class="el_source">InventoryController.java</span></div><h1>InventoryController.java</h1><pre class="source lang-java linenums">package com.nhom1.inventory_service.controller;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import com.nhom1.inventory_service.dto.BaseResponse;
+import com.nhom1.inventory_service.dto.InventoryDTO;
+import com.nhom1.inventory_service.service.InventoryService;
+
+import java.util.List;
+
+
+<span class="fc" id="L15">@Slf4j</span>
+@RestController
+@RequestMapping(&quot;/api/inventory&quot;)
+@RequiredArgsConstructor
+public class InventoryController {
+    private final InventoryService inventoryService;
+
+    @GetMapping(&quot;&quot;)
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity&lt;List&lt;BaseResponse&gt;&gt; isInStock(@RequestParam List&lt;String&gt; skuCode) {
+<span class="fc" id="L25">        List&lt;BaseResponse&gt; responses = inventoryService.checkStock(skuCode);</span>
+<span class="fc" id="L26">        log.info(&quot;Inventory check completed for {} SKU(s)&quot;, skuCode.size());</span>
+<span class="fc" id="L27">        return ResponseEntity.ok(responses);</span>
+    }
+
+    @PutMapping(&quot;/updateStock&quot;)
+    public ResponseEntity&lt;String&gt; updateStock(@RequestParam String skuCode, @RequestParam int quantity) {
+<span class="nc" id="L32">        boolean updated = inventoryService.updateStock(skuCode, quantity);</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        if (updated) {</span>
+<span class="nc" id="L34">            return ResponseEntity.ok(&quot;Stock updated successfully for SKU: &quot; + skuCode);</span>
+        } else {
+<span class="nc" id="L36">            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(&quot;Failed to update stock for SKU: &quot; + skuCode);</span>
+        }
+    }
+
+    @PostMapping
+    public ResponseEntity&lt;InventoryDTO&gt; createInventory(@RequestBody InventoryDTO inventoryDTO) {
+<span class="nc" id="L42">        InventoryDTO createdInventory = inventoryService.createInventory(inventoryDTO);</span>
+<span class="nc" id="L43">        return ResponseEntity.status(HttpStatus.CREATED).body(createdInventory);</span>
+    }
+
+    @GetMapping(&quot;/detail&quot;)
+    public ResponseEntity&lt;InventoryDTO&gt; getInventoryDetail(@RequestParam String skuCode) {
+<span class="nc" id="L48">        return inventoryService.getInventoryBySkuCode(skuCode)</span>
+<span class="nc" id="L49">                .map(ResponseEntity::ok)</span>
+<span class="nc" id="L50">                .orElseGet(() -&gt; ResponseEntity.notFound().build());</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

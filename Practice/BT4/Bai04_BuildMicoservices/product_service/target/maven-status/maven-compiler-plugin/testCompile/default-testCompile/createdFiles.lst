@@ -1,0 +1,13 @@
+com\nhom1\productservice\ProductServiceApplicationTests$IntegrationApi.class
+com\nhom1\productservice\unit_test\controller\ProductControllerUnitTestCases.class
+com\nhom1\productservice\unit_test\repository\ProductRepositoryUnitTestCases.class
+com\nhom1\productservice\ProductServiceApplicationTests$UnitDtoMapperLayer.class
+com\nhom1\productservice\ProductServiceApplicationTests$IntegrationPlatform.class
+com\nhom1\productservice\ProductServiceApplicationTests$UnitRepositoryLayer.class
+com\nhom1\productservice\unit_test\dto\ProductDtoMapperUnitTestCases.class
+com\nhom1\productservice\ProductServiceApplicationTests$UnitControllerLayer.class
+com\nhom1\productservice\integration_test\platform\ProductPlatformIntegrationTestCases.class
+com\nhom1\productservice\ProductServiceApplicationTests$UnitServiceLayer.class
+com\nhom1\productservice\ProductServiceApplicationTests.class
+com\nhom1\productservice\integration_test\api\ProductApiIntegrationTestCases.class
+com\nhom1\productservice\unit_test\service\ProductServiceUnitTestCases.class
