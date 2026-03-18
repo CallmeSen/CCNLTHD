@@ -14,3 +14,7 @@ product_service/src/main/resources/application.properties
 # Product service bootstrap/test files (if only used in this branch)
 product_service/src/main/java/com/nhom1/product_service/ProductServiceApplication.java
 product_service/src/test/java/com/nhom1/product_service/ProductServiceApplicationTests.java
+
+# Maven build cache/output directories across all modules
+**/target/
+
