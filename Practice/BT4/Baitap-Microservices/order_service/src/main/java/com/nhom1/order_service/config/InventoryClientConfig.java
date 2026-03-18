@@ -10,7 +10,7 @@ public class InventoryClientConfig {
 
     @Bean
     public RestClient inventoryRestClient(
-            @Value("${inventory.service.base-url:http://localhost:8081}") String inventoryBaseUrl) {
+            @Value("${inventory.service.base-url:http://localhost:8080}") String inventoryBaseUrl) {
         return RestClient.builder()
                 .baseUrl(inventoryBaseUrl)
                 .build();

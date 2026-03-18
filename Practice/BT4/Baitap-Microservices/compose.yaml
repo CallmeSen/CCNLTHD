@@ -135,6 +135,22 @@ services:
     ports:
       - "8083:8083"
 
+  gateway-service:
+    build:
+      context: ./gateway_service
+    depends_on:
+      eureka-server:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+    environment:
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka
+    ports:
+      - "8080:8080"
   notification-service:
     build:
       context: ./notification_service
