@@ -27,7 +27,7 @@ public class InventoryService {
     public List<BaseResponse> checkStock(List<String> skuCodes) {
         Map<String, Inventory> inventoryBySku = inventoryRepo.findAllBySkuCodeIn(skuCodes)
                 .stream()
-                .collect(Collectors.toMap(Inventory::getSkuCode, Function.identity()));
+                .collect(Collectors.toMap(Inventory::getSkuCode, Function.identity(), (e1, e2) -> e1));
 
         return skuCodes.stream()
                 .map(sku -> {

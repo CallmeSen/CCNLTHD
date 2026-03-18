@@ -106,7 +106,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_started
-      inventory-service:
+      gateway-service:
         condition: service_started
       zipkin:
         condition: service_started
@@ -117,7 +117,7 @@ services:
       ORDER_DB_USERNAME: root
       ORDER_DB_PASSWORD: root
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      INVENTORY_SERVICE_URL: http://inventory-service:8081
+      INVENTORY_SERVICE_URL: http://gateway-service:8080
     ports:
       - "8082:8082"
 
@@ -140,12 +140,6 @@ services:
       context: ./gateway_service
     depends_on:
       eureka-server:
-        condition: service_started
-      inventory-service:
-        condition: service_started
-      order-service:
-        condition: service_started
-      product-service:
         condition: service_started
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka

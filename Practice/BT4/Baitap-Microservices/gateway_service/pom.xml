@@ -10,8 +10,9 @@
 	</parent>
 	<groupId>com.example</groupId>
 	<artifactId>gateway_service</artifactId>
+	<name>gateway-service</name>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
+	
 	<description/>
 	<url/>
 	<licenses>

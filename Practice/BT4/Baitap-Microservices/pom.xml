@@ -23,6 +23,8 @@
 		<module>order_service</module>
 		<module>product_service</module>
 		<module>eureka_server</module>
+		<module>gateway_service</module>
+		<module>notification_service</module>
 	</modules>
 
 	<properties>
