@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: unit_test.integration.InventoryServiceClientUnitTest
--------------------------------------------------------------------------------
-Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.902 s -- in unit_test.integration.InventoryServiceClientUnitTest

@@ -1,9 +1,0 @@
-D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices\inventory_service\src\main\java\com\nhom1\inventory_service\config\SecurityConfig.java
-D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices\inventory_service\src\main\java\com\nhom1\inventory_service\controller\InventoryController.java
-D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices\inventory_service\src\main\java\com\nhom1\inventory_service\dto\BaseResponse.java
-D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices\inventory_service\src\main\java\com\nhom1\inventory_service\dto\InventoryDTO.java
-D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices\inventory_service\src\main\java\com\nhom1\inventory_service\InventoryServiceApplication.java
-D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices\inventory_service\src\main\java\com\nhom1\inventory_service\model\Inventory.java
-D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices\inventory_service\src\main\java\com\nhom1\inventory_service\repository\InventoryMapper.java
-D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices\inventory_service\src\main\java\com\nhom1\inventory_service\repository\InventoryRepo.java
-D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices\inventory_service\src\main\java\com\nhom1\inventory_service\service\InventoryService.java
