@@ -1,0 +1,16 @@
+# Ignore branch-specific files in this microservices practice project
+# so switching branches (e.g., to main) does not get affected.
+
+# HELP files generated/edited per service
+inventory_service/HELP.md
+order_service/HELP.md
+product_service/HELP.md
+
+# Service runtime properties often changed locally
+inventory_service/src/main/resources/application.properties
+order_service/src/main/resources/application.properties
+product_service/src/main/resources/application.properties
+
+# Product service bootstrap/test files (if only used in this branch)
+product_service/src/main/java/com/nhom1/product_service/ProductServiceApplication.java
+product_service/src/test/java/com/nhom1/product_service/ProductServiceApplicationTests.java

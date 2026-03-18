@@ -1,0 +1,122 @@
+name: microservices-demo
+
+services:
+  zipkin:
+    image: openzipkin/zipkin:latest
+    ports:
+      - "9411:9411"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  mysql:
+    image: mysql:8.4
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: inventory_db
+      MYSQL_USER: inventory_user
+      MYSQL_PASSWORD: inventory_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: product_user
+      MONGO_INITDB_ROOT_PASSWORD: product_password
+      MONGO_INITDB_DATABASE: product_db
+    volumes:
+      - mongo-data:/data/db
+
+  eureka-server:
+    build:
+      context: ./eureka_server
+    ports:
+      - "8761:8761"
+
+  inventory-service:
+    build:
+      context: ./inventory_service
+    depends_on:
+      - eureka-server
+      - postgres
+      - zipkin
+    environment:
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      INVENTORY_DB_URL: jdbc:postgresql://postgres:5432/inventory_db
+      INVENTORY_DB_USERNAME: inventory_user
+      INVENTORY_DB_PASSWORD: inventory_password
+    ports:
+      - "8081:8081"
+
+  order-service:
+    build:
+      context: ./order_service
+    depends_on:
+      - eureka-server
+      - postgres
+      - kafka
+      - inventory-service
+      - zipkin
+    environment:
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      ORDER_DB_URL: jdbc:postgresql://postgres:5432/order_db
+      ORDER_DB_USERNAME: order_user
+      ORDER_DB_PASSWORD: order_password
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      INVENTORY_SERVICE_URL: http://inventory-service:8081
+    ports:
+      - "8082:8082"
+
+  product-service:
+    build:
+      context: ./product_service
+    depends_on:
+      - eureka-server
+      - mongodb
+      - zipkin
+    environment:
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      PRODUCT_MONGO_URI: mongodb://product_user:product_password@mongodb:27017/product_db?authSource=admin
+    ports:
+      - "8083:8083"
+
+volumes:
+  postgres-data:
+  mysql-data:
+  mongo-data:

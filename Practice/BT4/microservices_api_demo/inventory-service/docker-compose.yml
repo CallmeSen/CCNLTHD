@@ -1,0 +1,11 @@
+#services:
+#  postgresql:
+#    image: postgres
+#    container_name: InventoryData
+#    restart: always
+#    ports:
+#      - "5442:5432"
+#    environment:
+#      POSTGRES_DB: inventory
+#      POSTGRES_USER: thaituan
+#      POSTGRES_PASSWORD: 123
