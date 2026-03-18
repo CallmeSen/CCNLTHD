@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.nhom1.productservice.ProductServiceApplicationTests$UnitControllerLayer
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.403 s -- in com.nhom1.productservice.ProductServiceApplicationTests$UnitControllerLayer
