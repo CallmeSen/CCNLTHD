@@ -44,7 +44,7 @@ docker pull openzipkin/zipkin:latest
 ## Bước 4 — Build JAR
 
 ```powershell
-cd D:\CNLTHD\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices
+cd ..\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices
 .\product_service\mvnw -f pom.xml package -DskipTests
 ```
 

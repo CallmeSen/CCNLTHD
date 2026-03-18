@@ -11,7 +11,7 @@
 From monorepo root (`Bai04_BuildMicoservices`):
 
 ```powershell
-cd D:\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices
+cd ..\CCNLTHD\Practice\BT4\Bai04_BuildMicoservices
 ```
 
 ## 3) Run tests (order_service)
