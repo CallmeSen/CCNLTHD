@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InventoryMapperImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.nhom1.inventory_service.repository</a> &gt; <span class="el_source">InventoryMapperImpl.java</span></div><h1>InventoryMapperImpl.java</h1><pre class="source lang-java linenums">package com.nhom1.inventory_service.repository;
+
+import com.nhom1.inventory_service.dto.InventoryDTO;
+import com.nhom1.inventory_service.model.Inventory;
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.processing.Generated;
+import org.springframework.stereotype.Component;
+
+@Generated(
+    value = &quot;org.mapstruct.ap.MappingProcessor&quot;,
+    date = &quot;2026-03-18T12:54:12+0700&quot;,
+    comments = &quot;version: 1.5.5.Final, compiler: javac, environment: Java 21.0.6 (Oracle Corporation)&quot;
+)
+@Component
+<span class="fc" id="L16">public class InventoryMapperImpl implements InventoryMapper {</span>
+
+    @Override
+    public InventoryDTO toDTO(Inventory inventory) {
+<span class="pc bpc" id="L20" title="1 of 2 branches missed.">        if ( inventory == null ) {</span>
+<span class="nc" id="L21">            return null;</span>
+        }
+
+<span class="fc" id="L24">        InventoryDTO.InventoryDTOBuilder inventoryDTO = InventoryDTO.builder();</span>
+
+<span class="fc" id="L26">        inventoryDTO.id( inventory.getId() );</span>
+<span class="fc" id="L27">        inventoryDTO.skuCode( inventory.getSkuCode() );</span>
+<span class="fc" id="L28">        inventoryDTO.quantity( inventory.getQuantity() );</span>
+
+<span class="fc" id="L30">        return inventoryDTO.build();</span>
+    }
+
+    @Override
+    public Inventory toEntity(InventoryDTO inventoryDTO) {
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if ( inventoryDTO == null ) {</span>
+<span class="nc" id="L36">            return null;</span>
+        }
+
+<span class="nc" id="L39">        Inventory.InventoryBuilder inventory = Inventory.builder();</span>
+
+<span class="nc" id="L41">        inventory.id( inventoryDTO.getId() );</span>
+<span class="nc" id="L42">        inventory.skuCode( inventoryDTO.getSkuCode() );</span>
+<span class="nc" id="L43">        inventory.quantity( inventoryDTO.getQuantity() );</span>
+
+<span class="nc" id="L45">        return inventory.build();</span>
+    }
+
+    @Override
+    public List&lt;InventoryDTO&gt; toDTOList(List&lt;Inventory&gt; inventories) {
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if ( inventories == null ) {</span>
+<span class="nc" id="L51">            return null;</span>
+        }
+
+<span class="nc" id="L54">        List&lt;InventoryDTO&gt; list = new ArrayList&lt;InventoryDTO&gt;( inventories.size() );</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        for ( Inventory inventory : inventories ) {</span>
+<span class="nc" id="L56">            list.add( toDTO( inventory ) );</span>
+<span class="nc" id="L57">        }</span>
+
+<span class="nc" id="L59">        return list;</span>
+    }
+
+    @Override
+    public List&lt;Inventory&gt; toEntityList(List&lt;InventoryDTO&gt; inventoryDTOs) {
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        if ( inventoryDTOs == null ) {</span>
+<span class="nc" id="L65">            return null;</span>
+        }
+
+<span class="nc" id="L68">        List&lt;Inventory&gt; list = new ArrayList&lt;Inventory&gt;( inventoryDTOs.size() );</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        for ( InventoryDTO inventoryDTO : inventoryDTOs ) {</span>
+<span class="nc" id="L70">            list.add( toEntity( inventoryDTO ) );</span>
+<span class="nc" id="L71">        }</span>
+
+<span class="nc" id="L73">        return list;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

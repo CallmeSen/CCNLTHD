@@ -135,6 +135,23 @@ services:
     ports:
       - "8083:8083"
 
+  notification-service:
+    build:
+      context: ./notification_service
+    depends_on:
+      - eureka-server
+      - kafka
+      - mongodb
+      - zipkin
+    environment:
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      NOTIFICATION_MONGO_URI: mongodb://product_user:product_password@mongodb:27017/notification_db?authSource=admin
+      APP_KAFKA_NOTIFICATION_TOPIC: notificationTopic
+    ports:
+      - "8084:8084"
+
 volumes:
   postgres-data:
   mysql-data:
