@@ -1,0 +1,7 @@
+Sprint 20_3_2026
+Tập chung chủ yếu vào kết quả xem xét quy trình
+--> Sau đó chọn lựa thứ tự trình bày cho thứ 2, trọng tâm là có được các kịch bản hợp lý để đồng thời thực hiện (vài kịch bản để chuẩn bị cho việc người dùng sẽ sử dụng nó như thế nào)
+
+--> Định nghĩa khung chính: Chọn metadata, dashboard trình bày theo metadata tương ứng, Agent hỗ trợ sẽ thực hiện theo kịch bản của Mô hình chấm điểm cổ phiếu
+
+Kiểm tra lại BAT_TAP có lỗi docker
