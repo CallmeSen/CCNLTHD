@@ -1,3 +1,0 @@
-com\nhom1\notificationservice\NotificationServiceApplicationTests.class
-com\nhom1\notificationservice\listener\OrderNotificationListenerKafkaTest.class
-com\nhom1\notificationservice\service\NotificationProcessingServiceTest.class
