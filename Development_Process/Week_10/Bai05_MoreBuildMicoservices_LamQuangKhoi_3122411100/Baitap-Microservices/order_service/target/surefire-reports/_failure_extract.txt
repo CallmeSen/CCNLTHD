@@ -1,0 +1,4 @@
+NAME=unit_test.integration.InventoryServiceClientUnitTest.should_return_false_when_map_indicates_out_of_stock
+MESSAGE=expected: <false> but was: <true>
+TEXT_BEGIN
+TEXT_END

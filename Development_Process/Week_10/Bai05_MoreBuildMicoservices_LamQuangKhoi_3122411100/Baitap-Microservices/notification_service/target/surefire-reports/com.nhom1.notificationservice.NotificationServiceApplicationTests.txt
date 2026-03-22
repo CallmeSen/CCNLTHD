@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.nhom1.notificationservice.NotificationServiceApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.360 s -- in com.nhom1.notificationservice.NotificationServiceApplicationTests

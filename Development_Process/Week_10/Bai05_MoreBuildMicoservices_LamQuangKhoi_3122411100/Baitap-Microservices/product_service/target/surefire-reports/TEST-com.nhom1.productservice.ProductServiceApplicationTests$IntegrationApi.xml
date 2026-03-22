@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.003" tests="10" errors="0" skipped="10" failures="0">
+  <properties/>
+  <testcase name="shouldGetAllProductsAfterCreate" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+  <testcase name="shouldValidateBlankName" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+  <testcase name="shouldValidateMissingFields" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+  <testcase name="shouldHandleMultipleCreates" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+  <testcase name="shouldValidateNegativePrice" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+  <testcase name="shouldCreateProduct" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+  <testcase name="shouldGenerateProductId" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+  <testcase name="shouldRejectUnsupportedMediaType" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+  <testcase name="shouldReturnEmptyListForEmptyDatabase" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+  <testcase name="shouldPreservePricePrecision" classname="com.nhom1.productservice.ProductServiceApplicationTests$IntegrationApi" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+</testsuite>

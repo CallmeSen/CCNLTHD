@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.nhom1.inventory_service.InventoryServiceApplicationTests$IntegrationApi
+-------------------------------------------------------------------------------
+Tests run: 10, Failures: 0, Errors: 0, Skipped: 2, Time elapsed: 3.945 s -- in com.nhom1.inventory_service.InventoryServiceApplicationTests$IntegrationApi

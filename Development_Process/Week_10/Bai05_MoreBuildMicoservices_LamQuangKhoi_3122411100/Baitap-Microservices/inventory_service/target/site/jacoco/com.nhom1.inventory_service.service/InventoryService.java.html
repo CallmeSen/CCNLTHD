@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InventoryService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.nhom1.inventory_service.service</a> &gt; <span class="el_source">InventoryService.java</span></div><h1>InventoryService.java</h1><pre class="source lang-java linenums">package com.nhom1.inventory_service.service;
+
+import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import com.nhom1.inventory_service.dto.BaseResponse;
+import com.nhom1.inventory_service.dto.InventoryDTO;
+import com.nhom1.inventory_service.model.Inventory;
+import com.nhom1.inventory_service.repository.InventoryMapper;
+import com.nhom1.inventory_service.repository.InventoryRepo;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+
+@Service
+@RequiredArgsConstructor
+<span class="fc" id="L22">@Slf4j</span>
+public class InventoryService {
+    private final InventoryRepo inventoryRepo;
+    private final InventoryMapper inventoryMapper;
+
+    public List&lt;BaseResponse&gt; checkStock(List&lt;String&gt; skuCodes) {
+<span class="fc" id="L28">        Map&lt;String, Inventory&gt; inventoryBySku = inventoryRepo.findAllBySkuCodeIn(skuCodes)</span>
+<span class="fc" id="L29">                .stream()</span>
+<span class="pc" id="L30">                .collect(Collectors.toMap(Inventory::getSkuCode, Function.identity(), (e1, e2) -&gt; e1));</span>
+
+<span class="fc" id="L32">        return skuCodes.stream()</span>
+<span class="fc" id="L33">                .map(sku -&gt; {</span>
+<span class="fc" id="L34">                    Inventory inventory = inventoryBySku.get(sku);</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">                    if (inventory == null) {</span>
+<span class="fc" id="L36">                        return BaseResponse.builder()</span>
+<span class="fc" id="L37">                                .skuCode(sku)</span>
+<span class="fc" id="L38">                                .isInStock(false)</span>
+<span class="fc" id="L39">                                .quantity(0)</span>
+<span class="fc" id="L40">                                .build();</span>
+                    }
+
+<span class="fc" id="L43">                    return BaseResponse.builder()</span>
+<span class="fc" id="L44">                            .skuCode(sku)</span>
+<span class="fc bfc" id="L45" title="All 2 branches covered.">                            .isInStock(inventory.getQuantity() &gt; 0)</span>
+<span class="fc" id="L46">                            .quantity(inventory.getQuantity())</span>
+<span class="fc" id="L47">                            .build();</span>
+                })
+<span class="fc" id="L49">                .collect(Collectors.toList());</span>
+    }
+
+    public InventoryDTO createInventory(InventoryDTO inventoryDTO) {
+<span class="nc" id="L53">        Inventory inventory = inventoryMapper.toEntity(inventoryDTO);</span>
+<span class="nc" id="L54">        Inventory savedInventory = inventoryRepo.save(inventory);</span>
+<span class="nc" id="L55">        return inventoryMapper.toDTO(savedInventory);</span>
+    }
+
+    public Optional&lt;InventoryDTO&gt; getInventoryBySkuCode(String skuCode) {
+<span class="nc" id="L59">        return inventoryRepo.findBySkuCode(skuCode)</span>
+<span class="nc" id="L60">                .map(inventoryMapper::toDTO);</span>
+    }
+
+    public boolean checkStock(String skuCode) {
+<span class="nc" id="L64">        return inventoryRepo.existsBySkuCode(skuCode);</span>
+    }
+
+    public int getQuantityBySkuCode(String skuCode) {
+<span class="nc" id="L68">        return inventoryRepo.findBySkuCode(skuCode)</span>
+<span class="nc" id="L69">                .map(Inventory::getQuantity)</span>
+<span class="nc" id="L70">                .orElse(0);</span>
+    }
+
+    public boolean updateStock(String skuCode, int quantityOrdered) {
+<span class="nc" id="L74">        return inventoryRepo.findBySkuCode(skuCode)</span>
+<span class="nc" id="L75">                .map(inventory -&gt; {</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                    if (inventory.getQuantity() &gt;= quantityOrdered) {</span>
+<span class="nc" id="L77">                        inventory.setQuantity(inventory.getQuantity() - quantityOrdered);</span>
+<span class="nc" id="L78">                        inventoryRepo.save(inventory);</span>
+<span class="nc" id="L79">                        return true;</span>
+                    } else {
+<span class="nc" id="L81">                        return false;</span>
+                    }
+<span class="nc" id="L83">                }).orElse(false);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

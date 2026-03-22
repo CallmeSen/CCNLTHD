@@ -1,0 +1,17 @@
+-------------------------------------------------------------------------------
+Test set: unit_test.integration.InventoryServiceClientUnitTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 1.303 s <<< FAILURE! -- in unit_test.integration.InventoryServiceClientUnitTest
+unit_test.integration.InventoryServiceClientUnitTest.should_return_false_when_map_indicates_out_of_stock -- Time elapsed: 0.032 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <false> but was: <true>
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertFalse.failNotFalse(AssertFalse.java:63)
+	at org.junit.jupiter.api.AssertFalse.assertFalse(AssertFalse.java:36)
+	at org.junit.jupiter.api.AssertFalse.assertFalse(AssertFalse.java:31)
+	at org.junit.jupiter.api.Assertions.assertFalse(Assertions.java:231)
+	at unit_test.integration.InventoryServiceClientUnitTest.should_return_false_when_map_indicates_out_of_stock(InventoryServiceClientUnitTest.java:73)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+

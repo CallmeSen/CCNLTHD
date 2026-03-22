@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: integration_test.api.OrderApiIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.331 s -- in integration_test.api.OrderApiIntegrationTest

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.nhom1.productservice.ProductServiceApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.748 s -- in com.nhom1.productservice.ProductServiceApplicationTests

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.example.gateway_service.ApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 20.03 s -- in com.example.gateway_service.ApplicationTests
