@@ -1,4 +1,0 @@
-Thiết kế PoC:
-Ý tưởng tương tự như LMnotebook (Không fix cứng đầu vào metadata)
-3 bậc:
-ML/OPS

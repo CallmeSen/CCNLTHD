@@ -1,0 +1,26 @@
+Sprint log 23_3_2026
+Thiết kế PoC:
+Ý tưởng tương tự như LMnotebook (Không fix cứng đầu vào metadata)
+Tạo quy trình quản lý mô hình biết call API như 1 tool để dùng các tác vụ khác nhau.
+Input người dùng tùy vào resource họ cho và nhấn mạnh vào những dữ liệu được người dùng nhấn mạnh.
+
+công nghệ quản lý flow agent ML/OPS, ML flow, gitlab, ArgoCD.
+Thêm 1 buổi offline setup công nghệ.
+Xác định scope dữ liệu, EDA, mục đích để implenment flow xử lý
+
+Tuấn khi thi công PoC cần công cụ chú ý đến API rate, token volume, token để đo đạc chi phí mỗi lần gọi.
+Mn trong nhóm sử dụng thử gitlab, ArgoCD, OpenClaw(Set up short time), NemoClaw(Set up short time)
+
+Xác định (Thứ 3 & thứ 4)
+Dataset
+EDA
+Mô hình
+Khôi: Thuật toán mô hình (XGboot, Finrl, )
+ví dụ: pytorch.nn, hugging face,
+--> Quy định scope
+
+PoC: Jupyter Notebook
+
+Cuối tuần offline sau khi xác định các đầu việc trên và tiến hành setup PoC
+
+Tổng hợp: Cả nhóm tranh thủ thời gian sử dụng thử ML/OPS (với các công nghệ là gitlab và ArgoCD); Khôi, Nghĩa, Triết sẽ tập trung xác định ra scope thực hiện chủ đề đề tài (Với Dataset, EDA, Mô hình lõi để train ML/OPS); Tuấn thực hiện thi công PoC.
