@@ -19,7 +19,7 @@ Khôi: Thuật toán mô hình (XGboot, Finrl, )
 ví dụ: pytorch.nn, hugging face,
 --> Quy định scope
 
-PoC: Jupyter Notebook
+PoC: trên Jupyter Notebook
 
 Cuối tuần offline sau khi xác định các đầu việc trên và tiến hành setup PoC
 
