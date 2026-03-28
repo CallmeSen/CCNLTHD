@@ -10,3 +10,5 @@ Metric đánh giá: routing accuracy (chọn đúng agent), cumulative reward, c
 
 Dataset: Lấy prompt có sẵn / tạo prompt mẫu của người dùng
 EDA: các dataset tương ứng
+
+--> Xác định chuẩn cho dataset, tạo prompt ra và thực hiện PoC điều phối thực hiện
