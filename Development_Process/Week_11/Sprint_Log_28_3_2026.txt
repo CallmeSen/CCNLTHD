@@ -1,0 +1,12 @@
+Sprint 28_3_2026
+Nhóm xác định scope:
+- Đồng bộ kiến thức hiểu về vấn đề đề tài: tập trung vào xác định vấn đề để tìm các bộ dataset, EDA, và metric tương ứng để thực hiện đề tài PoC
+- Vấn đề là gì? Hệ thống được mô tả về bản chất là một bài toán sequential decision making (ra quyết định tuần tự). Mỗi Agent là một dịch vụ hoàn chỉnh, nó nhận đầu vào, xử lý logic nghiệp vụ riêng, và trả kết quả. Ví dụ agent "Fundamental Analysis" nhận mã cổ phiếu + báo cáo tài chính, tính P/E, ROE, EPS rồi trả lại kết luận. Nó có thể chạy trên một container riêng, viết bằng bất kỳ ngôn ngữ nào, dùng bất kỳ mô hình ML nào bên trong.
+
+3 agents đơn giản: (a) Stock Screener — lọc cổ phiếu theo tiêu chí cơ bản, (b) Fundamental Analyzer — tính các chỉ số tài chính, (c) Technical Analyzer — tính tín hiệu kỹ thuật (MA, RSI)
+Orchestrator: một RL agent học cách chọn 1 trong 3 agent (hoặc kết hợp) dựa trên loại câu hỏi đầu vào
+Dataset: tập câu hỏi đầu tư đã gán nhãn agent phù hợp (có thể tự tạo synthetic)
+Metric đánh giá: routing accuracy (chọn đúng agent), cumulative reward, convergence speed
+
+Dataset: Lấy prompt có sẵn / tạo prompt mẫu của người dùng
+EDA: các dataset tương ứng
