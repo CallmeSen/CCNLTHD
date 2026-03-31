@@ -10,6 +10,10 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "html2text>=2024.2.26",
     "sec-api>=1.0.20",
+    "litellm>=1.75.0",
+    "fastapi>=0.100.0",
+    "apscheduler>=3.10.0",
+    "email-validator>=2.0.0",
 ]
 
 [project.scripts]
