@@ -14,6 +14,7 @@ dependencies = [
     "fastapi>=0.100.0",
     "apscheduler>=3.10.0",
     "email-validator>=2.0.0",
+    "embedchain>=0.0.18",
 ]
 
 [project.scripts]
