@@ -1,0 +1,9 @@
+Sprint log 10_4_2026
+Tập trung làm đủ 6 điểm trước --> Xác định đầu việc service và cách chia cấu trúc hệ thống theo tài liệu cho trước/
+Nghiệp vụ Microservices.
+- User-service
+- Portfolio sandbox-service
+- Dashboard-service
+- ...--> More: service to research & explain
+
+*Later: Chatbot AI, lấy công nghệ FE, BE
