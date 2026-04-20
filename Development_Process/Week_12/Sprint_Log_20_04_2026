@@ -1,0 +1,23 @@
+Sprint Log - 20/04/2026
+
+Microservices:
+User Service: Quản lý thông tin người dùng, Hồ sơ rủi ro (Risk Profile) 
+API Gateway: Điểm tiếp nhận duy nhất, xử lý xác thực (Auth), phân quyền và điều hướng yêu cầu.
+Market Data Service: Pipeline thu thập dữ liệu thô (VNStock, News), làm sạch và lưu trữ
+Portfolio Service: Nơi lưu trữ các danh mục gợi ý, tính toán hiệu suất (PnL, Sharpe, Beta) và đề xuất tái cân bằng.
+Notification Service: Kết nối với n8n để đẩy cảnh báo qua Telegram dựa trên sự kiện thị trường.
+ Baseline Microservices: 6 điểm, bao gồm trong chương 2 là công nghệ (PostgreSQL, vấn đề liên quan, chương 3 luồng nghiệp vụ US)
+Deadline: Triết (thứ 6 24/4), Nghĩa (Thứ 2 27/4) 
+AI Intelligence Service: Nơi triển khai Multi-Agent System (MAS) và điều phối các LLM/Agents. Lưu chat session.
+
+Hệ thống multi agent
+	Strategist Agent: Nó quyết định câu hỏi nào cần Analyst nào, hoặc khi nào cần gọi Critic
+	Analyst Agent: Không chỉ tính toán MA/RSI mà còn biết truy vấn Feature Store để lấy chỉ số tài chính và thực hiện phân tích tâm lý tin tức
+o	Feature Store: một lớp lưu trữ chuyên biệt dùng để quản lý và cung cấp các đặc trưng (features) đã được tính toán sẵn từ dữ liệu thô để phục vụ cho các mô hình, để ở trong 
+	Risk Manager Agent: Nó đối chiếu đề xuất của Analyst với hồ sơ rủi ro của người dùng. Nếu Analyst gợi ý mã quá rủi ro, nó sẽ yêu cầu phân tích lại hoặc đưa ra cảnh báo.
+	Critic Agent: dùng để phẩn biện lại các phân tích của agent trên. Ví dụ: Nếu Technical báo Mua nhưng Fundamental báo mã này sắp phá sản, Critic sẽ yêu cầu các Agent giải trình sự mâu thuẫn này.
+ Thêm rules để thực hiện, guard rails, 
+Chưa chắc chắn Multi agent
+Phương án 1 là triển khai call API để fine tune theo dữ liệu Vnstock, Tiếng Việt, cho mn cùng có thể chạy được project
+Phương án 2 là phát triển đúng định nghĩa multi agent (rules, bounaries, guard rails): công nghệ, cách thực thi
+Deadline: Khôi & Tuấn (Thứ 7 25/4)
