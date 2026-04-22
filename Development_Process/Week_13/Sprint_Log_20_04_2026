@@ -16,7 +16,7 @@ Hệ thống multi agent
 o	Feature Store: một lớp lưu trữ chuyên biệt dùng để quản lý và cung cấp các đặc trưng (features) đã được tính toán sẵn từ dữ liệu thô để phục vụ cho các mô hình, để ở trong 
 	Risk Manager Agent: Nó đối chiếu đề xuất của Analyst với hồ sơ rủi ro của người dùng. Nếu Analyst gợi ý mã quá rủi ro, nó sẽ yêu cầu phân tích lại hoặc đưa ra cảnh báo.
 	Critic Agent: dùng để phẩn biện lại các phân tích của agent trên. Ví dụ: Nếu Technical báo Mua nhưng Fundamental báo mã này sắp phá sản, Critic sẽ yêu cầu các Agent giải trình sự mâu thuẫn này.
- Thêm rules để thực hiện, guard rails, 
+Thêm rules để thực hiện, guard rails, 
 Chưa chắc chắn Multi agent
 Phương án 1 là triển khai call API để fine tune theo dữ liệu Vnstock, Tiếng Việt, cho mn cùng có thể chạy được project
 Phương án 2 là phát triển đúng định nghĩa multi agent (rules, bounaries, guard rails): công nghệ, cách thực thi
