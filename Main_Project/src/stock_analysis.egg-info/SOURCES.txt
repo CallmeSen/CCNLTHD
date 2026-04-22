@@ -1,0 +1,14 @@
+README.md
+pyproject.toml
+src/stock_analysis/__init__.py
+src/stock_analysis/crew.py
+src/stock_analysis/main.py
+src/stock_analysis.egg-info/PKG-INFO
+src/stock_analysis.egg-info/SOURCES.txt
+src/stock_analysis.egg-info/dependency_links.txt
+src/stock_analysis.egg-info/entry_points.txt
+src/stock_analysis.egg-info/requires.txt
+src/stock_analysis.egg-info/top_level.txt
+src/stock_analysis/tools/__init__.py
+src/stock_analysis/tools/calculator_tool.py
+src/stock_analysis/tools/sec_tools.py

@@ -1,0 +1,3 @@
+[console_scripts]
+stock_analysis = stock_analysis.main:run
+train = stock_analysis.main:train
