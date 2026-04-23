@@ -1,130 +1,151 @@
-from typing import List
-from crewai import Agent, Crew, Process, Task
+import os
+
+from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
-
-from tools.calculator_tool import CalculatorTool  # kept for backwards compat if needed
-from tools.custom_tools import WebSearchTool, CalculatorTool as ImprovedCalculatorTool, BrowserlessTool
-# from tools.sec_tools import SEC10KTool, SEC10QTool  # Disabled due to embedchain compatibility issues
-
 from dotenv import load_dotenv
-load_dotenv()
 
-from crewai import LLM
-llm = LLM(
-    model="ollama/openhermes",
-    base_url="http://localhost:11434"
+from stock_analysis.tools.custom_tools import (
+    WebSearchTool,
+    CalculatorTool as ImprovedCalculatorTool,
+    BrowserlessTool,
 )
 
-# Shared embedder instance - loads once, reused by all WebSearchTool instances
+load_dotenv()
+
+_OPENROUTER_MODEL = os.getenv(
+    "OPENROUTER_MODEL",
+    "openrouter/anthropic/claude-sonnet-4-5",
+)
+_OPENROUTER_FALLBACK = os.getenv(
+    "OPENROUTER_FALLBACK_MODEL",
+    "openrouter/google/gemini-2.0-flash-exp:free",
+)
+
+llm = LLM(
+    model=_OPENROUTER_MODEL,
+    api_key=os.getenv("OPENROUTER_API_KEY"),
+    base_url="https://openrouter.ai/api/v1",
+    temperature=0.3,
+)
+
 _shared_embedder = None
+
 
 def _get_embedder():
     global _shared_embedder
     if _shared_embedder is None:
-        from tools.custom_tools import SentenceTransformerEmbedder
+        from stock_analysis.tools.custom_tools import SentenceTransformerEmbedder
         _shared_embedder = SentenceTransformerEmbedder(model_name="all-MiniLM-L6-v2")
-        print(f"[TOOL INIT] SentenceTransformerEmbedder ready (all-MiniLM-L6-v2)")
+        print("[TOOL INIT] SentenceTransformerEmbedder ready (all-MiniLM-L6-v2)")
     return _shared_embedder
 
 
 @CrewBase
 class StockAnalysisCrew:
-    agents_config = 'config/agents.yaml'
-    tasks_config = 'config/tasks.yaml'
-    
+    agents_config = "config/agents.yaml"
+    tasks_config = "config/tasks.yaml"
+
+    # ---------------- Agents ----------------
+
     @agent
-    def financial_agent(self) -> Agent:
+    def financial_analyst_agent(self) -> Agent:
         return Agent(
-            config=self.agents_config['financial_analyst'],
+            config=self.agents_config["financial_analyst"],
             verbose=True,
             llm=llm,
+            max_iter=3,
             tools=[
                 WebSearchTool(embedder=_get_embedder()),
                 BrowserlessTool(),
                 ImprovedCalculatorTool(),
-            ]
-        )
-    
-    @task
-    def financial_analysis(self) -> Task: 
-        return Task(
-            config=self.tasks_config['financial_analysis'],
-            agent=self.financial_agent(),
+            ],
         )
 
     @agent
     def research_analyst_agent(self) -> Agent:
         return Agent(
-            config=self.agents_config['research_analyst'],
+            config=self.agents_config["research_analyst"],
             verbose=True,
             llm=llm,
+            max_iter=3,
             tools=[
                 WebSearchTool(embedder=_get_embedder()),
                 BrowserlessTool(),
-            ]
+            ],
         )
-    
-    @task
-    def research(self) -> Task:
-        return Task(
-            config=self.tasks_config['research'],
-            agent=self.research_analyst_agent(),
-        )
-    
+
     @agent
-    def financial_analyst_agent(self) -> Agent:
+    def technical_analyst_agent(self) -> Agent:
         return Agent(
-            config=self.agents_config['financial_analyst'],
+            config=self.agents_config["technical_analyst"],
             verbose=True,
             llm=llm,
+            max_iter=3,
             tools=[
                 WebSearchTool(embedder=_get_embedder()),
                 BrowserlessTool(),
                 ImprovedCalculatorTool(),
-            ]
-        )
-    
-    @task
-    def financial_analysis(self) -> Task: 
-        return Task(
-            config=self.tasks_config['financial_analysis'],
-            agent=self.financial_analyst_agent(),
-        )
-    
-    @task
-    def filings_analysis(self) -> Task:
-        return Task(
-            config=self.tasks_config['filings_analysis'],
-            agent=self.financial_analyst_agent(),
+            ],
         )
 
     @agent
     def investment_advisor_agent(self) -> Agent:
         return Agent(
-            config=self.agents_config['investment_advisor'],
+            config=self.agents_config["investment_advisor"],
             verbose=True,
             llm=llm,
+            max_iter=3,
             tools=[
-                WebSearchTool(embedder=_get_embedder()),
-                BrowserlessTool(),
                 ImprovedCalculatorTool(),
-            ]
+            ],
+        )
+
+    # ---------------- Tasks: 3 parallel + 1 synthesizer ----------------
+    # 3 task phân tích chạy song song (async_execution=True),
+    # task `recommend` chờ cả 3 xong rồi tổng hợp (context=[...])
+
+    @task
+    def financial_analysis(self) -> Task:
+        return Task(
+            config=self.tasks_config["financial_analysis"],
+            agent=self.financial_analyst_agent(),
+            async_execution=True,
+        )
+
+    @task
+    def research(self) -> Task:
+        return Task(
+            config=self.tasks_config["research"],
+            agent=self.research_analyst_agent(),
+            async_execution=True,
+        )
+
+    @task
+    def technical_analysis(self) -> Task:
+        return Task(
+            config=self.tasks_config["technical_analysis"],
+            agent=self.technical_analyst_agent(),
+            async_execution=True,
         )
 
     @task
     def recommend(self) -> Task:
         return Task(
-            config=self.tasks_config['recommend'],
+            config=self.tasks_config["recommend"],
             agent=self.investment_advisor_agent(),
+            context=[
+                self.financial_analysis(),
+                self.research(),
+                self.technical_analysis(),
+            ],
         )
-    
-    
+
     @crew
     def crew(self) -> Crew:
-        """Creates the Stock Analysis"""
+        """Stock Analysis Crew (3 analyst song song + 1 advisor tổng hợp)."""
         return Crew(
-            agents=self.agents,  
-            tasks=self.tasks, 
+            agents=self.agents,
+            tasks=self.tasks,
             process=Process.sequential,
             verbose=True,
         )
