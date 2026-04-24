@@ -1,0 +1,11 @@
+Sprint log 24_4_2026
+BE: đủ service --> cần check
+Check market service scrape dữ liệu từ VNstock
+test lấy dữ liệu cách 3 tháng, 1 tháng, hiện tại
+
+FE: Chưa có
+
+AI_Service: Điều chỉnh cách call thông qua Open Router-->Xem xét cách đầu tư và đổi sang công nghệ Lang Chain
+--> Đẩy Deadline sang ngày Chủ nhật 26/04/2026
+
+Mở offline liên kết thống nhất BE và FE các service và cách communication
