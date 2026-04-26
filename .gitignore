@@ -6,3 +6,5 @@ Main_Project/.vscode/PythonImportHelper-v2-Completion.json
 # Environment files (secrets)
 .env
 **/.env
+
+.claude

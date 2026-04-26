@@ -1,51 +1,71 @@
 financial_analysis:
   description: >
-    Conduct a thorough analysis of {company_stock}'s stock financial health and market performance. This includes examining key financial metrics such as
-    P/E ratio, EPS growth, revenue trends, and debt-to-equity ratio. Also, analyze the stock's performance in comparison 
-    to its industry peers and overall market trends.
+    Phân tích cơ bản cổ phiếu {company_stock} đang niêm yết trên HOSE/HNX. Bao gồm:
+    - Các chỉ số định giá: P/E, P/B, EV/EBITDA (chuẩn hóa theo ngành).
+    - Hiệu quả kinh doanh: ROE, ROA, biên lợi nhuận gộp / biên lợi nhuận ròng (chọn 1, tránh trùng thông tin),
+      tăng trưởng EPS theo quý và YoY.
+    - Cấu trúc tài chính: nợ/vốn chủ sở hữu (lưu ý ngành ngân hàng D/E 5-15 là bình thường), khả năng thanh
+      toán ngắn hạn, dòng tiền hoạt động.
+    - So sánh với 2-3 doanh nghiệp cùng ngành trên HOSE.
+    Dùng dữ liệu 4 quý gần nhất nếu có thể.
 
   expected_output: >
-    The final report must expand on the summary provided but now 
-    including a clear assessment of the stock's financial standing, its strengths and weaknesses, 
-    and how it fares against its competitors in the current market scenario.
-    Make sure to use the most recent data possible.
+    Báo cáo tiếng Việt khoảng 300-500 từ, cấu trúc:
+    1) Tóm tắt 1 câu về sức khỏe tài chính.
+    2) Bảng hoặc bullet các chỉ số định giá + so sánh ngành.
+    3) Điểm mạnh / điểm yếu tài chính (mỗi mục 2-4 bullet).
+    4) Cảnh báo rủi ro tài chính (nếu có).
+    Luôn nêu rõ nguồn/thời điểm dữ liệu.
 
 research:
   description: >
-    Collect and summarize recent news articles, press
-    releases, and market analyses related to the {company_stock} stock and its industry.
-    Pay special attention to any significant events, market sentiments, and analysts' opinions. 
-    Also include upcoming events like earnings and others.
+    Thu thập và tổng hợp tin tức, công bố thông tin, phân tích thị trường gần nhất (30 ngày) liên quan đến
+    cổ phiếu {company_stock} và ngành của nó. Lưu ý các sự kiện: kết quả kinh doanh quý, ĐHCĐ, chia cổ tức,
+    phát hành thêm, giao dịch cổ đông nội bộ, thay đổi lãnh đạo, chính sách vĩ mô tác động ngành.
 
   expected_output: >
-    A report that includes a comprehensive summary of the latest news, 
-    any notable shifts in market sentiment, and potential impacts on the stock. Also make sure to return the stock ticker as {company_stock}.
-    Make sure to use the most recent data as possible.
+    Báo cáo tiếng Việt khoảng 250-400 từ, cấu trúc:
+    1) 3-5 tin tức trọng yếu (mỗi tin: ngày, nguồn, 1-2 câu tóm tắt, tác động dự kiến lên giá).
+    2) Đánh giá tâm lý thị trường chung với cổ phiếu này (tích cực / trung tính / tiêu cực).
+    3) Sự kiện sắp tới cần theo dõi (nếu có).
+    Mã cổ phiếu được phân tích: {company_stock}.
 
-filings_analysis:
+technical_analysis:
   description: >
-    Analyze the latest 10-Q and 10-K filings from EDGAR for the stock {company_stock} in question. 
-    Focus on key sections like Management's Discussion and analysis, financial statements, insider trading activity, 
-    and any disclosed risks. Extract relevant data and insights that could influence
-    the stock's future performance.
+    Phân tích kỹ thuật cổ phiếu {company_stock} trên khung thời gian ngày (daily) với ít nhất 6 tháng gần nhất.
+    Đánh giá:
+    - Xu hướng chính: vị trí giá so với MA20, MA50, MA200.
+    - Momentum: RSI (oversold <30, overbought >70), MACD.
+    - Volatility: Bollinger Bands (%B, band width).
+    - Volume: có volume spike bất thường (>2x trung bình) không.
+    - Vùng hỗ trợ / kháng cự gần nhất.
+    Cross-check ít nhất 2 chỉ báo trước khi đưa tín hiệu.
 
   expected_output: >
-    Final answer must be an expanded report that now also highlights significant findings
-    from these filings including any red flags or positive indicators for your customer.
+    Báo cáo tiếng Việt khoảng 200-350 từ, cấu trúc:
+    1) Xu hướng tổng thể (uptrend / sideway / downtrend) và giai đoạn (đầu / giữa / cuối).
+    2) Tín hiệu momentum hiện tại (RSI, MACD) với số cụ thể.
+    3) Vùng hỗ trợ + kháng cự gần nhất (theo mức giá VND).
+    4) Kết luận: thiên về MUA ngắn hạn / GIỮ / BÁN, kèm mức độ tin cậy thấp/trung/cao.
 
 recommend:
   description: >
-    Review and synthesize the analyses provided by the
-    Financial Analyst and the Research Analyst.
-    Combine these insights to form a comprehensive
-    investment recommendation. You MUST Consider all aspects, including financial
-    health, market sentiment, and qualitative data from
-    EDGAR filings. 
-    
-    Make sure to include a section that shows insider 
-    trading activity, and upcoming events like earnings.
+    Dựa trên 3 báo cáo độc lập từ Fundamental Analyst, Research Analyst và Technical Analyst về
+    {company_stock}, đưa ra khuyến nghị đầu tư tổng hợp. Nếu các báo cáo mâu thuẫn (ví dụ: kỹ thuật báo MUA
+    nhưng cơ bản báo doanh nghiệp đang suy yếu) thì phải nêu rõ mâu thuẫn và đề xuất cách xử lý.
 
-  expected_output: > 
-    Your final answer MUST be a recommendation for your customer. It should be a full super detailed report, providing a 
-    clear investment stance and strategy with supporting evidence.
-    Make it pretty and well formatted for your customer.
+  expected_output: >
+    Báo cáo tiếng Việt, trình bày đẹp với markdown heading, cấu trúc:
+    # Khuyến nghị cho {company_stock}
+    ## Tóm tắt
+    - Khuyến nghị: MUA / GIỮ / BÁN (1 từ).
+    - Mức độ tin cậy: Thấp / Trung bình / Cao.
+    - Thời gian nắm giữ đề xuất.
+    ## Lý do chính (3-5 bullet, có số liệu dẫn chứng)
+    ## Mâu thuẫn giữa các phân tích (nếu có)
+    ## Mức giá mục tiêu & cắt lỗ gợi ý (nếu tín hiệu đủ mạnh)
+    ## Rủi ro cần theo dõi
+    ---
+    Cuối báo cáo LUÔN có dòng cảnh báo:
+    "⚠️ Đây là sản phẩm phân tích tự động, không phải lời khuyên đầu tư cá nhân hóa.
+    Nhà đầu tư cần tự đánh giá phù hợp với hồ sơ rủi ro và mục tiêu tài chính của mình."
