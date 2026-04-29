@@ -15,6 +15,7 @@ x-common-env: &common-env
   KAFKA_BROKERS: kafka:9092
   EUREKA_HOST: eureka-server
   JWT_SECRET: ${JWT_SECRET:-InvestAdvisorJwtSecretKeyMustBeAtLeast256BitsLong2024!}
+  VNSTOCK_API_KEY: ${VNSTOCK_API_KEY:-}
 
 services:
 

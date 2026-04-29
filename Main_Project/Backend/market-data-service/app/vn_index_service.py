@@ -69,9 +69,11 @@ def fetch_stock(ticker: str, interval: str, from_date: date, to_date: date) -> i
         db.close()
 
     try:
-        from vnstock import Vnstock  # noqa: PLC0415
-        stock = Vnstock().stock(symbol=upper_ticker, source="TCBS")
-        df = stock.quote.history(
+        # Use VCI Quote directly to avoid Company init (which fails for individual stocks
+        # with the high-level Vnstock().stock() wrapper).
+        from vnstock.explorer.vci.quote import Quote as VCIQuote  # noqa: PLC0415
+        q = VCIQuote(symbol=upper_ticker)
+        df = q.history(
             start=from_date.isoformat(),
             end=to_date.isoformat(),
             interval=vnstock_interval,

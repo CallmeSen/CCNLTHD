@@ -26,6 +26,15 @@ def list_stocks(db: Session = Depends(get_db)):
     return market_service.get_all_active_stocks(db)
 
 
+@router.get("/prices/latest", response_model=list[PriceResponse])
+def all_latest_prices(
+    interval: str = Query(default="1D"),
+    db: Session = Depends(get_db),
+):
+    """Latest price bar for every active stock at the given interval."""
+    return market_service.get_all_latest_prices(db, interval)
+
+
 @router.get("/stocks/{ticker}", response_model=StockResponse)
 def get_stock(ticker: str, db: Session = Depends(get_db)):
     try:

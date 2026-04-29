@@ -8,3 +8,10 @@ Main_Project/.vscode/PythonImportHelper-v2-Completion.json
 **/.env
 
 .claude
+
+Main_Project\Backend\portfolio-service\target\classes\application.yml
+Main_Project\Backend\user-service\target\classes\application.yml
+Main_Project\Backend\notification-service\target\classes\application.yml
+Main_Project\Backend\api-gateway\target\classes\application.yml
+Main_Project\Backend\eureka-service\target\classes\application.yml
+Main_Project\Backend\market-data-service\target\classes\application.yml

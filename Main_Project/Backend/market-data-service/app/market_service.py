@@ -118,6 +118,22 @@ def ingest_price(db: Session, payload: PriceIngest) -> PriceResponse:
     return PriceResponse.model_validate(price)
 
 
+def get_all_latest_prices(db: Session, interval: str) -> list[PriceResponse]:
+    """Return the most recent price bar for every active stock at the given interval."""
+    active_tickers = [s.ticker for s in db.query(Stock).filter(Stock.active == True).all()]
+    results = []
+    for ticker in active_tickers:
+        row = (
+            db.query(StockPrice)
+            .filter(StockPrice.ticker == ticker, StockPrice.interval == interval.upper())
+            .order_by(StockPrice.timestamp.desc())
+            .first()
+        )
+        if row:
+            results.append(PriceResponse.model_validate(row))
+    return results
+
+
 def price_exists(db: Session, ticker: str, interval: str, timestamp: datetime) -> bool:
     return (
         db.query(StockPrice)
