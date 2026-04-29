@@ -23,4 +23,7 @@ public interface StockPriceRepository extends JpaRepository<StockPrice, Long> {
     @Query("SELECT sp FROM StockPrice sp WHERE sp.ticker = :ticker AND sp.interval = '1D' ORDER BY sp.timestamp DESC")
     List<StockPrice> findDailyByTicker(@Param("ticker") String ticker,
                                        org.springframework.data.domain.Pageable pageable);
+
+    /** Used to prevent duplicate ingestion of the same candle. */
+    boolean existsByTickerAndIntervalAndTimestamp(String ticker, String interval, LocalDateTime timestamp);
 }

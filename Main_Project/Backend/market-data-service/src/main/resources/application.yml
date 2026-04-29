@@ -46,3 +46,8 @@ management:
   endpoint:
     health:
       show-details: always
+
+# ── TCBS public API ────────────────────────────────────────────────────────────
+tcbs:
+  api:
+    base-url: ${TCBS_API_BASE_URL:https://apipubaws.tcbs.com.vn}
