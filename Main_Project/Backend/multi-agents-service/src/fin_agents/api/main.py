@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -38,6 +39,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve visualization HTML files statically
+STORAGE_BASE = os.getenv("STORAGE_BASE", "./storage")
+STORAGE_VISUALIZATIONS = os.path.join(STORAGE_BASE, "visualizations")
+os.makedirs(STORAGE_VISUALIZATIONS, exist_ok=True)
+app.mount("/storage/visualizations", StaticFiles(directory=STORAGE_VISUALIZATIONS), name="visualizations")
 
 
 # ============================================================================

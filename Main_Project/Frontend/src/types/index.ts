@@ -31,10 +31,14 @@ export interface ReportResponse {
   run_id: string
   status: string
   report: string
+  created_at?: string
   user_profile?: Record<string, unknown>
   proposed_portfolio?: Record<string, number>
   metrics?: Record<string, unknown>
   validation_result?: ValidationResult
+  llm_commentary?: string | null
+  market_news?: string | null
+  visualization_url?: string | null
 }
 
 export interface HealthStatus {

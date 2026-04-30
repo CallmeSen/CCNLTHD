@@ -101,13 +101,12 @@ def calculate_financial_metrics(
             if not aligned_data or common_index is None or common_index.empty:
                 return {"error": "No valid/aligned data found for portfolio."}
 
-            portfolio_df = pd.DataFrame(index=common_index)
-            valid_tickers_in_portfolio = []
-            weights_list = []
+            series_dict = {}
             for ticker, df_ticker in aligned_data.items():
-                portfolio_df = pd.merge(portfolio_df, df_ticker.loc[common_index], left_index=True, right_index=True, how="inner")
-                valid_tickers_in_portfolio.append(ticker)
-                weights_list.append(portfolio[ticker])
+                series_dict[ticker] = df_ticker.loc[common_index, ticker]
+            portfolio_df = pd.DataFrame(series_dict, index=common_index)
+            valid_tickers_in_portfolio = list(aligned_data.keys())
+            weights_list = [portfolio[t] for t in valid_tickers_in_portfolio]
 
             if portfolio_df.empty:
                 return {"error": "Could not align data for portfolio calculation."}

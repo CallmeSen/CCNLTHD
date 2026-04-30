@@ -19,8 +19,6 @@ class DataAgent:
 
     def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
         result = fetch_data_node(state)
-        if not result:
-            return {"financial_data": None, "step": self.name}
         result["step"] = self.name
         return result
 

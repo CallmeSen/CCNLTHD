@@ -1307,6 +1307,14 @@
         "documentation": {}
     },
     {
+        "label": "StaticFiles",
+        "importPath": "fastapi.staticfiles",
+        "description": "fastapi.staticfiles",
+        "isExtraImport": true,
+        "detail": "fastapi.staticfiles",
+        "documentation": {}
+    },
+    {
         "label": "Session",
         "importPath": "sqlalchemy.orm",
         "description": "sqlalchemy.orm",
@@ -3222,6 +3230,24 @@
         "documentation": {}
     },
     {
+        "label": "STORAGE_BASE",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.main",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.main",
+        "peekOfCode": "STORAGE_BASE = os.getenv(\"STORAGE_BASE\", \"./storage\")\nSTORAGE_VISUALIZATIONS = os.path.join(STORAGE_BASE, \"visualizations\")\nos.makedirs(STORAGE_VISUALIZATIONS, exist_ok=True)\napp.mount(\"/storage/visualizations\", StaticFiles(directory=STORAGE_VISUALIZATIONS), name=\"visualizations\")\n# ============================================================================\n# Health Check Endpoints\n# ============================================================================\n@app.get(\"/\", response_model=HealthCheck)\nasync def root():\n    \"\"\"Root endpoint - API status\"\"\"",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.main",
+        "documentation": {}
+    },
+    {
+        "label": "STORAGE_VISUALIZATIONS",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.main",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.main",
+        "peekOfCode": "STORAGE_VISUALIZATIONS = os.path.join(STORAGE_BASE, \"visualizations\")\nos.makedirs(STORAGE_VISUALIZATIONS, exist_ok=True)\napp.mount(\"/storage/visualizations\", StaticFiles(directory=STORAGE_VISUALIZATIONS), name=\"visualizations\")\n# ============================================================================\n# Health Check Endpoints\n# ============================================================================\n@app.get(\"/\", response_model=HealthCheck)\nasync def root():\n    \"\"\"Root endpoint - API status\"\"\"\n    return {",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.main",
+        "documentation": {}
+    },
+    {
         "label": "logger",
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.routes",
@@ -3388,7 +3414,7 @@
         "kind": 6,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.schemas",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.schemas",
-        "peekOfCode": "class StockAnalyzeResponse(BaseModel):\n    \"\"\"Response from the stock portfolio generation workflow.\"\"\"\n    run_id: str\n    status: str\n    final_report: Optional[str] = None\n    user_profile: Optional[dict] = None\n    proposed_portfolio: Optional[dict] = None\n    metrics: Optional[dict] = None\n    validation_result: Optional[dict] = None\n    error: Optional[str] = None",
+        "peekOfCode": "class StockAnalyzeResponse(BaseModel):\n    \"\"\"Response from the stock portfolio generation workflow.\"\"\"\n    run_id: str\n    status: str\n    final_report: Optional[str] = None\n    user_profile: Optional[dict] = None\n    proposed_portfolio: Optional[dict] = None\n    metrics: Optional[dict] = None\n    validation_result: Optional[dict] = None\n    llm_commentary: Optional[str] = None",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.schemas",
         "documentation": {}
     },
@@ -3424,7 +3450,7 @@
         "kind": 2,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
-        "peekOfCode": "def fetch_financial_data(\n    tickers: List[str],\n    period: str = \"1y\",\n    start_date: Optional[str] = None,\n    end_date: Optional[str] = None,\n) -> Dict[str, pd.DataFrame]:\n    \"\"\"Fetches historical stock data using yfinance.\"\"\"\n    fetch_method_info = f\"Start: {start_date}, End: {end_date}\" if start_date and end_date else f\"Period: {period}\"\n    logger.info(f\"Fetching Financial Data for: {tickers} ({fetch_method_info})\")\n    data: Dict[str, pd.DataFrame] = {}",
+        "peekOfCode": "def fetch_financial_data(\n    tickers: List[str],\n    period: str = \"1y\",\n    start_date: Optional[str] = None,\n    end_date: Optional[str] = None,\n) -> Dict[str, pd.DataFrame]:\n    \"\"\"Fetches historical stock data. Uses vnstock for VN tickers, yfinance for others.\"\"\"\n    fetch_method_info = f\"Start: {start_date}, End: {end_date}\" if start_date and end_date else f\"Period: {period}\"\n    logger.info(f\"Fetching Financial Data for: {tickers} ({fetch_method_info})\")\n    data: Dict[str, pd.DataFrame] = {}",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
         "documentation": {}
     },
@@ -3451,7 +3477,16 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
-        "peekOfCode": "logger = logging.getLogger(__name__)\ndef fetch_financial_data(\n    tickers: List[str],\n    period: str = \"1y\",\n    start_date: Optional[str] = None,\n    end_date: Optional[str] = None,\n) -> Dict[str, pd.DataFrame]:\n    \"\"\"Fetches historical stock data using yfinance.\"\"\"\n    fetch_method_info = f\"Start: {start_date}, End: {end_date}\" if start_date and end_date else f\"Period: {period}\"\n    logger.info(f\"Fetching Financial Data for: {tickers} ({fetch_method_info})\")",
+        "peekOfCode": "logger = logging.getLogger(__name__)\ndef _is_vn_ticker(ticker: str) -> bool:\n    \"\"\"Detect Vietnam Exchange tickers.\"\"\"\n    t = ticker.upper().strip()\n    if t.endswith(\".VN\"):\n        return True\n    VN_COMMON = {\n        \"HPG\", \"VCB\", \"VNM\", \"FPT\", \"SSI\", \"BID\", \"CTG\", \"MBB\", \"TPB\",\n        \"STB\", \"ACB\", \"VPB\", \"TCB\", \"MSB\", \"NLG\", \"PNJ\", \"REE\", \"PVT\",\n        \"GAS\", \"PVD\", \"PLX\", \"BSR\", \"VIC\", \"VHM\", \"NVL\", \"BCM\", \"MWG\",",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
+        "documentation": {}
+    },
+    {
+        "label": "_VN_YF_SUFFIX_MAP",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
+        "peekOfCode": "_VN_YF_SUFFIX_MAP = {\n    # HOSE blue chips / large cap\n    \"VNM\": \"VNM.HM\",\n    \"HPG\": \"HPG.HM\",\n    \"FPT\": \"FPT.HM\",\n    \"VCB\": \"VCB.HM\",\n    \"BID\": \"BID.HM\",\n    \"CTG\": \"CTG.HM\",\n    \"VPB\": \"VPB.HM\",\n    \"TCB\": \"TCB.HM\",",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
         "documentation": {}
     },
@@ -4135,7 +4170,7 @@
         "kind": 6,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.data_agent",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.data_agent",
-        "peekOfCode": "class DataAgent:\n    \"\"\"Fetches OHLCV and fundamental data for each asset in the universe.\"\"\"\n    name = \"fetch_data\"\n    description = \"Fetches financial data (OHLCV, fundamentals) for asset universe\"\n    def __init__(self, config: Dict = None):\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        result = fetch_data_node(state)\n        if not result:\n            return {\"financial_data\": None, \"step\": self.name}",
+        "peekOfCode": "class DataAgent:\n    \"\"\"Fetches OHLCV and fundamental data for each asset in the universe.\"\"\"\n    name = \"fetch_data\"\n    description = \"Fetches financial data (OHLCV, fundamentals) for asset universe\"\n    def __init__(self, config: Dict = None):\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        result = fetch_data_node(state)\n        result[\"step\"] = self.name\n        return result",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.data_agent",
         "documentation": {}
     },
@@ -4144,7 +4179,7 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.data_agent",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.data_agent",
-        "peekOfCode": "logger = logging.getLogger(__name__)\nclass DataAgent:\n    \"\"\"Fetches OHLCV and fundamental data for each asset in the universe.\"\"\"\n    name = \"fetch_data\"\n    description = \"Fetches financial data (OHLCV, fundamentals) for asset universe\"\n    def __init__(self, config: Dict = None):\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        result = fetch_data_node(state)\n        if not result:",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass DataAgent:\n    \"\"\"Fetches OHLCV and fundamental data for each asset in the universe.\"\"\"\n    name = \"fetch_data\"\n    description = \"Fetches financial data (OHLCV, fundamentals) for asset universe\"\n    def __init__(self, config: Dict = None):\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        result = fetch_data_node(state)\n        result[\"step\"] = self.name",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.data_agent",
         "documentation": {}
     },
@@ -4423,7 +4458,7 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
-        "peekOfCode": "GENERATE_COMMENTARY_SYSTEM = \"\"\"You are a financial advisor AI. Generate a clear and concise commentary explaining the proposed portfolio allocation, its key metrics (including historical performance, CAPM expected return, and momentum outlook), and validation results to the user. If the allocation model provided reasoning, incorporate it. If validation failed, explain the issues.\nInstructions:\n- Explain the reasoning behind the allocation in relation to the user's profile, historical performance, expected returns (CAPM), and the overall portfolio momentum outlook (SMA trend).\n- Briefly interpret the key portfolio metrics (Return, Volatility, Sharpe, Drawdown, CAPM Expected Return, Momentum Outlook).\n- Mention the validation outcome. If issues were found, briefly explain them clearly.\n- Keep the tone informative and objective.\n- **Include a disclaimer that this is not financial advice.**\n- Output only the commentary text.\"\"\"",
+        "peekOfCode": "GENERATE_COMMENTARY_SYSTEM = \"\"\"You are a financial advisor AI. Generate a clear and concise commentary explaining the proposed portfolio allocation, its key metrics (including historical performance, CAPM expected return, and momentum outlook), and validation results to the user. If the allocation model provided reasoning, incorporate it. If validation failed, explain the issues.\nInstructions:\n- Explain the reasoning behind the allocation in relation to the user's profile, historical performance, expected returns (CAPM), and the overall portfolio momentum outlook (SMA trend).\n- Briefly interpret the key portfolio metrics (Return, Volatility, Sharpe, Drawdown, CAPM Expected Return, Momentum Outlook).\n- **CITATION REQUIREMENT**: Whenever you reference, mention, or base any claim or recommendation on specific market news from the \"Market News\" section, you MUST explicitly cite it using the format [News: \"<brief quote or reference to the specific news item>\"]. This applies to every claim tied to news — sector outlook, momentum signals, sector rotation, macro conditions, etc.\n- Mention the validation outcome. If issues were found, briefly explain them clearly.\n- Keep the tone informative and objective.\n- **Include a disclaimer that this is not financial advice.**\n- Output only the commentary text.\"\"\"",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "documentation": {}
     },

@@ -162,4 +162,6 @@ class StockAnalyzeResponse(BaseModel):
     proposed_portfolio: Optional[dict] = None
     metrics: Optional[dict] = None
     validation_result: Optional[dict] = None
+    llm_commentary: Optional[str] = None
+    market_news: Optional[str] = None
     error: Optional[str] = None

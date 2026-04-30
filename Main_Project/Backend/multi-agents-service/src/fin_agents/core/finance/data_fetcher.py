@@ -14,63 +14,220 @@ from src.fin_agents.core.config import BENCHMARK_TICKER, DEFAULT_PERIOD
 logger = logging.getLogger(__name__)
 
 
+def _is_vn_ticker(ticker: str) -> bool:
+    """Detect Vietnam Exchange tickers."""
+    t = ticker.upper().strip()
+    if t.endswith(".VN"):
+        return True
+    VN_COMMON = {
+        "HPG", "VCB", "VNM", "FPT", "SSI", "BID", "CTG", "MBB", "TPB",
+        "STB", "ACB", "VPB", "TCB", "MSB", "NLG", "PNJ", "REE", "PVT",
+        "GAS", "PVD", "PLX", "BSR", "VIC", "VHM", "NVL", "BCM", "MWG",
+        "DGW", "FTM", "DRC", "VHC", "GMD", "VJC", "HVN", "SKG", "SBT",
+        "VRE", "VND", "OGN", "CTS", "VDS", "VDB", "SHS", "HCM", "SSI",
+        "VN30", "VN100", "VNMID", "VNSML", "HNX", "HNX30", "UPCOM",
+        "VNINDEX", "VN30F", "DAF", "E1VFVN30",
+    }
+    return t in VN_COMMON
+
+
+# yfinance suffix mapping for VN exchanges
+# HOSE (Ho Chi Minh Stock Exchange) -> .HM
+# HNX (Hanoi Stock Exchange) -> .HN
+# UPCOM -> .VN
+_VN_YF_SUFFIX_MAP = {
+    # HOSE blue chips / large cap
+    "VNM": "VNM.HM",
+    "HPG": "HPG.HM",
+    "FPT": "FPT.HM",
+    "VCB": "VCB.HM",
+    "BID": "BID.HM",
+    "CTG": "CTG.HM",
+    "VPB": "VPB.HM",
+    "TCB": "TCB.HM",
+    "MBB": "MBB.HM",
+    "ACB": "ACB.HM",
+    "STB": "STB.HM",
+    "SSI": "SSI.HM",
+    "TPB": "TPB.HM",
+    "MSB": "MSB.HM",
+    "GAS": "GAS.HM",
+    "PLX": "PLX.HM",
+    "BSR": "BSR.HM",
+    "PVD": "PVD.HM",
+    "VIC": "VIC.HM",
+    "VHM": "VHM.HM",
+    "NVL": "NVL.HM",
+    "BCM": "BCM.HM",
+    "MWG": "MWG.HM",
+    "NLG": "NLG.HM",
+    "PNJ": "PNJ.HM",
+    "REE": "REE.HM",
+    "PVT": "PVT.HM",
+    "DGW": "DGW.HM",
+    "DRC": "DRC.HM",
+    "VHC": "VHC.HM",
+    "VJC": "VJC.HM",
+    "SKG": "SKG.HM",
+    "SBT": "SBT.HM",
+    "VRE": "VRE.HM",
+    "VND": "VND.HM",
+    "OGN": "OGN.HM",
+    "CTS": "CTS.HM",
+    "HCM": "HCM.HM",
+    "FTM": "FTM.HM",
+    # HNX
+    "SHB": "SHB.HN",
+    "KLS": "KLS.HN",
+    "VNDH": "VND.HN",
+    "HDB": "HDB.HN",
+    # UPCOM
+    "E1VFVN30": "E1VFVN30.VN",
+}
+
+
+def _vn_to_yf_ticker(ticker: str) -> str:
+    """Convert a VN ticker to yfinance format with exchange suffix."""
+    t = ticker.upper().strip().replace(".VN", "").replace(".HM", "").replace(".HN", "")
+    return _VN_YF_SUFFIX_MAP.get(t, f"{t}.HM")
+
+
+def _fetch_vnstock_data(
+    ticker: str,
+    period: Optional[str],
+    start_date: Optional[str],
+    end_date: Optional[str],
+) -> pd.DataFrame:
+    """Fetch historical data for a Vietnam ticker using vnstock with 60s timeout."""
+
+    def _do_fetch() -> pd.DataFrame:
+        import sys
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        from vnstock.api.quote import Quote
+
+        symbol = ticker.upper().strip().replace(".VN", "")
+
+        if start_date and end_date:
+            df = Quote(symbol=symbol, source="VCI").history(
+                start=start_date, end=end_date
+            )
+            if df is not None and not df.empty:
+                df = df.copy()
+                df.index = pd.to_datetime(df.index, errors="coerce")
+                df.columns = [c.lower() for c in df.columns]
+                return df
+
+        if period:
+            import datetime as dt
+
+            today = dt.date.today()
+            try:
+                p = int(period.replace("y", ""))
+                start = (today - dt.timedelta(days=p * 365)).strftime("%Y-%m-%d")
+                end = today.strftime("%Y-%m-%d")
+            except Exception:
+                start, end = None, None
+            if start and end:
+                df = Quote(symbol=symbol, source="VCI").history(
+                    start=start, end=end
+                )
+                if df is not None and not df.empty:
+                    df = df.copy()
+                    df.index = pd.to_datetime(df.index, errors="coerce")
+                    df.columns = [c.lower() for c in df.columns]
+                    return df
+
+        return pd.DataFrame()
+
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            return ex.submit(_do_fetch).result(timeout=60)
+    except FuturesTimeout:
+        logger.warning(f"vnstock timeout for {ticker}")
+        return pd.DataFrame()
+    except Exception as e:
+        logger.warning(f"vnstock error for {ticker}: {e}")
+        return pd.DataFrame()
+
+
+def _fetch_yfinance_data(
+    ticker: str,
+    period: Optional[str],
+    start_date: Optional[str],
+    end_date: Optional[str],
+) -> pd.DataFrame:
+    """Fetch historical data using yfinance."""
+    try:
+        tkr = yf.Ticker(ticker)
+        hist = pd.DataFrame()
+        if start_date and end_date:
+            hist = tkr.history(start=start_date, end=end_date)
+        elif period:
+            hist = tkr.history(period=period)
+        if hist.empty:
+            try:
+                info = tkr.info
+                if not info or ("symbol" not in info and "longName" not in info):
+                    return pd.DataFrame()
+            except Exception:
+                return pd.DataFrame()
+        hist.index = pd.to_datetime(hist.index).tz_localize(None)
+        if isinstance(hist.columns, pd.MultiIndex):
+            hist.columns = [col[0].lower() for col in hist.columns]
+        else:
+            hist.columns = hist.columns.str.lower()
+        return hist
+    except Exception:
+        return pd.DataFrame()
+
+
 def fetch_financial_data(
     tickers: List[str],
     period: str = "1y",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
 ) -> Dict[str, pd.DataFrame]:
-    """Fetches historical stock data using yfinance."""
+    """Fetches historical stock data. Uses vnstock for VN tickers, yfinance for others."""
     fetch_method_info = f"Start: {start_date}, End: {end_date}" if start_date and end_date else f"Period: {period}"
     logger.info(f"Fetching Financial Data for: {tickers} ({fetch_method_info})")
     data: Dict[str, pd.DataFrame] = {}
+    fetch_errors: List[str] = []
     if not tickers:
         logger.warning("No tickers provided for fetching data.")
         return data
     try:
         for ticker in tickers:
-            ticker = ticker.upper().strip()
-            tkr = yf.Ticker(ticker)
-            hist = pd.DataFrame()
-            if start_date and end_date:
-                hist = tkr.history(start=start_date, end=end_date)
-                if hist.empty:
-                    logger.warning(f"No history data found for {ticker} between {start_date} and {end_date}.")
+            raw_ticker = ticker.upper().strip()
+            if _is_vn_ticker(raw_ticker):
+                logger.info(f"Detected VN ticker: {raw_ticker} — using vnstock")
+                hist = _fetch_vnstock_data(raw_ticker, period, start_date, end_date)
+                if hist.empty or "close" not in hist.columns:
+                    yf_ticker = _vn_to_yf_ticker(raw_ticker)
+                    logger.info(f"vnstock failed for {raw_ticker}, falling back to yfinance as {yf_ticker}")
+                    hist = _fetch_yfinance_data(yf_ticker, period, start_date, end_date)
             else:
-                hist = tkr.history(period=period)
-                if hist.empty:
-                    logger.warning(f"No history data found for {ticker} for period: {period}.")
-            if hist.empty:
-                try:
-                    info = tkr.info
-                    if not info or ("symbol" not in info and "longName" not in info):
-                        logger.warning(f"Ticker {ticker} might be invalid or delisted. Skipping.")
-                        continue
-                    else:
-                        logger.info(f"Info found for {ticker}, but no history. Skipping.")
-                        continue
-                except Exception as info_e:
-                    logger.warning(f"Could not verify ticker {ticker} info: {info_e}. Skipping.")
-                    continue
-            hist.index = pd.to_datetime(hist.index).tz_localize(None)
-            # yfinance may return multi-index columns like (Close, ACB) — flatten them
-            if isinstance(hist.columns, pd.MultiIndex):
-                hist.columns = [col[0].lower() for col in hist.columns]
-            else:
-                hist.columns = hist.columns.str.lower()
-            if "close" not in hist.columns:
-                logger.warning(f"'close' column missing for {ticker}. Skipping.")
+                hist = _fetch_yfinance_data(raw_ticker, period, start_date, end_date)
+
+            if hist.empty or "close" not in hist.columns:
+                fetch_errors.append(f"{raw_ticker}: no data found")
+                logger.warning(f"No data for {raw_ticker}.")
                 continue
-            data[ticker] = hist
-            logger.info(f"Successfully fetched data for {ticker}.")
+
+            data[raw_ticker] = hist
+            logger.info(f"Successfully fetched data for {raw_ticker}.")
             time.sleep(0.5)
+
         logger.info(f"Successfully fetched data for: {list(data.keys())}")
         if not data:
-            logger.warning("Failed to fetch valid data for ALL requested tickers.")
+            err_msg = f"Failed to fetch valid data for ALL requested tickers. Errors: {'; '.join(fetch_errors) if fetch_errors else 'unknown'}"
+            logger.error(err_msg)
+            return {"__error__": err_msg}
         return data
     except Exception as e:
         logger.error(f"Error during financial data fetching process: {e}")
-        return data
+        return {"__error__": str(e)}
 
 
 def fetch_market_news(state: TypedDict) -> Dict:
@@ -128,7 +285,10 @@ def fetch_data_node(state: TypedDict) -> Dict:
             datetime.datetime.strptime(start_date_str, "%Y-%m-%d")
             datetime.datetime.strptime(end_date_str, "%Y-%m-%d")
             logger.info(f"Using specific date range: {start_date_str} to {end_date_str}")
-            data = fetch_financial_data(tickers=tickers_to_fetch, start_date=start_date_str, end_date=end_date_str)
+            result = fetch_financial_data(tickers=tickers_to_fetch, start_date=start_date_str, end_date=end_date_str)
+            if "__error__" in result:
+                return {"financial_data": {}, "error_message": result["__error__"]}
+            data = result
             data_fetched_with_range = True
         except ValueError:
             logger.warning(f"Invalid date format. Falling back to time_horizon-based period.")
@@ -161,7 +321,10 @@ def fetch_data_node(state: TypedDict) -> Dict:
         if years and years > 0:
             period = f"{years}y"
             logger.info(f"Setting data fetching period to: {period}")
-        data = fetch_financial_data(tickers=tickers_to_fetch, period=period)
+        result = fetch_financial_data(tickers=tickers_to_fetch, period=period)
+        if "__error__" in result:
+            return {"financial_data": {}, "error_message": result["__error__"]}
+        data = result
 
     if benchmark_ticker.upper() not in data or data[benchmark_ticker.upper()].empty:
         logger.error(f"Failed to fetch benchmark data ({benchmark_ticker}). Manual Beta calculation will be disabled.")

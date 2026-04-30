@@ -13,6 +13,10 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  LayoutDashboard,
+  MessageSquare,
+  Newspaper,
+  Bot,
 } from 'lucide-react'
 import {
   PieChart as RePieChart,
@@ -110,6 +114,139 @@ function MetricsBarChart({ metrics }: { metrics: Record<string, unknown> }) {
           <Bar dataKey="value" fill="#4263eb" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
+    </div>
+  )
+}
+
+function AssetMetricsBars({ metrics, allocation }: { metrics: Record<string, unknown>; allocation: Record<string, number> }) {
+  const tickers = Object.keys(allocation)
+  if (tickers.length === 0) return null
+
+  const assetMetrics = {
+    'Annualized Return': [] as (number | null)[],
+    'Volatility': [] as (number | null)[],
+    'Sharpe Ratio': [] as (number | null)[],
+    'Beta': [] as (number | null)[],
+  }
+  const metricKeys = ['annualized_return', 'annualized_volatility', 'sharpe_ratio', 'beta']
+  const metricLabels = ['Annualized Return', 'Volatility', 'Sharpe Ratio', 'Beta']
+
+  tickers.forEach((ticker) => {
+    const am = metrics?.[ticker.toUpperCase()] as Record<string, unknown> | undefined
+    metricKeys.forEach((key, i) => {
+      assetMetrics[metricLabels[i] as keyof typeof assetMetrics].push(
+        am?.[key] !== undefined ? Number(am[key]) : null
+      )
+    })
+  })
+
+  const hasData = assetMetrics['Annualized Return'].some((v) => v !== null)
+  if (!hasData) return null
+
+  const COLORS = ['#4263eb', '#5c7cfa', '#748ffc', '#91a7ff', '#bac8ff', '#dbe4ff', '#f0f4ff', '#10b981', '#34d399']
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <TrendingUp className="w-4 h-4 text-navy-600" />
+        <h3 className="text-sm font-bold text-surface-900">Individual Asset Metrics</h3>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        {metricLabels.map((label, mi) => (
+          <div key={label}>
+            <p className="text-xs font-semibold text-surface-600 mb-2">{label}</p>
+            <ResponsiveContainer width="100%" height={Math.max(120, tickers.length * 28 + 40)}>
+              <BarChart
+                data={tickers.map((t, i) => ({ ticker: t, value: assetMetrics[label as keyof typeof assetMetrics][i] }))}
+                layout="vertical"
+                margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
+              >
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 10, fill: '#94a3b8' }}
+                  tickFormatter={(v: number) => label === 'Sharpe Ratio' || label === 'Beta' ? v.toFixed(2) : `${(v * 100).toFixed(1)}%`}
+                />
+                <YAxis type="category" dataKey="ticker" tick={{ fontSize: 10, fill: '#64748b' }} width={50} />
+                <Tooltip
+                  formatter={(v: number) => [
+                    label === 'Sharpe Ratio' || label === 'Beta' ? Number(v).toFixed(2) : `${(Number(v) * 100).toFixed(2)}%`,
+                    label,
+                  ]}
+                  contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+                />
+                <Bar dataKey="value" fill={COLORS[mi % COLORS.length]} radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function VisualizationEmbed({ url, runId }: { url: string | null | undefined; runId: string }) {
+  if (!url) return null
+  return (
+    <div className="card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <LayoutDashboard className="w-4 h-4 text-navy-600" />
+        <h3 className="text-sm font-bold text-surface-900">Interactive Dashboard</h3>
+      </div>
+      <div className="rounded-xl overflow-hidden border border-surface-200">
+        <iframe
+          key={runId}
+          src={url}
+          title="Portfolio Visualization"
+          className="w-full"
+          style={{ height: '600px', border: 'none' }}
+          loading="lazy"
+        />
+      </div>
+    </div>
+  )
+}
+
+function LLMChatMessage({ commentary }: { commentary: string | null | undefined }) {
+  if (!commentary) return null
+  return (
+    <div className="card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Bot className="w-4 h-4 text-navy-600" />
+        <h3 className="text-sm font-bold text-surface-900">AI Advisor Response</h3>
+      </div>
+      <div className="prose prose-sm max-w-none
+        prose-p:text-surface-600 prose-p:leading-relaxed
+        prose-strong:text-surface-800 prose-strong:font-semibold
+        prose-a:text-navy-600 prose-a:no-underline hover:prose-a:underline
+        prose-blockquote:border-l-navy-300 prose-blockquote:text-surface-500
+        prose-li:text-surface-600
+      ">
+        <ReactMarkdown>{commentary}</ReactMarkdown>
+      </div>
+    </div>
+  )
+}
+
+function NewsSection({ news }: { news: string | null | undefined }) {
+  if (!news || news === 'N/A' || news.startsWith('Failed') || news === 'N/A (Tool not configured)') return null
+  return (
+    <div className="card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Newspaper className="w-4 h-4 text-navy-600" />
+        <h3 className="text-sm font-bold text-surface-900">Market News</h3>
+      </div>
+      <div className="space-y-3">
+        {news.split('\n').filter(Boolean).map((item, i) => {
+          const clean = item.replace(/^[-•*]\s*/, '').trim()
+          if (!clean) return null
+          return (
+            <div key={i} className="flex gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-navy-400 mt-2 flex-shrink-0" />
+              <p className="text-sm text-surface-600 leading-relaxed">{clean}</p>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -264,8 +401,35 @@ export default function ReportPage() {
             </div>
           )}
 
+          {data.proposed_portfolio && Object.keys(data.proposed_portfolio).length > 0 && data.metrics && (
+            <div className="animate-slide-up" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
+              <AssetMetricsBars metrics={data.metrics} allocation={data.proposed_portfolio} />
+            </div>
+          )}
+
+          {/* Market News */}
+          {data.market_news && (
+            <div className="animate-slide-up" style={{ animationDelay: '230ms', animationFillMode: 'both' }}>
+              <NewsSection news={data.market_news} />
+            </div>
+          )}
+
+          {/* AI Advisor Chat Response */}
+          {data.llm_commentary && (
+            <div className="animate-slide-up" style={{ animationDelay: '260ms', animationFillMode: 'both' }}>
+              <LLMChatMessage commentary={data.llm_commentary} />
+            </div>
+          )}
+
+          {/* Interactive Dashboard (Plotly HTML) */}
+          {data.visualization_url && (
+            <div className="animate-slide-up" style={{ animationDelay: '250ms', animationFillMode: 'both' }}>
+              <VisualizationEmbed url={data.visualization_url} runId={data.run_id} />
+            </div>
+          )}
+
           {/* Report */}
-          <div className="card p-6 animate-slide-up" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
+          <div className="card p-6 animate-slide-up" style={{ animationDelay: '350ms', animationFillMode: 'both' }}>
             <div className="flex items-center gap-2 mb-5">
               <FileText className="w-4 h-4 text-navy-600" />
               <h2 className="text-sm font-bold text-surface-900">Full Report</h2>

@@ -123,6 +123,8 @@ class OrchestratorService:
                 "proposed_portfolio": result.get("proposed_portfolio"),
                 "metrics": result.get("metrics"),
                 "validation_result": result.get("validation_result"),
+                "llm_commentary": result.get("llm_commentary"),
+                "market_news": result.get("market_news"),
             }
 
         except Exception as e:
@@ -134,6 +136,8 @@ class OrchestratorService:
                 "run_id": request_id,
                 "status": "failed",
                 "final_report": None,
+                "llm_commentary": None,
+                "market_news": None,
                 "error": str(e),
             }
 
@@ -155,6 +159,9 @@ class OrchestratorService:
                     "proposed_portfolio": result.get("proposed_portfolio"),
                     "metrics": result.get("metrics"),
                     "user_profile": result.get("user_profile"),
+                    "validation_result": result.get("validation_result"),
+                    "llm_commentary": result.get("llm_commentary"),
+                    "market_news": result.get("market_news"),
                 },
                 "file_path": os.path.join(STORAGE_REPORTS, f"{request_id}.md"),
             })

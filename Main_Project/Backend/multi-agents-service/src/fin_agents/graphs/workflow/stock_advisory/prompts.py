@@ -44,6 +44,7 @@ GENERATE_COMMENTARY_SYSTEM = """You are a financial advisor AI. Generate a clear
 Instructions:
 - Explain the reasoning behind the allocation in relation to the user's profile, historical performance, expected returns (CAPM), and the overall portfolio momentum outlook (SMA trend).
 - Briefly interpret the key portfolio metrics (Return, Volatility, Sharpe, Drawdown, CAPM Expected Return, Momentum Outlook).
+- **CITATION REQUIREMENT**: Whenever you reference, mention, or base any claim or recommendation on specific market news from the "Market News" section, you MUST explicitly cite it using the format [News: "<brief quote or reference to the specific news item>"]. This applies to every claim tied to news — sector outlook, momentum signals, sector rotation, macro conditions, etc.
 - Mention the validation outcome. If issues were found, briefly explain them clearly.
 - Keep the tone informative and objective.
 - **Include a disclaimer that this is not financial advice.**

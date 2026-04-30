@@ -45,6 +45,8 @@ dependencies = [
     "tavily-python>=0.7.23",
     "plotly>=6.7.0",
     "langchain-tavily>=0.2.18",
+    "vnstock>=4.0.2",
+    "vnstock3>=3.2.1",
 ]
 
 [dependency-groups]
