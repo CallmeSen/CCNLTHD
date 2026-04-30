@@ -1,0 +1,47 @@
+# Compliance Rules
+
+language_rules:
+  prohibited_words:
+    - "guaranteed"
+    - "risk-free"
+    - "sure thing"
+    - "always profitable"
+    - "no risk"
+    
+  required_disclaimers:
+    - "Past performance does not guarantee future results"
+    - "Mutual fund investments are subject to market risks"
+    - "This is for informational purposes only, not investment advice"
+
+suitability_checks:
+  age_horizon_mismatch:
+    enabled: true
+    min_horizon_for_aggressive: 7
+    
+  risk_value_mismatch:
+    enabled: true
+    max_aggressive_for_small_portfolio: 1000000  # INR
+    
+  concentration_limits:
+    enabled: true
+    max_single_fund_percent: 25
+    max_single_amc_percent: 40
+
+actions:
+  PASS:
+    allow_generation: true
+    require_review: false
+    
+  HOLD:
+    allow_generation: true
+    require_review: true
+    notify_reviewer: true
+    
+  BLOCK:
+    allow_generation: false
+    require_review: true
+    notify_reviewer: true
+    log_reason: true
+
+version: "1.0"
+last_updated: "2025-01-08"
