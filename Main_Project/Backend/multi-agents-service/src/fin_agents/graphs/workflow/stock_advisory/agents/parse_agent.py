@@ -9,7 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
 from ..states.workflow_state import StockAdvisoryState
-from ..prompts import PARSE_USER_SYSTEM
+from ..prompts import PARSE_USER_SYSTEM_EN, PARSE_USER_SYSTEM_VI
 from .agent_loader import get_shared_llm
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,11 @@ class ParseAgent:
         self._config = config or {}
 
     def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
+        lang = state.get("lang", "en")
+        system_prompt = PARSE_USER_SYSTEM_VI if lang == "vi" else PARSE_USER_SYSTEM_EN
+        human_template_vi = "Đây là yêu cầu của người dùng: {request}\n\nChỉ xuất JSON hợp lệ khớp với schema. Không thêm bất kỳ văn bản nào trước hoặc sau JSON."
+        human_template_en = "Here is the user request: {request}\n\nOutput ONLY valid JSON matching this schema. Do not add any text before or after the JSON."
+        human_template = human_template_vi if lang == "vi" else human_template_en
         from pydantic.v1 import BaseModel, Field
         from typing import Optional as Opt, List
 
@@ -56,8 +61,8 @@ class ParseAgent:
 
         parser = JsonOutputParser(pydantic_object=_UserProfileSchema)
         prompt = ChatPromptTemplate.from_messages([
-            ("system", PARSE_USER_SYSTEM),
-            ("human", "Here is the user request: {request}\n\nOutput ONLY valid JSON matching this schema. Do not add any text before or after the JSON."),
+            ("system", system_prompt),
+            ("human", human_template),
         ])
 
         for attempt in range(int(os.getenv("LLM_MAX_RETRIES", "2")) + 1):

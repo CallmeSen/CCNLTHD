@@ -61,6 +61,7 @@ async def analyze_portfolio(
         validation_result=result.get("validation_result"),
         llm_commentary=result.get("llm_commentary"),
         market_news=result.get("market_news"),
+        lang=result.get("lang"),
         error=result.get("error"),
     )
 

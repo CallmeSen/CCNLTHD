@@ -7,7 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 from ..states.workflow_state import StockAdvisoryState
-from ..prompts import GENERATE_COMMENTARY_SYSTEM
+from ..prompts import GENERATE_COMMENTARY_SYSTEM_EN, GENERATE_COMMENTARY_SYSTEM_VI
 from .agent_loader import get_shared_llm
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,14 @@ class CommentaryAgent:
         self._config = config or {}
 
     def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
+        lang = state.get("lang", "en")
+        system_prompt = GENERATE_COMMENTARY_SYSTEM_VI if lang == "vi" else GENERATE_COMMENTARY_SYSTEM_EN
+        human_template_vi = "Ngữ cảnh:\n- Hồ sơ người dùng: {profile}\n- Danh mục đề xuất: {portfolio}\n- Chỉ số: {metrics}\n- Xác thực: {validation}\n- Tin tức thị trường: {news}\n- Lý do: {reasoning}"
+        human_template_en = "Context:\n- User Profile: {profile}\n- Proposed Portfolio: {portfolio}\n- Metrics: {metrics}\n- Validation: {validation}\n- Market News: {news}\n- Reasoning: {reasoning}"
+        human_template = human_template_vi if lang == "vi" else human_template_en
+        disclaimer_vi = "\n\n**Tuyên bố miễn trừ trách nhiệm:** Đây là phân tích được tạo bởi AI và không cấu thành lời khuyên tài chính."
+        disclaimer_en = "\n\n**Disclaimer:** This is an AI-generated analysis and does not constitute financial advice."
+        disclaimer = disclaimer_vi if lang == "vi" else disclaimer_en
         user_profile = state.get("user_profile") or {}
         portfolio = state.get("proposed_portfolio") or {}
         metrics = state.get("metrics") or {}
@@ -41,8 +49,8 @@ class CommentaryAgent:
         portfolio_summary = json.dumps(portfolio) if isinstance(portfolio, dict) and portfolio else "No portfolio proposed."
 
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", GENERATE_COMMENTARY_SYSTEM),
-            ("human", "Context:\n- User Profile: {profile}\n- Proposed Portfolio: {portfolio}\n- Metrics: {metrics}\n- Validation: {validation}\n- Market News: {news}\n- Reasoning: {reasoning}"),
+            ("system", system_prompt),
+            ("human", human_template),
         ])
         parser = StrOutputParser()
         chain = prompt_template | self._llm | parser
@@ -56,8 +64,8 @@ class CommentaryAgent:
                 "news": news,
                 "reasoning": llm_reasoning,
             })
-            if "not financial advice" not in commentary.lower() and "disclaimer" not in commentary.lower():
-                commentary += "\n\n**Disclaimer:** This is an AI-generated analysis and does not constitute financial advice."
+            if "không phải là lời khuyên tài chính" not in commentary.lower() and "miễn trừ trách nhiệm" not in commentary.lower() and "disclaimer" not in commentary.lower():
+                commentary += disclaimer
             return {"llm_commentary": commentary, "step": self.name}
         except Exception as e:
             logger.error(f"Error generating commentary: {e}")

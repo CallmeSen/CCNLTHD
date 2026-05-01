@@ -39,6 +39,7 @@ export interface ReportResponse {
   llm_commentary?: string | null
   market_news?: string | null
   visualization_url?: string | null
+  lang?: string | null
 }
 
 export interface HealthStatus {

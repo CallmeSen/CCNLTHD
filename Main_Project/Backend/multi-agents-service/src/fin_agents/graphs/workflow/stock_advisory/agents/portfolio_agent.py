@@ -8,7 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
 from ..states.workflow_state import StockAdvisoryState
-from ..prompts import PROPOSE_PORTFOLIO_SYSTEM
+from ..prompts import PROPOSE_PORTFOLIO_SYSTEM_EN, PROPOSE_PORTFOLIO_SYSTEM_VI
 from . import agent_loader  # noqa: F401 — registers _shared_llm on load
 
 from .agent_loader import get_shared_llm
@@ -27,6 +27,17 @@ class PortfolioAgent:
         self._config = config or {}
 
     def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
+        lang = state.get("lang", "en")
+        system_prompt = PROPOSE_PORTFOLIO_SYSTEM_VI if lang == "vi" else PROPOSE_PORTFOLIO_SYSTEM_EN
+        human_template_vi = "Hồ sơ người dùng:\n{user_profile}\n\nTài sản có sẵn: {assets}\n\nChỉ số tài sản:\n{metrics}\n\nTin tức thị trường:\n{news}"
+        human_template_en = "User Profile:\n{user_profile}\n\nAvailable Assets: {assets}\n\nAsset Metrics:\n{metrics}\n\nMarket News:\n{news}"
+        human_template = human_template_vi if lang == "vi" else human_template_en
+        retry_system_vi = PROPOSE_PORTFOLIO_SYSTEM_VI + "\n\nQUAN TRỌNG: Bạn PHẢI trả về một JSON object không trống ánh xạ ticker đến trọng số float. Ví dụ: {{\"AAPL\": 0.4, \"MSFT\": 0.6}}. Không trả về object rỗng."
+        retry_system_en = PROPOSE_PORTFOLIO_SYSTEM_EN + "\n\nIMPORTANT: You MUST return a non-empty JSON object mapping tickers to float weights. Example: {{\"AAPL\": 0.4, \"MSFT\": 0.6}}. Do not return empty objects."
+        retry_system = retry_system_vi if lang == "vi" else retry_system_en
+        retry_human_vi = "Hồ sơ người dùng:\n{user_profile}\n\nTài sản có sẵn: {assets}\n\nChỉ số tài sản:\n{metrics}\n\nTin tức thị trường:\n{news}\n\nQUAN TRỌNG: Cung cấp phân bổ danh mục không trống sử dụng CHỈ ticker từ Tài sản có sẵn ở trên."
+        retry_human_en = "User Profile:\n{user_profile}\n\nAvailable Assets: {assets}\n\nAsset Metrics:\n{metrics}\n\nMarket News:\n{news}\n\nIMPORTANT: Provide a non-empty portfolio allocation using ONLY the tickers from Available Assets above."
+        retry_human = retry_human_vi if lang == "vi" else retry_human_en
         from pydantic.v1 import BaseModel, Field
         from typing import Optional as Opt
 
@@ -53,8 +64,8 @@ class PortfolioAgent:
             metrics_summary_json = metrics_summary_json[:5000] + "\n... (truncated)"
 
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", PROPOSE_PORTFOLIO_SYSTEM),
-            ("human", "User Profile:\n{user_profile}\n\nAvailable Assets: {assets}\n\nAsset Metrics:\n{metrics}\n\nMarket News:\n{news}"),
+            ("system", system_prompt),
+            ("human", human_template),
         ])
         parser = JsonOutputParser(pydantic_object=_PortfolioAllocationSchema)
         chain = prompt_template | self._llm | parser
@@ -85,8 +96,8 @@ class PortfolioAgent:
                     if attempt < max_retries:
                         logger.info("Retrying with stricter prompt...")
                         retry_prompt = ChatPromptTemplate.from_messages([
-                            ("system", PROPOSE_PORTFOLIO_SYSTEM + "\n\nIMPORTANT: You MUST return a non-empty JSON object mapping tickers to float weights. Example: {{\"AAPL\": 0.4, \"MSFT\": 0.6}}. Do not return empty objects."),
-                            ("human", "User Profile:\n{user_profile}\n\nAvailable Assets: {assets}\n\nAsset Metrics:\n{metrics}\n\nMarket News:\n{news}\n\nIMPORTANT: Provide a non-empty portfolio allocation using ONLY the tickers from Available Assets above."),
+                            ("system", retry_system),
+                            ("human", retry_human),
                         ])
                         chain = retry_prompt | self._llm | parser
                         continue

@@ -10,8 +10,38 @@ Responsibilities:
 
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Any, Dict, Optional
+
+VIETNAMESE_CHARS = re.compile(r'[\u00C0-\u024F\u1EA0-\u1EF9]')
+
+
+def _detect_lang(text: str) -> str:
+    """Detect Vietnamese vs English from text. Returns 'vi' or 'en'."""
+    if VIETNAMESE_CHARS.search(text):
+        return "vi"
+    words_lower = text.lower()
+    vi_keywords = [
+        "phân tích", "cổ phiếu", "đầu tư", "danh mục", "rủi ro", "lợi nhuận",
+        "thị trường", "chứng khoán", "tài chính", "vốn", "ngân hàng",
+        "mua", "bán", "giá", "cổ tức", "lãi suất", "cho tôi", "tôi muốn",
+        "tạo", "tổng hợp", "báo cáo", "xem", "biết", "nào", "các", "những",
+        "và", "của", "là", "có", "không", "với", "để", "cho", "năm",
+        "tháng", "ngày", "tuổi", "sinh", "năm", "trong", "ra", "vào",
+    ]
+    en_keywords = [
+        "analyze", "stock", "invest", "portfolio", "risk", "return",
+        "market", "financial", "capital", "bank", "buy", "sell", "price",
+        "dividend", "interest", "create", "generate", "report", "show",
+        "what", "which", "give", "me", "and", "the", "is", "are", "for",
+        "with", "want", "need", "help", "please", "can", "you", "i",
+    ]
+    vi_count = sum(1 for kw in vi_keywords if kw in words_lower)
+    en_count = sum(1 for kw in en_keywords if kw in words_lower)
+    if vi_count > en_count:
+        return "vi"
+    return "en"
 
 from sqlalchemy.orm import Session
 
@@ -82,6 +112,8 @@ class OrchestratorService:
         """
         _ensure_storage()
 
+        lang = lang or _detect_lang(initial_request)
+
         if not request_id:
             request_id = f"STK{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
 
@@ -91,7 +123,7 @@ class OrchestratorService:
         })
 
         try:
-            initial_state: Dict[str, Any] = {"initial_request": initial_request}
+            initial_state: Dict[str, Any] = {"initial_request": initial_request, "lang": lang}
 
             graph = self._load_stock_graph()
             result: Dict[str, Any] = graph.invoke(initial_state)
@@ -125,6 +157,7 @@ class OrchestratorService:
                 "validation_result": result.get("validation_result"),
                 "llm_commentary": result.get("llm_commentary"),
                 "market_news": result.get("market_news"),
+                "lang": lang,
             }
 
         except Exception as e:
@@ -138,6 +171,7 @@ class OrchestratorService:
                 "final_report": None,
                 "llm_commentary": None,
                 "market_news": None,
+                "lang": lang,
                 "error": str(e),
             }
 

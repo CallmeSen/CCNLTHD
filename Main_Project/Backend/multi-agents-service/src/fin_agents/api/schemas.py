@@ -164,4 +164,5 @@ class StockAnalyzeResponse(BaseModel):
     validation_result: Optional[dict] = None
     llm_commentary: Optional[str] = None
     market_news: Optional[str] = None
+    lang: Optional[str] = None
     error: Optional[str] = None

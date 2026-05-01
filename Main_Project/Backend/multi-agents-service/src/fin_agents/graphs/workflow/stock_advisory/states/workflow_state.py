@@ -10,6 +10,7 @@ class BaseWorkflowState(TypedDict, total=False):
     """Base workflow fields used across the entire pipeline."""
 
     initial_request: str
+    lang: str
     final_report: Optional[str]
     error_message: Optional[str]
     step: Optional[str]
