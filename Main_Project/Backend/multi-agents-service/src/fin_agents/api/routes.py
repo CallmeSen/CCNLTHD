@@ -163,12 +163,14 @@ async def get_visualization(
 
     from src.fin_agents.core.finance.visualization import generate_dashboard
 
+    metrics = portfolio_json.get("metrics") or {}
     viz_file = generate_dashboard(
-        metrics_data={"portfolio": {}},
+        metrics_data=metrics,
         allocation_data=portfolio or {},
         output_path=viz_path,
     )
     if not viz_file:
+        logger.error(f"generate_dashboard returned None for run_id={run_id}")
         raise HTTPException(status_code=500, detail="Failed to generate visualization")
 
     return {"run_id": run_id, "visualization_url": f"/storage/visualizations/{run_id}.html"}

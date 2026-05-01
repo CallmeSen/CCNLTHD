@@ -17,6 +17,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ''),
       },
+      '/storage': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
   },
 })

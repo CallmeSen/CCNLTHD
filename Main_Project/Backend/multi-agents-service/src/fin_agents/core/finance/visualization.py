@@ -135,7 +135,12 @@ def generate_dashboard(
     Returns the file path on success, None on failure.
     """
     logging.info(f"Generating dashboard to {output_path}")
-    pie_fig = create_allocation_pie_chart(allocation_data)
+    active_allocation = {k: v for k, v in allocation_data.items() if v > 0}
+    if not active_allocation:
+        logging.warning("No tickers with positive allocation weight.")
+        return None
+
+    pie_fig = create_allocation_pie_chart(active_allocation)
     asset_bars_fig = create_asset_metrics_bars(metrics_data, allocation_data)
     portfolio_bar_fig = create_portfolio_metrics_bar(metrics_data)
 
