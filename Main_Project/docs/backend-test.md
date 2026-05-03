@@ -518,6 +518,29 @@ Invoke-RestMethod -Method POST `
   -Headers @{ Authorization = "Bearer $TOKEN" } | ConvertTo-Json
 ```
 
+---
+
+## 7. Kafka Stale Cluster ID Recovery
+
+If `docker compose up -d` fails with `InconsistentClusterIdException` or Kafka keeps restarting after a previous run, the Kafka data volume likely contains stale metadata from an older cluster.
+
+Use this reset sequence:
+
+```powershell
+Set-Location D:\CCNLTHD\Main_Project\Backend
+docker compose down
+docker volume rm backend_kafka_data
+docker compose up -d
+```
+
+If the volume name is different in your environment, check it first with:
+
+```powershell
+docker compose config --volumes
+```
+
+This removes only Kafka state. Postgres and Zookeeper data can stay intact unless you want a full reset.
+
 The backend calls vnstock VCI internally and persists the result directly to PostgreSQL.
 
 ---
@@ -828,3 +851,27 @@ docker compose down -v
 | `docker compose up` fails on port conflict | Port already in use | `docker compose down` then retry, or change port in `docker-compose.yml` |
 | `ingested: 0` on `/indices/fetch` or `/stocks/{ticker}/fetch` | vnstock VCI unreachable or no trading day in range | Check internet connectivity; try a wider date range to confirm |
 | Kafka topics don't appear in UI | Services still starting | Wait 60 sec after `docker compose up` |
+
+---
+
+## 15. Startup Summary
+
+If the services take a while to appear in Eureka, the delay is usually caused by startup sequencing:
+
+- Spring Boot services must finish JPA initialization and database connection setup before Eureka registration completes.
+- Eureka only shows an instance after the service is fully up, so a container can be "running" in Docker before it appears in the UI.
+- The first clean startup after fixing earlier failures can also take longer because Kafka, Eureka clients, and the application servers are all recovering at once.
+
+If the databases do not auto-create, the reason is the PostgreSQL init script only runs on first initialization:
+
+- `init-db.sh` is mounted into the Postgres container and creates the service databases only when the data volume is brand new.
+- If the Postgres volume already exists, Docker skips that first-run initialization, so `user_db`, `portfolio_db`, `market_data_db`, and `notification_db` will not be recreated automatically.
+- In this run, the services failed until those databases were created manually inside `invest_postgres` and the services were restarted.
+
+Fix sequence used here:
+
+1. Create the missing databases in Postgres.
+2. Restart the affected services.
+3. Reload Eureka after the clients finish registering.
+
+After that, all services appeared in Eureka as expected.

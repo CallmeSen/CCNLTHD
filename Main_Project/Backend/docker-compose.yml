@@ -125,7 +125,7 @@ services:
       eureka-server:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${API_GATEWAY_PORT:-8085}:8080"
     environment:
       <<: *common-env
       SPRING_AUTOCONFIGURE_EXCLUDE: "org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration,org.springframework.boot.autoconfigure.security.reactive.ReactiveUserDetailsServiceAutoConfiguration,org.springframework.boot.actuate.autoconfigure.security.reactive.ReactiveManagementWebSecurityAutoConfiguration"
