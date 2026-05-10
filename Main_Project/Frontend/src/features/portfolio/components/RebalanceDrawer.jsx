@@ -1,11 +1,5 @@
 import { useEffect } from 'react';
-
-const rebalanceData = [
-  { ticker: 'FPT', currentWeight: 25, targetWeight: 15 },
-  { ticker: 'VNM', currentWeight: 10, targetWeight: 20 },
-  { ticker: 'SSI', currentWeight: 18, targetWeight: 14 },
-  { ticker: 'VCB', currentWeight: 12, targetWeight: 16 },
-];
+import { usePortfolio } from '../context/PortfolioContext';
 
 function CloseIcon(props) {
   return (
@@ -39,6 +33,15 @@ function RobotIcon(props) {
 }
 
 export default function RebalanceDrawer({ open, onClose }) {
+  const { activePortfolio } = usePortfolio();
+  const rebalanceData = (activePortfolio?.rebalanceActions ?? []).map((a) => ({
+    ticker: a.ticker,
+    currentWeight: a.currentWeightPct,
+    targetWeight: a.targetWeightPct,
+    action: a.action,
+    quantityDelta: a.quantityDelta,
+    estimatedVnd: a.estimatedTransactionVnd,
+  }));
   useEffect(() => {
     if (!open) return;
 
@@ -119,13 +122,19 @@ export default function RebalanceDrawer({ open, onClose }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {rebalanceData.map((item) => {
-                      const shouldBuy = item.targetWeight > item.currentWeight;
+                    {rebalanceData.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-4 text-center text-sm text-gray-400">
+                          Danh mục đang cân bằng tốt
+                        </td>
+                      </tr>
+                    ) : rebalanceData.map((item) => {
+                      const shouldBuy = item.action === 'BUY';
                       return (
                         <tr key={item.ticker}>
                           <td className="px-3 py-2 font-semibold text-gray-900">{item.ticker}</td>
                           <td className="px-3 py-2 text-gray-700">
-                            {item.currentWeight}% {'->'} {item.targetWeight}%
+                            {item.currentWeight.toFixed(1)}% {'->'} {item.targetWeight.toFixed(1)}%
                           </td>
                           <td className="px-3 py-2 text-right">
                             <span

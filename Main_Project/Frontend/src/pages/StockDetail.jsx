@@ -1,31 +1,28 @@
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import StockDetailScreen from '../features/market/components/StockDetailScreen'
-
-// Mock stock data để demo (thực tế sẽ fetch từ API)
-const MOCK_STOCKS = [
-  {
-    ticker: 'FPT',
-    companyName: 'FPT Corporation',
-    currentPrice: 135000,
-    changePercent: 2.5,
-  },
-  {
-    ticker: 'VCB',
-    companyName: 'Vietcombank',
-    currentPrice: 98500,
-    changePercent: -1.2,
-  },
-  {
-    ticker: 'HPG',
-    companyName: 'Hòa Phát Group',
-    currentPrice: 28400,
-    changePercent: 3.8,
-  },
-]
+import { fetchStockByTicker } from '../services/stockApi'
 
 export default function StockDetailPage() {
   const { ticker } = useParams()
-  const stock = MOCK_STOCKS.find((s) => s.ticker === ticker?.toUpperCase())
+  const [stock, setStock] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!ticker) return
+    setLoading(true)
+    fetchStockByTicker(ticker.toUpperCase())
+      .then(setStock)
+      .finally(() => setLoading(false))
+  }, [ticker])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-gray-500">
+        Đang tải dữ liệu...
+      </div>
+    )
+  }
 
   if (!stock) {
     return (

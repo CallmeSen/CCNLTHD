@@ -132,7 +132,7 @@ function formatBudgetVnd(value) {
 }
 
 export default function PortfolioWizardModal({ open, onClose }) {
-  const { addPortfolio, setActivePortfolio } = usePortfolio();
+  const { addPortfolio, createPortfolioOnServer, setActivePortfolio } = usePortfolio();
   const [step, setStep] = useState(0);
   const [budget, setBudget] = useState('50000000');
   const [riskLevel, setRiskLevel] = useState(1);
@@ -259,16 +259,15 @@ export default function PortfolioWizardModal({ open, onClose }) {
     setSearchQuery('');
   };
 
-  const handleConfirmSave = () => {
+  const handleConfirmSave = async () => {
     if (!canSave) return;
 
     const parsedBudget = Number(budget);
     const safeBudget = Number.isFinite(parsedBudget) && parsedBudget > 0 ? parsedBudget : 50000000;
     const assets = buildAssetsFromHoldings(proposedStocks, safeBudget);
-    const portfolioId = `pw-${Date.now()}`;
 
     const newPortfolio = {
-      id: portfolioId,
+      id: `pw-${Date.now()}`,
       name: portfolioName.trim(),
       isDefault: false,
       pnl: Math.round(safeBudget * (expectedReturn / 100)),
@@ -277,8 +276,7 @@ export default function PortfolioWizardModal({ open, onClose }) {
       assets,
     };
 
-    addPortfolio(newPortfolio);
-    setActivePortfolio(newPortfolio.id);
+    await createPortfolioOnServer(newPortfolio);
     handleClose();
   };
 

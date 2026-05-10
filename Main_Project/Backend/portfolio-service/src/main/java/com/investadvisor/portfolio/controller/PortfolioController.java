@@ -2,6 +2,7 @@ package com.investadvisor.portfolio.controller;
 
 import com.investadvisor.portfolio.dto.AddStockRequest;
 import com.investadvisor.portfolio.dto.CreatePortfolioRequest;
+import com.investadvisor.portfolio.dto.PortfolioAnalyticsDto;
 import com.investadvisor.portfolio.dto.PortfolioDto;
 import com.investadvisor.portfolio.model.RiskProfile;
 import com.investadvisor.portfolio.service.PortfolioService;
@@ -60,7 +61,7 @@ public class PortfolioController {
             @RequestHeader("X-User-Id") UUID userId,
             @PathVariable UUID portfolioId,
             @Valid @RequestBody AddStockRequest request) {
-        return ResponseEntity.ok(portfolioService.addStock(portfolioId, userId, request.ticker()));
+        return ResponseEntity.ok(portfolioService.addStock(portfolioId, userId, request));
     }
 
     /** Remove a stock ticker from this portfolio's watchlist. */
@@ -70,5 +71,19 @@ public class PortfolioController {
             @PathVariable UUID portfolioId,
             @PathVariable String ticker) {
         return ResponseEntity.ok(portfolioService.removeStock(portfolioId, userId, ticker));
+    }
+
+    /**
+     * Compute MPT + CAPM analytics for a portfolio.
+     * Delegates calculation to the market-data-service (Python/FastAPI).
+     *
+     * Returns: expected return, volatility, Sharpe ratio, Beta, and
+     * Markowitz rebalancing suggestions.
+     */
+    @GetMapping("/{portfolioId}/analytics")
+    public ResponseEntity<PortfolioAnalyticsDto> getAnalytics(
+            @RequestHeader("X-User-Id") UUID userId,
+            @PathVariable UUID portfolioId) {
+        return ResponseEntity.ok(portfolioService.getPortfolioAnalytics(portfolioId, userId));
     }
 }

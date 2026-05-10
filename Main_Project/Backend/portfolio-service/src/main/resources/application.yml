@@ -41,3 +41,7 @@ management:
   endpoint:
     health:
       show-details: always
+
+# Market Data Service URL for MPT analytics
+market-data:
+  base-url: http://${MARKET_DATA_HOST:localhost}:8082

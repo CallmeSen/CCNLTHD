@@ -1,10 +1,11 @@
 import { create } from 'zustand'
+import { apiClient, TOKEN_KEY } from '../services/apiClient'
 
 type User = {
-  firstName?: string
-  lastName?: string
+  id?: string
   email: string
   fullName?: string
+  role?: string
 }
 
 type AuthState = {
@@ -26,52 +27,54 @@ const readInitial = (): { user: User | null; isAuthenticated: boolean } => {
   try {
     if (typeof window === 'undefined') return { user: null, isAuthenticated: false }
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { user: null, isAuthenticated: false }
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!raw || !token) return { user: null, isAuthenticated: false }
     const parsed = JSON.parse(raw)
     return { user: parsed.user ?? null, isAuthenticated: !!parsed.isAuthenticated }
-  } catch (e) {
+  } catch {
     return { user: null, isAuthenticated: false }
   }
 }
 
 const initial = readInitial()
 
-const useAuthStore = create<AuthState>((set, get) => ({
+const useAuthStore = create<AuthState>((set) => ({
   user: initial.user,
   isAuthenticated: initial.isAuthenticated,
 
   login: async (email: string, password: string) => {
-    await new Promise((res) => setTimeout(res, 500))
-    // Mock success: create a simple user object from email
-    const namePart = email.split('@')[0] || email
-    const user: User = { email, firstName: namePart, lastName: '', fullName: namePart }
-    set({ user, isAuthenticated: true })
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, isAuthenticated: true }))
-    } catch (e) {
-      // ignore
+    const { data } = await apiClient.post('/auth/login', { email, password })
+    const user: User = {
+      id: data.user.id,
+      email: data.user.email,
+      fullName: data.user.fullName,
+      role: data.user.role,
     }
+    localStorage.setItem(TOKEN_KEY, data.accessToken)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, isAuthenticated: true }))
+    set({ user, isAuthenticated: true })
   },
 
   signup: async (firstName: string, lastName: string, email: string, password: string) => {
-    await new Promise((res) => setTimeout(res, 500))
-    const user: User = { firstName, lastName, email, fullName: `${firstName} ${lastName}`.trim() }
-    set({ user, isAuthenticated: true })
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, isAuthenticated: true }))
-    } catch (e) {
-      // ignore
+    const fullName = `${firstName} ${lastName}`.trim()
+    const { data } = await apiClient.post('/auth/register', { email, password, fullName })
+    const user: User = {
+      id: data.user.id,
+      email: data.user.email,
+      fullName: data.user.fullName,
+      role: data.user.role,
     }
+    localStorage.setItem(TOKEN_KEY, data.accessToken)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, isAuthenticated: true }))
+    set({ user, isAuthenticated: true })
   },
 
   logout: () => {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(STORAGE_KEY)
     set({ user: null, isAuthenticated: false })
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch (e) {
-      // ignore
-    }
   },
 }))
 
 export default useAuthStore
+

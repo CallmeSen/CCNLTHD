@@ -1,3 +1,5 @@
+import { apiClient } from './apiClient'
+
 export interface Stock {
   id: number
   ticker: string
@@ -12,102 +14,125 @@ export interface FetchStocksResponse {
   totalPages: number
 }
 
-const STOCK_TICKERS = [
-  'FPT',
-  'VCB',
-  'HPG',
-  'VNM',
-  'MSN',
-  'MWG',
-  'PNJ',
-  'SSI',
-  'VIC',
-  'VHM',
-  'GAS',
-  'BID',
-  'CTG',
-  'TCB',
-  'MBB',
-  'ACB',
-  'VPB',
-  'HDB',
-  'SHB',
-  'STB',
-  'VRE',
-  'SAB',
-  'BVH',
-  'PLX',
-  'PVD',
-  'PVS',
-  'DGC',
-  'DGW',
-  'REE',
-  'KDH',
-  'NLG',
-  'DXG',
-  'NVL',
-  'KBC',
-  'BCM',
-  'SZC',
-  'GMD',
-  'VTP',
-  'HAH',
-  'SCS',
-  'FRT',
-  'CMG',
-  'CTR',
-  'IDC',
-  'VGC',
-  'POW',
-  'NT2',
-  'PC1',
-  'BWE',
-  'DPM',
-  'DCM',
-  'ANV',
-  'VHC',
-  'PAN',
-  'KSB',
-  'HSG',
-  'NKG',
-  'CSV',
-  'LAS',
-  'QNS',
-]
-
-const randomInRange = (min: number, max: number): number => {
-  return Math.random() * (max - min) + min
+interface ApiStockResponse {
+  id: number
+  ticker: string
+  companyName: string
+  exchange: string
+  sector?: string
+  active: boolean
 }
 
-const MOCK_STOCKS: Stock[] = STOCK_TICKERS.map((ticker, index) => {
-  const sign = index % 2 === 0 ? 1 : -1
-  const changeMagnitude = randomInRange(0.1, 7.5)
+interface ApiPriceResponse {
+  id: number
+  ticker: string
+  timestamp: string
+  open?: number | null
+  close: number
+  volume?: number | null
+  interval: string
+}
 
-  return {
-    id: index + 1,
-    ticker,
-    companyName: `${ticker} Corporation`,
-    currentPrice: Number(randomInRange(12, 180).toFixed(2)),
-    volume: Math.floor(randomInRange(90_000, 7_500_000)),
-    changePercent: Number((sign * changeMagnitude).toFixed(2)),
-  }
-})
+let stockCache: Stock[] | null = null
+let cacheTimer: ReturnType<typeof setTimeout> | null = null
 
-export const fetchStocks = (page = 1, limit = 20): Promise<FetchStocksResponse> => {
+async function loadAllStocks(): Promise<Stock[]> {
+  if (stockCache) return stockCache
+
+  const [stocksRes, pricesRes] = await Promise.all([
+    apiClient.get<ApiStockResponse[]>('/market/stocks'),
+    apiClient.get<ApiPriceResponse[]>('/market/prices/latest'),
+  ])
+
+  const priceMap = new Map<string, ApiPriceResponse>(
+    pricesRes.data.map((p) => [p.ticker, p]),
+  )
+
+  const stocks: Stock[] = stocksRes.data.map((s) => {
+    const price = priceMap.get(s.ticker)
+    const close = price ? Number(price.close) : 0
+    const open = price?.open != null ? Number(price.open) : close
+    const changePercent = open > 0 ? ((close - open) / open) * 100 : 0
+
+    return {
+      id: s.id,
+      ticker: s.ticker,
+      companyName: s.companyName,
+      currentPrice: close,
+      volume: price?.volume ?? 0,
+      changePercent: Number(changePercent.toFixed(2)),
+    }
+  })
+
+  stockCache = stocks
+
+  if (cacheTimer) clearTimeout(cacheTimer)
+  cacheTimer = setTimeout(() => {
+    stockCache = null
+  }, 5 * 60 * 1000)
+
+  return stocks
+}
+
+export const fetchStocks = async (page = 1, limit = 20): Promise<FetchStocksResponse> => {
+  const allStocks = await loadAllStocks()
   const safePage = Math.max(1, page)
   const safeLimit = Math.max(1, limit)
   const start = (safePage - 1) * safeLimit
   const end = start + safeLimit
-  const totalPages = Math.ceil(MOCK_STOCKS.length / safeLimit)
+  const totalPages = Math.ceil(allStocks.length / safeLimit)
 
-  return new Promise((resolve) => {
-    const delay = Math.floor(randomInRange(500, 801))
+  return {
+    data: allStocks.slice(start, end),
+    totalPages,
+  }
+}
 
-    setTimeout(() => {
-      resolve({
-        data: MOCK_STOCKS.slice(start, end),
-        totalPages,
-      })
-    }, delay)
+export const fetchStockByTicker = async (ticker: string): Promise<Stock | null> => {
+  try {
+    const [stockRes, priceRes] = await Promise.all([
+      apiClient.get<ApiStockResponse>(`/market/stocks/${ticker}`),
+      apiClient.get<ApiPriceResponse>(`/market/stocks/${ticker}/price/latest`),
+    ])
+
+    const s = stockRes.data
+    const price = priceRes.data
+    const close = Number(price.close)
+    const open = price.open != null ? Number(price.open) : close
+    const changePercent = open > 0 ? ((close - open) / open) * 100 : 0
+
+    return {
+      id: s.id,
+      ticker: s.ticker,
+      companyName: s.companyName,
+      currentPrice: close,
+      volume: price.volume ?? 0,
+      changePercent: Number(changePercent.toFixed(2)),
+    }
+  } catch {
+    return null
+  }
+}
+
+export const fetchTopStocks = async (
+  limit = 10,
+): Promise<Array<{ ticker: string; price: number; changePct: number; spark: number[] }>> => {
+  const pricesRes = await apiClient.get<ApiPriceResponse[]>('/market/prices/latest')
+  const sorted = [...pricesRes.data]
+    .filter((p) => p.volume != null && p.volume > 0)
+    .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))
+    .slice(0, limit)
+
+  return sorted.map((p) => {
+    const close = Number(p.close)
+    const open = p.open != null ? Number(p.open) : close
+    const changePct = open > 0 ? ((close - open) / open) * 100 : 0
+    return {
+      ticker: p.ticker,
+      price: close,
+      changePct: Number(changePct.toFixed(2)),
+      spark: [],
+    }
   })
 }
+

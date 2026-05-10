@@ -2,11 +2,26 @@ from datetime import date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app import market_service, vn_index_service
+from app import analytics_service, market_service, vn_index_service
 from app.database import get_db
 from app.schemas import PriceIngest, PriceResponse, StockCreate, StockResponse
+
+
+# ── Analytics Schemas ────────────────────────────────────────────────────────
+
+class HoldingItem(BaseModel):
+    ticker: str
+    quantity: float = Field(default=0.0, ge=0)
+    avg_price: float = Field(default=0.0, ge=0)
+
+class PortfolioAnalyticsRequest(BaseModel):
+    holdings: list[HoldingItem]
+    risk_free_rate: float = Field(default=0.03, ge=0, le=1)
+    lookback_days: int = Field(default=365, ge=30, le=1825)
+    market_ticker: str = "VNINDEX"
 
 router = APIRouter(prefix="/api/market")
 
@@ -161,3 +176,33 @@ def fetch_index_data(
         "to": to_date.isoformat(),
         "ingested": count,
     }
+
+
+# ── Portfolio Analytics ───────────────────────────────────────────────────────
+
+@router.post("/analytics/portfolio")
+def compute_portfolio_analytics(
+    payload: PortfolioAnalyticsRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Compute MPT + CAPM metrics for a portfolio.
+
+    Accepts a list of holdings (ticker, quantity, avg_price) and returns:
+    - Portfolio expected return (E(Rp) = Σ wi × E(Ri))
+    - Portfolio volatility  (σp = √(wᵀ Σ w))
+    - Sharpe Ratio          ((Rp − Rf) / σp)
+    - Beta vs VN-Index      (Cov(Rp, Rm) / Var(Rm))
+    - Markowitz rebalancing suggestions (Max-Sharpe optimisation)
+    """
+    holdings_data = [
+        {"ticker": h.ticker, "quantity": h.quantity, "avg_price": h.avg_price}
+        for h in payload.holdings
+    ]
+    return analytics_service.compute_portfolio_metrics(
+        db=db,
+        holdings=holdings_data,
+        risk_free_rate=payload.risk_free_rate,
+        lookback_days=payload.lookback_days,
+        market_ticker=payload.market_ticker,
+    )
