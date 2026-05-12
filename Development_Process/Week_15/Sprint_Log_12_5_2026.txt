@@ -1,0 +1,8 @@
+Sprint log 12_5_2026
+Các thành phần cần thực hiện:
+- Chuyển đổi Multi-agents từ prototype sang main_project (tiếng Việt, sử dụng Vnstock với tiếng Việt, yfinance với tiếng Anh): Tuấn, Triết
+- Giao diện AI agent xử lý output prompt: Nghĩa
+- CI/CD, monitoring (CI: gitlab, CD: argoCD, monitoring: Air-flow, grafana, lang smith): Khôi (CI, monitoring), Tuấn (CD)
+
+
+- Biểu đạt sang word (chương 2, chương 3): Triết công áp dụng cho BE (Chương 2), Nghĩa (giao diện chương 2), Tuấn (Multi-agents), Khôi (gitlab, monitoring)
