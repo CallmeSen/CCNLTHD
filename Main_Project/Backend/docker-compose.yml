@@ -16,6 +16,7 @@ x-common-env: &common-env
   EUREKA_HOST: eureka-server
   JWT_SECRET: ${JWT_SECRET:-InvestAdvisorJwtSecretKeyMustBeAtLeast256BitsLong2024!}
   VNSTOCK_API_KEY: ${VNSTOCK_API_KEY:-}
+  MARKET_DATA_HOST: market-data-service
 
 services:
 
@@ -62,6 +63,15 @@ services:
     depends_on:
       zookeeper:
         condition: service_healthy
+    # Remove meta.properties on every startup so Kafka always reads the
+    # authoritative cluster ID from Zookeeper. This prevents
+    # InconsistentClusterIdException when the zookeeper_data volume is
+    # recreated while kafka_data still holds a stale ID.
+    command: >
+      bash -c "
+        rm -f /var/lib/kafka/data/meta.properties &&
+        /etc/confluent/docker/run
+      "
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181

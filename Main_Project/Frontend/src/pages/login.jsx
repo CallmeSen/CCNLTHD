@@ -10,16 +10,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setError('')
     try {
       await login(email, password)
       navigate('/dashboard')
     } catch (err) {
-      // handle error gracefully
-      console.error(err)
+      const msg = err?.response?.data?.message || 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -50,7 +52,7 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black border border-gray-100 rounded-md px-4 py-2 pr-10 focus:outline-none"
+                className="w-full bg-gray-50 border border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
               <button
@@ -73,6 +75,12 @@ export default function LoginPage() {
             </div>
             <p className="text-xs text-gray-500 mt-2">Mật khẩu phải nhiều hơn 8 kí tự bao gồm chữ hoa, chữ thường và số.</p>
           </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-300 text-red-700 text-sm rounded-md px-4 py-2">
+              {error}
+            </div>
+          )}
 
           <div>
             <button

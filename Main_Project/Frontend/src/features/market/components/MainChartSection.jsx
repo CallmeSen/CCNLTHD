@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Area,
   AreaChart,
@@ -8,6 +8,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { apiClient } from '../../../services/apiClient';
+
+const INDEX_TICKERS = new Set(['VNINDEX', 'VN30']);
 
 const timeframes = [
   { key: '1d', label: '1 ngày' },
@@ -17,59 +20,6 @@ const timeframes = [
   { key: '1y', label: '1 năm' },
   { key: '5y', label: '5 năm' },
   { key: 'Max', label: 'Tối đa' },
-];
-
-function createRng(seed) {
-  let s = seed >>> 0;
-  return () => {
-    s = (1664525 * s + 1013904223) >>> 0;
-    return s / 4294967296;
-  };
-}
-
-function formatDateISO(date) {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(date.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function generateChartData({
-  seed = 20260427,
-  points = 120,
-  startValue = 3920,
-  endValue = 4566.48,
-  startDateUTC = new Date(Date.UTC(2026, 0, 1)),
-} = {}) {
-  const rand = createRng(seed);
-  const data = [];
-
-  let value = startValue;
-  for (let i = 0; i < points; i += 1) {
-    const drift = (endValue - startValue) / points;
-    const noise = (rand() - 0.5) * 22; // make it gập ghềnh hơn
-    const shock = rand() < 0.12 ? (rand() - 0.5) * 70 : 0;
-    value = Math.max(2500, value + drift + noise + shock);
-
-    const day = new Date(startDateUTC);
-    day.setUTCDate(day.getUTCDate() + i);
-    data.push({ date: formatDateISO(day), value: Number(value.toFixed(2)) });
-  }
-
-  data[data.length - 1].value = endValue;
-  return data;
-}
-
-const chartData = generateChartData();
-
-const statsData = [
-  { label: 'Đóng cửa trước', value: '4.491,25' },
-  { label: 'Biên độ trong ngày', value: '4.512,20 - 4.588,10' },
-  { label: 'Biên độ 52 tuần', value: '3.620,10 - 4.690,55' },
-  { label: 'Vốn hóa', value: '40,3 nghìn tỷ ₫' },
-  { label: 'Khối lượng', value: '1,34 tỷ' },
-  { label: 'Tỷ suất cổ tức', value: '1,18%' },
-  { label: 'Chỉ số P/E', value: '19,6' },
 ];
 
 function formatVND(value, maximumFractionDigits = 2) {
@@ -99,37 +49,112 @@ function formatDateVnLong(isoDate) {
   }).format(d);
 }
 
-function CustomTooltip({ active, payload, label }) {
+function formatVolume(v) {
+  if (!v) return '—';
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)} tỷ`;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)} triệu`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)} nghìn`;
+  return String(v);
+}
+
+function CustomTooltip({ active, payload, label, isIndex }) {
   if (!active || !payload?.length) return null;
 
   const v = payload[0]?.value;
+  const formatted = isIndex
+    ? `${v?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} điểm`
+    : formatVND(v * 1000);
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm px-3 py-2">
       <div className="text-xs text-gray-500">{formatDateVnLong(label)}</div>
-      <div className="text-sm font-semibold text-gray-900">{formatVND(v)}</div>
+      <div className="text-sm font-semibold text-gray-900">{formatted}</div>
     </div>
   );
 }
 
-export default function MainChartSection() {
+export default function MainChartSection({ ticker = 'VNINDEX', tickerName }) {
   const [timeframe, setTimeframe] = useState('1m');
+  const [allData, setAllData] = useState([]);
+  const [latestBar, setLatestBar] = useState(null);
+  const [prevBar, setPrevBar] = useState(null);
+  const [updatedAt, setUpdatedAt] = useState('');
+
+  const isIndex = INDEX_TICKERS.has(ticker);
+  const displayName = tickerName ?? (ticker === 'VNINDEX' ? 'VN-Index' : ticker);
+
+  useEffect(() => {
+    setAllData([]);
+    setLatestBar(null);
+    setPrevBar(null);
+    setUpdatedAt('');
+    setTimeframe('1m');
+
+    apiClient
+      .get(`/market/stocks/${ticker}/price/daily?limit=365`)
+      .then((res) => {
+        if (!Array.isArray(res.data) || res.data.length === 0) return;
+        const sorted = [...res.data].reverse();
+        const mapped = sorted.map((r) => ({
+          date: r.timestamp.split('T')[0],
+          value: Number(r.close),
+          high: Number(r.high ?? r.close),
+          low: Number(r.low ?? r.close),
+          volume: Number(r.volume ?? 0),
+        }));
+        setAllData(mapped);
+        const last = mapped[mapped.length - 1];
+        const prev = mapped[mapped.length - 2] ?? null;
+        setLatestBar(last);
+        setPrevBar(prev);
+        setUpdatedAt(last.date);
+      })
+      .catch(() => {});
+  }, [ticker]);
 
   const visibleData = useMemo(() => {
     const countByTimeframe = {
-      '1d': 24,
-      '5d': 40,
-      '1m': 60,
-      '6m': 120,
-      '1y': 120,
-      '5y': 120,
-      Max: chartData.length,
+      '1d': 1,
+      '5d': 5,
+      '1m': 22,
+      '6m': 130,
+      '1y': 252,
+      '5y': allData.length,
+      Max: allData.length,
     };
+    const count = countByTimeframe[timeframe] ?? 22;
+    return allData.slice(-count);
+  }, [timeframe, allData]);
 
-    const count = countByTimeframe[timeframe] ?? 20;
-    return chartData.slice(-count);
-  }, [timeframe]);
+  const currentValue = latestBar?.value ?? 0;
+  const prevClose = prevBar?.value ?? currentValue;
+  const changePct = prevClose > 0 ? ((currentValue - prevClose) / prevClose) * 100 : 0;
+  const isUp = changePct >= 0;
 
-  const currentValue = 4566.48;
+  // Price formatter: index shows points, stocks show VND
+  const fmtPrice = (v) =>
+    isIndex
+      ? v.toLocaleString('vi-VN', { maximumFractionDigits: 2 })
+      : formatVND(v * 1000);
+
+  // 52-week high / low
+  const high52w = allData.length > 0 ? Math.max(...allData.map((d) => d.high)) : 0;
+  const low52w = allData.length > 0 ? Math.min(...allData.map((d) => d.low)) : 0;
+
+  const statsRows = latestBar
+    ? [
+        { label: 'Đóng cửa trước', value: fmtPrice(prevClose) },
+        { label: 'Biên độ trong ngày', value: `${fmtPrice(latestBar.low)} – ${fmtPrice(latestBar.high)}` },
+        { label: 'Biên độ 52 tuần', value: `${fmtPrice(low52w)} – ${fmtPrice(high52w)}` },
+        { label: 'Khối lượng', value: formatVolume(latestBar.volume) },
+        { label: '% Thay đổi hôm nay', value: `${isUp ? '+' : ''}${changePct.toFixed(2)}%` },
+      ]
+    : [
+        { label: 'Đóng cửa trước', value: '...' },
+        { label: 'Biên độ trong ngày', value: '...' },
+        { label: 'Biên độ 52 tuần', value: '...' },
+        { label: 'Khối lượng', value: '...' },
+        { label: '% Thay đổi hôm nay', value: '...' },
+      ];
 
   return (
     <section className="grid grid-cols-12 gap-6">
@@ -145,8 +170,8 @@ export default function MainChartSection() {
                 </svg>
               </div>
               <div>
-                <div className="text-sm font-extrabold text-black">VN-Index</div>
-                <div className="text-xs text-black font-medium">Tổng quan thị trường</div>
+                <div className="text-sm font-extrabold text-black">{displayName}</div>
+                <div className="text-xs text-black font-medium">{isIndex ? 'Tổng quan thị trường' : 'Biểu đồ giá'}</div>
               </div>
             </div>
 
@@ -174,12 +199,18 @@ export default function MainChartSection() {
           <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
             <div>
               <div className="flex items-center gap-3">
-                <div className="text-4xl font-bold text-gray-900">{formatVND(currentValue)}</div>
-                <div className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold">
-                  +1.66%
+                <div className="text-4xl font-bold text-gray-900">
+                  {isIndex
+                    ? currentValue.toLocaleString('vi-VN', { maximumFractionDigits: 2 })
+                    : (currentValue * 1000).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + ' đ'}
+                </div>
+                <div className={`px-2.5 py-1 rounded-full text-sm font-semibold ${isUp ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                  {isUp ? '+' : ''}{changePct.toFixed(2)}%
                 </div>
               </div>
-              <div className="mt-1 text-xs text-gray-700 font-medium">Cập nhật: 27/04/2026 · 15:30 (GMT+7)</div>
+              <div className="mt-1 text-xs text-gray-700 font-medium">
+                {updatedAt ? `Cập nhật: ${formatDateVnLong(updatedAt)} · Đóng cửa phiên giao dịch` : 'Đang tải...'}
+              </div>
             </div>
           </div>
 
@@ -208,12 +239,16 @@ export default function MainChartSection() {
                   tickLine={false}
                   axisLine={false}
                   tick={{ fontSize: 12, fill: '#6B7280' }}
-                  width={48}
-                  tickFormatter={(v) => formatVND(v, 0)}
-                  domain={['dataMin - 20', 'dataMax + 20']}
+                  width={isIndex ? 60 : 72}
+                  tickFormatter={(v) =>
+                    isIndex
+                      ? v.toLocaleString('vi-VN', { maximumFractionDigits: 0 })
+                      : `${(v * 1000).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}`
+                  }
+                  domain={[(min) => Math.floor(min * 0.995), (max) => Math.ceil(max * 1.005)]}
                 />
 
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#E5E7EB', strokeDasharray: '4 4' }} />
+                <Tooltip content={<CustomTooltip isIndex={isIndex} />} cursor={{ stroke: '#E5E7EB', strokeDasharray: '4 4' }} />
 
                 <Area
                   type="linear"
@@ -258,12 +293,12 @@ export default function MainChartSection() {
           </div>
 
           <div className="px-4 pb-2">
-            {statsData.map((row, idx) => (
+            {statsRows.map((row, idx) => (
               <div
                 key={row.label}
                 className={[
                   'py-3 flex items-center justify-between gap-4',
-                  idx !== statsData.length - 1 ? 'border-b border-gray-100' : '',
+                  idx !== statsRows.length - 1 ? 'border-b border-gray-100' : '',
                 ].join(' ')}
               >
                 <div className="text-sm font-medium text-gray-900">{row.label}</div>
@@ -286,19 +321,17 @@ export default function MainChartSection() {
               </svg>
             </div>
             <div>
-              <div className="text-xs text-gray-700 font-medium">Vốn hóa</div>
-              <div className="text-2xl font-extrabold text-black">40,3 nghìn tỷ ₫</div>
+              <div className="text-xs text-gray-700 font-medium">Khối lượng giao dịch</div>
+              <div className="text-2xl font-extrabold text-black">{formatVolume(latestBar?.volume ?? 0)}</div>
             </div>
           </div>
 
           <div className="flex items-end gap-1 h-12" aria-hidden="true">
-            <div className="w-2 h-4 rounded-sm bg-emerald-200" />
-            <div className="w-2 h-7 rounded-sm bg-emerald-200" />
-            <div className="w-2 h-5 rounded-sm bg-emerald-200" />
-            <div className="w-2 h-9 rounded-sm bg-emerald-200" />
-            <div className="w-2 h-6 rounded-sm bg-emerald-200" />
-            <div className="w-2 h-11 rounded-sm bg-emerald-200" />
-            <div className="w-2 h-8 rounded-sm bg-emerald-200" />
+            {allData.slice(-7).map((d, i) => {
+              const maxVol = Math.max(...allData.slice(-7).map((x) => x.volume), 1);
+              const h = Math.max(4, Math.round((d.volume / maxVol) * 44));
+              return <div key={i} className="w-2 rounded-sm bg-emerald-200" style={{ height: `${h}px` }} />;
+            })}
           </div>
         </div>
       </div>

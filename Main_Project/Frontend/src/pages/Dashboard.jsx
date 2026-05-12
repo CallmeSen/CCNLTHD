@@ -7,6 +7,8 @@ import { fetchTopStocks } from '../services/stockApi';
 
 export default function Dashboard() {
   const [topStocksData, setTopStocksData] = useState(fallbackTopStocks);
+  const [selectedTicker, setSelectedTicker] = useState('VNINDEX');
+  const [selectedTickerName, setSelectedTickerName] = useState('VN-Index');
 
   useEffect(() => {
     fetchTopStocks(10)
@@ -18,10 +20,19 @@ export default function Dashboard() {
       });
   }, []);
 
+  const handleSelectTicker = (ticker, name) => {
+    setSelectedTicker(ticker);
+    setSelectedTickerName(name ?? ticker);
+  };
+
   return (
     <div className="space-y-6">
-      <TopStocksCarousel items={topStocksData} />
-      <MainChartSection />
+      <TopStocksCarousel
+        items={topStocksData}
+        selectedTicker={selectedTicker}
+        onSelectTicker={handleSelectTicker}
+      />
+      <MainChartSection ticker={selectedTicker} tickerName={selectedTickerName} />
     </div>
   );
 }

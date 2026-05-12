@@ -1,5 +1,10 @@
 import { apiClient } from './apiClient'
 
+/** VCI vnstock returns individual stock prices in thousands of VND (e.g. 71.0 = 71,000 đ) */
+const INDEX_TICKERS = new Set(['VNINDEX', 'VN30'])
+const toVND = (ticker: string, rawPrice: number): number =>
+  INDEX_TICKERS.has(ticker) ? rawPrice : rawPrice * 1000
+
 export interface Stock {
   id: number
   ticker: string
@@ -58,7 +63,7 @@ async function loadAllStocks(): Promise<Stock[]> {
       id: s.id,
       ticker: s.ticker,
       companyName: s.companyName,
-      currentPrice: close,
+      currentPrice: toVND(s.ticker, close),
       volume: price?.volume ?? 0,
       changePercent: Number(changePercent.toFixed(2)),
     }
@@ -105,7 +110,7 @@ export const fetchStockByTicker = async (ticker: string): Promise<Stock | null> 
       id: s.id,
       ticker: s.ticker,
       companyName: s.companyName,
-      currentPrice: close,
+      currentPrice: toVND(s.ticker, close),
       volume: price.volume ?? 0,
       changePercent: Number(changePercent.toFixed(2)),
     }
@@ -129,7 +134,7 @@ export const fetchTopStocks = async (
     const changePct = open > 0 ? ((close - open) / open) * 100 : 0
     return {
       ticker: p.ticker,
-      price: close,
+      price: toVND(p.ticker, close),
       changePct: Number(changePct.toFixed(2)),
       spark: [],
     }

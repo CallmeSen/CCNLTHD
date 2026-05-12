@@ -64,7 +64,16 @@ def fetch_stock(ticker: str, interval: str, from_date: date, to_date: date) -> i
     try:
         stock_row = db.query(Stock).filter(Stock.ticker == upper_ticker).first()
         if not stock_row:
-            raise ValueError(f"Stock '{upper_ticker}' not found. Seed it first via POST /api/market/stocks.")
+            # Auto-seed the stock with placeholder metadata so history can be fetched
+            logger.info("Auto-seeding stock record for %s", upper_ticker)
+            new_stock = Stock(
+                ticker=upper_ticker,
+                company_name=upper_ticker,
+                exchange="HOSE",
+                active=True,
+            )
+            db.add(new_stock)
+            db.commit()
     finally:
         db.close()
 
@@ -93,6 +102,10 @@ def fetch_stock(ticker: str, interval: str, from_date: date, to_date: date) -> i
             ts = row["time"]
             if hasattr(ts, "to_pydatetime"):
                 ts = ts.to_pydatetime()
+
+            if market_service.price_exists(db, upper_ticker, upper_interval, ts):
+                continue
+
             payload = PriceIngest(
                 ticker=upper_ticker,
                 timestamp=ts,
@@ -103,9 +116,12 @@ def fetch_stock(ticker: str, interval: str, from_date: date, to_date: date) -> i
                 volume=int(row.get("volume", 0) or 0),
                 interval=upper_interval,
             )
-            result = market_service.ingest_price(db, payload)
-            if result:
+            try:
+                market_service.ingest_price(db, payload)
                 count += 1
+            except Exception as exc:
+                logger.warning("Failed to ingest %s @ %s: %s", upper_ticker, ts, exc)
+                db.rollback()
     finally:
         db.close()
 

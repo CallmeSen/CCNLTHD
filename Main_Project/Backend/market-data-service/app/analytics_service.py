@@ -99,7 +99,11 @@ def compute_portfolio_metrics(
 
     tickers = [h["ticker"].upper() for h in holdings]
     quantities = [float(h.get("quantity", 0)) for h in holdings]
-    avg_prices = [float(h.get("avg_price", 0)) for h in holdings]
+    # avg_price is stored in VND by the portfolio service (e.g. 69000),
+    # but stock_prices.close is in VCI thousands format (e.g. 69.0 = 69,000 VND).
+    # Normalise avg_price to thousands so all internal calculations use the same unit.
+    avg_prices_raw = [float(h.get("avg_price", 0)) for h in holdings]
+    avg_prices = [ap / 1000.0 if ap > 1000 else ap for ap in avg_prices_raw]
 
     # ── 1. Current values & weights ──────────────────────────────────────────
     # Attempt to get latest close price from DB; fall back to avg_price.
@@ -182,8 +186,11 @@ def compute_portfolio_metrics(
     beta = _compute_beta(db, avail_weights, ret, available, lookback_days, market_ticker)
 
     # ── P&L ──────────────────────────────────────────────────────────────────
+    # Both total_value and cost_basis are in "thousands of VND" (VCI format).
     cost_basis = float(sum(q * a for q, a in zip(quantities, avg_prices)))
-    pnl_vnd = total_value - cost_basis
+    pnl_thousands = total_value - cost_basis
+    # Convert to real VND for the API response
+    PRICE_MULTIPLIER = 1000
 
     # ── Per-ticker metrics ────────────────────────────────────────────────────
     metrics_per_ticker = []
@@ -200,9 +207,9 @@ def compute_portfolio_metrics(
         metrics_per_ticker.append({
             "ticker": t,
             "quantity": int(qty),
-            "avg_price": ap,
-            "current_price": cp,
-            "market_value": float(qty * cp),
+            "avg_price": round(ap * PRICE_MULTIPLIER, 2),
+            "current_price": round(cp * PRICE_MULTIPLIER, 2),
+            "market_value": round(qty * cp * PRICE_MULTIPLIER, 2),
             "weight": round(w * 100, 2),
             "pnl_pct": round(((cp - ap) / ap * 100) if ap > 0 else 0.0, 2),
             "expected_return_annual_pct": round(er * 100, 2),
@@ -223,8 +230,8 @@ def compute_portfolio_metrics(
     )
 
     return {
-        "total_value_vnd": round(total_value, 2),
-        "total_pnl_vnd": round(pnl_vnd, 2),
+        "total_value_vnd": round(total_value * PRICE_MULTIPLIER, 2),
+        "total_pnl_vnd": round(pnl_thousands * PRICE_MULTIPLIER, 2),
         "expected_return_annual_pct": round(portfolio_expected_return * 100, 2),
         "volatility_annual_pct": round(portfolio_volatility * 100, 2),
         "sharpe_ratio": round(sharpe, 4),
@@ -373,9 +380,11 @@ def _fallback_metrics(
     """
     When there is no historical price data in the DB, return deterministic
     estimates so the frontend always gets sensible numbers to display.
+    avg_prices and current_prices are in VCI thousands format here.
     """
+    PRICE_MULTIPLIER = 1000
     cost_basis = float(sum(q * a for q, a in zip(quantities, avg_prices)))
-    pnl_vnd = total_value - cost_basis
+    pnl_thousands = total_value - cost_basis
 
     metrics_per_ticker = []
     for i, t in enumerate(tickers):
@@ -387,9 +396,9 @@ def _fallback_metrics(
         metrics_per_ticker.append({
             "ticker": t,
             "quantity": int(qty),
-            "avg_price": ap,
-            "current_price": cp,
-            "market_value": float(qty * cp),
+            "avg_price": round(ap * PRICE_MULTIPLIER, 2),
+            "current_price": round(cp * PRICE_MULTIPLIER, 2),
+            "market_value": round(qty * cp * PRICE_MULTIPLIER, 2),
             "weight": round(w * 100, 2),
             "pnl_pct": round(pnl_pct, 2),
             "expected_return_annual_pct": 0.0,
@@ -397,8 +406,8 @@ def _fallback_metrics(
         })
 
     return {
-        "total_value_vnd": round(total_value, 2),
-        "total_pnl_vnd": round(pnl_vnd, 2),
+        "total_value_vnd": round(total_value * PRICE_MULTIPLIER, 2),
+        "total_pnl_vnd": round(pnl_thousands * PRICE_MULTIPLIER, 2),
         "expected_return_annual_pct": 0.0,
         "volatility_annual_pct": 0.0,
         "sharpe_ratio": 0.0,

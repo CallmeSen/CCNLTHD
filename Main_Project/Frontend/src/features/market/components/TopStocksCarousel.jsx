@@ -48,7 +48,7 @@ function Sparkline({ values, strokeClassName }) {
   );
 }
 
-function StockCard({ item }) {
+function StockCard({ item, isSelected, onSelect }) {
   const isUp = item.changePct >= 0;
   const changeText = `${isUp ? '+' : ''}${item.changePct.toFixed(2)}%`;
 
@@ -58,7 +58,16 @@ function StockCard({ item }) {
     : 'bg-rose-50 text-rose-700';
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex items-center justify-between gap-3">
+    <button
+      type="button"
+      onClick={() => onSelect?.(item.ticker, item.name)}
+      className={[
+        'w-full text-left bg-white border rounded-xl shadow-sm p-4 flex items-center justify-between gap-3 transition-all',
+        isSelected
+          ? 'border-emerald-400 ring-2 ring-emerald-200'
+          : 'border-gray-200 hover:border-gray-300 hover:shadow-md cursor-pointer',
+      ].join(' ')}
+    >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <div className="text-sm font-semibold text-gray-900">{item.ticker}</div>
@@ -70,11 +79,11 @@ function StockCard({ item }) {
       <div className={`shrink-0 ${changeClass}`}>
         <Sparkline values={item.spark} strokeClassName={changeClass} />
       </div>
-    </div>
+    </button>
   );
 }
 
-export default function TopStocksCarousel({ title = 'Top 10 cổ phiếu nổi bật trong ngày', items = [] }) {
+export default function TopStocksCarousel({ title = 'Top 10 cổ phiếu nổi bật trong ngày', items = [], selectedTicker, onSelectTicker }) {
   const scrollerRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -171,7 +180,11 @@ export default function TopStocksCarousel({ title = 'Top 10 cổ phiếu nổi b
         >
           {items.map((item) => (
             <div key={item.ticker} className="min-w-[220px] snap-start">
-              <StockCard item={item} />
+              <StockCard
+                item={item}
+                isSelected={item.ticker === selectedTicker}
+                onSelect={onSelectTicker}
+              />
             </div>
           ))}
         </div>

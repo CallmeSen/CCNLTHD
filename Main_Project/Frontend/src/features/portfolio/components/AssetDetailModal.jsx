@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { apiClient } from '../../../services/apiClient';
 
 function CloseIcon(props) {
   return (
@@ -58,39 +59,96 @@ function CustomTooltip({ active, payload, label }) {
 export default function AssetDetailModal({ isOpen, onClose, asset }) {
   const ticker = asset?.ticker ?? 'FPT';
   const companyName = asset?.companyName ?? `Công ty CP ${ticker}`;
-  const currentPrice = Number(asset?.currentPrice ?? 105000);
-  const changePct = Number(asset?.changePct ?? 2.5);
+  const currentPrice = Number(asset?.currentPrice ?? 0);
 
-  const mockNews = useMemo(
-    () => [
-      {
-        title: `${ticker}: Kết quả kinh doanh quý gần nhất vượt kỳ vọng, dòng tiền quay lại nhóm tăng trưởng`,
-        time: '2 giờ trước',
-        sentiment: 'positive',
-      },
-      {
-        title: `Thị trường rung lắc: Áp lực chốt lời tăng, ${ticker} giảm nhẹ nhưng vẫn giữ nền hỗ trợ`,
-        time: 'Hôm nay, 09:15',
-        sentiment: 'neutral',
-      },
-      {
-        title: `${ticker}: Tin đồn siết biên lợi nhuận khiến nhà đầu tư thận trọng, khối lượng giao dịch tăng`,
-        time: 'Hôm qua, 16:40',
-        sentiment: 'negative',
-      },
-    ],
-    [ticker]
-  );
+  const [priceHistory, setPriceHistory] = useState([]);
+  const [todayChangePct, setTodayChangePct] = useState(Number(asset?.changePct ?? 0));
+  const [signals, setSignals] = useState([]);
+  const [loadingChart, setLoadingChart] = useState(false);
 
-  const mockPriceHistory = useMemo(() => {
-    const multipliers = [0.92, 0.94, 0.95, 0.98, 0.97, 1.0, 1.03, 1.01, 1.04, 1.06, 1.05, 1.07];
-    const labels = ['01/04', '03/04', '05/04', '07/04', '09/04', '11/04', '13/04', '15/04', '17/04', '19/04', '21/04', '23/04'];
+  // Fetch real 30-day price history whenever the modal opens for a ticker
+  useEffect(() => {
+    if (!isOpen || !ticker) return;
 
-    return labels.map((date, idx) => ({
-      date,
-      price: Math.round(currentPrice * multipliers[idx]),
-    }));
-  }, [currentPrice]);
+    let cancelled = false;
+    setLoadingChart(true);
+    setPriceHistory([]);
+    setSignals([]);
+
+    apiClient
+      .get(`/market/stocks/${ticker}/price/daily?limit=30`)
+      .then((res) => {
+        if (cancelled || !Array.isArray(res.data) || res.data.length === 0) return;
+
+        // API returns newest-first — reverse to chronological
+        const bars = [...res.data].reverse();
+
+        const mapped = bars.map((r) => {
+          const dateStr = r.timestamp.split('T')[0]; // "2026-04-25"
+          const [, mm, dd] = dateStr.split('-');
+          return {
+            date: `${dd}/${mm}`,
+            price: Math.round(Number(r.close) * 1000),
+            open: Math.round(Number(r.open ?? r.close) * 1000),
+          };
+        });
+
+        setPriceHistory(mapped);
+
+        // Today's change from last bar
+        const last = mapped[mapped.length - 1];
+        if (last && last.open > 0) {
+          const pct = ((last.price - last.open) / last.open) * 100;
+          setTodayChangePct(Number(pct.toFixed(2)));
+        }
+
+        // Compute analysis signals from price data
+        const computedSignals = [];
+        const prices = mapped.map((p) => p.price);
+
+        if (prices.length >= 7) {
+          const last7 = prices.slice(-7);
+          const ret7 = ((last7[last7.length - 1] - last7[0]) / last7[0]) * 100;
+          computedSignals.push({
+            title: `Xu hướng ngắn hạn (7 phiên): ${ret7 >= 0 ? '+' : ''}${ret7.toFixed(2)}%`,
+            detail: ret7 >= 2 ? 'Đà tăng mạnh, dòng tiền tích cực' : ret7 <= -2 ? 'Áp lực bán tăng, cần theo dõi' : 'Giao dịch ổn định, chưa có xu hướng rõ',
+            sentiment: ret7 >= 2 ? 'positive' : ret7 <= -2 ? 'negative' : 'neutral',
+          });
+        }
+
+        if (prices.length >= 20) {
+          const last20 = prices.slice(-20);
+          const ret20 = ((last20[last20.length - 1] - last20[0]) / last20[0]) * 100;
+          computedSignals.push({
+            title: `Xu hướng trung hạn (20 phiên): ${ret20 >= 0 ? '+' : ''}${ret20.toFixed(2)}%`,
+            detail: ret20 >= 5 ? 'Cổ phiếu đang trong uptrend, vượt MA20' : ret20 <= -5 ? 'Cổ phiếu dưới MA20, tâm lý thận trọng' : 'Đang tích lũy quanh vùng MA20',
+            sentiment: ret20 >= 5 ? 'positive' : ret20 <= -5 ? 'negative' : 'neutral',
+          });
+        }
+
+        if (prices.length >= 5) {
+          // Simple volatility: std dev of daily returns (last 14 bars)
+          const slice = prices.slice(-14);
+          const dailyRets = slice.slice(1).map((p, i) => (p - slice[i]) / slice[i]);
+          const mean = dailyRets.reduce((s, r) => s + r, 0) / dailyRets.length;
+          const variance = dailyRets.reduce((s, r) => s + (r - mean) ** 2, 0) / dailyRets.length;
+          const vol = Math.sqrt(variance) * 100;
+          computedSignals.push({
+            title: `Biến động giá (14 phiên): ${vol.toFixed(2)}% / phiên`,
+            detail: vol > 2 ? 'Biến động cao, rủi ro ngắn hạn lớn' : vol > 1 ? 'Biến động trung bình, phù hợp giao dịch ngắn hạn' : 'Biến động thấp, phù hợp nắm giữ trung dài hạn',
+            sentiment: vol > 2 ? 'negative' : vol < 1 ? 'positive' : 'neutral',
+          });
+        }
+
+        setSignals(computedSignals);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingChart(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [isOpen, ticker]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -105,14 +163,21 @@ export default function AssetDetailModal({ isOpen, onClose, asset }) {
 
   if (!isOpen) return null;
 
-  const changeColor = changePct >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
-  const changeLabel = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`;
+  const changeColor = todayChangePct >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
+  const changeLabel = `${todayChangePct >= 0 ? '+' : ''}${todayChangePct.toFixed(2)}%`;
 
   const sentimentMeta = {
     positive: { label: 'Tích cực', className: 'bg-emerald-50 text-emerald-700' },
     negative: { label: 'Tiêu cực', className: 'bg-red-50 text-red-700' },
     neutral: { label: 'Trung lập', className: 'bg-gray-100 text-gray-700' },
   };
+
+  // Dynamic Y-axis domain based on real price data
+  const prices = priceHistory.map((p) => p.price);
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
+  const yPad = Math.round((maxPrice - minPrice) * 0.1) || 1000;
+  const yDomain = [minPrice - yPad, maxPrice + yPad];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 p-4 sm:p-6" onClick={onClose}>
@@ -146,54 +211,63 @@ export default function AssetDetailModal({ isOpen, onClose, asset }) {
 
         <div className="px-6 py-5">
           <section className="rounded-xl border border-gray-200 bg-white p-4">
-            <div className="mb-3 text-sm font-extrabold text-black">Lịch sử giá gần đây</div>
+            <div className="mb-3 text-sm font-extrabold text-black">Lịch sử giá gần đây (30 phiên)</div>
             <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={mockPriceHistory} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
-                  <CartesianGrid stroke="#E5E7EB" strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fill: '#6B7280', fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={{ stroke: '#E5E7EB' }}
-                    tickFormatter={formatShortDate}
-                  />
-                  <YAxis
-                    tick={{ fill: '#6B7280', fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                    width={72}
-                    tickFormatter={(value) => Intl.NumberFormat('vi-VN').format(value)}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line type="monotone" dataKey="price" stroke="#3B82F6" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              {loadingChart ? (
+                <div className="h-full flex items-center justify-center text-sm text-gray-400">Đang tải dữ liệu...</div>
+              ) : priceHistory.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-sm text-gray-400">Chưa có dữ liệu giá</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={priceHistory} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                    <CartesianGrid stroke="#E5E7EB" strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fill: '#6B7280', fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#E5E7EB' }}
+                      minTickGap={16}
+                    />
+                    <YAxis
+                      tick={{ fill: '#6B7280', fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={72}
+                      domain={yDomain}
+                      tickFormatter={(value) => Intl.NumberFormat('vi-VN').format(value)}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line type="monotone" dataKey="price" stroke="#3B82F6" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </section>
 
           <section className="mt-6 rounded-xl border border-gray-200 bg-white p-4">
-            <div className="mb-3 text-sm font-extrabold text-black">Tin tức &amp; Phân tích tâm lý</div>
-            <ul className="space-y-3">
-              {mockNews.map((item, idx) => {
-                const meta = sentimentMeta[item.sentiment] ?? sentimentMeta.neutral;
-
-                return (
-                  <li key={`${item.time}-${idx}`} className="rounded-lg border border-gray-200 p-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-gray-900">{item.title}</div>
-                        <div className="mt-1 text-xs text-gray-500">{item.time}</div>
+            <div className="mb-3 text-sm font-extrabold text-black">Phân tích xu hướng giá</div>
+            {signals.length === 0 ? (
+              <div className="text-sm text-gray-400">{loadingChart ? 'Đang phân tích...' : 'Chưa đủ dữ liệu để phân tích'}</div>
+            ) : (
+              <ul className="space-y-3">
+                {signals.map((item, idx) => {
+                  const meta = sentimentMeta[item.sentiment] ?? sentimentMeta.neutral;
+                  return (
+                    <li key={idx} className="rounded-lg border border-gray-200 p-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900">{item.title}</div>
+                          <div className="mt-1 text-xs text-gray-500">{item.detail}</div>
+                        </div>
+                        <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${meta.className}`}>
+                          {meta.label}
+                        </span>
                       </div>
-
-                      <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${meta.className}`}>
-                        {meta.label}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
         </div>
 

@@ -64,6 +64,15 @@ public class PortfolioController {
         return ResponseEntity.ok(portfolioService.addStock(portfolioId, userId, request));
     }
 
+    /** Soft-delete a portfolio (sets active = false). */
+    @DeleteMapping("/{portfolioId}")
+    public ResponseEntity<Void> deletePortfolio(
+            @RequestHeader("X-User-Id") UUID userId,
+            @PathVariable UUID portfolioId) {
+        portfolioService.deletePortfolio(portfolioId, userId);
+        return ResponseEntity.noContent().build();
+    }
+
     /** Remove a stock ticker from this portfolio's watchlist. */
     @DeleteMapping("/{portfolioId}/stocks/{ticker}")
     public ResponseEntity<PortfolioDto> removeStock(

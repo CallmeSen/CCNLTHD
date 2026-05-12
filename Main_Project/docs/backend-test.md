@@ -875,3 +875,20 @@ Fix sequence used here:
 3. Reload Eureka after the clients finish registering.
 
 After that, all services appeared in Eureka as expected.
+
+## 16. Scrape Data using python script
+
+# Install dependency (just requests)
+pip install requests
+
+# 1-year history (default — same as what was already seeded)
+python "Main_Project/Python Script/scrape_stock_history.py"
+
+# 5-year history
+python "Main_Project/Python Script/scrape_stock_history.py" --years 5
+
+# Custom date range
+python "Main_Project/Python Script/scrape_stock_history.py" --from 2021-01-01 --to 2026-05-11
+
+# Also save raw JSON responses
+python "Main_Project/Python Script/scrape_stock_history.py" --years 5 --save-json

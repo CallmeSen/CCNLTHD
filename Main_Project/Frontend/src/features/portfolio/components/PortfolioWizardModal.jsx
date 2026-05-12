@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { apiClient } from '../../../services/apiClient';
 import { usePortfolio } from '../context/PortfolioContext';
 
 const ANALYSIS_MESSAGES = [
@@ -109,20 +110,21 @@ function buildInitialEditableHoldings(riskLevel) {
   }));
 }
 
-function buildAssetsFromHoldings(holdings, budgetValue) {
+function buildAssetsFromHoldings(holdings, budgetValue, livePrices = {}) {
   return holdings.map((holding) => {
+    // Use real market price if available; fall back to hardcoded placeholder
+    const realPrice = livePrices[holding.ticker] ?? holding.avgPrice;
     const capital = Math.round((budgetValue * holding.allocation) / 100);
-    const quantity = Math.max(1, Math.floor(capital / holding.avgPrice));
-    const currentPrice = Math.round(holding.avgPrice * (1 + holding.growth));
-    const pnl = Number((((currentPrice - holding.avgPrice) / holding.avgPrice) * 100).toFixed(2));
+    const quantity = Math.max(1, Math.floor(capital / realPrice));
 
     return {
       ticker: holding.ticker,
       quantity,
-      avgPrice: holding.avgPrice,
-      currentPrice,
+      // avgPrice = giá vốn = giá thị trường lúc tạo (giả định mua tại giá hôm nay)
+      avgPrice: realPrice,
+      currentPrice: realPrice,
       allocation: holding.allocation,
-      pnl,
+      pnl: 0, // P&L = 0 ngay lúc tạo vì mua đúng giá thị trường
     };
   });
 }
@@ -141,6 +143,8 @@ export default function PortfolioWizardModal({ open, onClose }) {
   const [isAddingStock, setIsAddingStock] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageIndex, setMessageIndex] = useState(0);
+  // Real market prices fetched from API: { ticker -> price in VND }
+  const [livePrices, setLivePrices] = useState({});
   const riskLabels = ['An toàn', 'Cân bằng', 'Mạo hiểm'];
 
   const currentMessage = useMemo(() => ANALYSIS_MESSAGES[messageIndex % ANALYSIS_MESSAGES.length], [messageIndex]);
@@ -194,6 +198,27 @@ export default function PortfolioWizardModal({ open, onClose }) {
     setProposedStocks(buildInitialEditableHoldings(riskLevel));
     setIsAddingStock(false);
     setSearchQuery('');
+  }, [open]);
+
+  // Fetch real market prices when wizard opens → replace hardcoded avgPrice
+  useEffect(() => {
+    if (!open) return;
+    apiClient
+      .get('/market/prices/latest')
+      .then((res) => {
+        const map = {};
+        for (const item of res.data) {
+          const raw = Number(item.close);
+          if (raw > 0) {
+            // VCI returns prices in thousands of VND for individual stocks
+            map[item.ticker] = Math.round(raw * 1000);
+          }
+        }
+        setLivePrices(map);
+      })
+      .catch(() => {
+        // Non-critical: wizard will fall back to hardcoded placeholder prices
+      });
   }, [open]);
 
   useEffect(() => {
@@ -264,7 +289,7 @@ export default function PortfolioWizardModal({ open, onClose }) {
 
     const parsedBudget = Number(budget);
     const safeBudget = Number.isFinite(parsedBudget) && parsedBudget > 0 ? parsedBudget : 50000000;
-    const assets = buildAssetsFromHoldings(proposedStocks, safeBudget);
+    const assets = buildAssetsFromHoldings(proposedStocks, safeBudget, livePrices);
 
     const newPortfolio = {
       id: `pw-${Date.now()}`,
@@ -528,7 +553,14 @@ export default function PortfolioWizardModal({ open, onClose }) {
                                   <div className="text-sm font-semibold text-gray-900">{item.ticker}</div>
                                   <div className="text-xs text-gray-500">{item.sector}</div>
                                 </div>
-                                <span className="text-xs font-semibold text-blue-600">+ Thêm</span>
+                                <div className="text-right">
+                                  {livePrices[item.ticker] ? (
+                                    <div className="text-xs font-semibold text-gray-700">
+                                      {Intl.NumberFormat('vi-VN').format(livePrices[item.ticker])}đ
+                                    </div>
+                                  ) : null}
+                                  <span className="text-xs font-semibold text-blue-600">+ Thêm</span>
+                                </div>
                               </button>
                             </li>
                           ))}

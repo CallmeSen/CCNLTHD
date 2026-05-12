@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Area,
   AreaChart,
@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { usePortfolio } from '../context/PortfolioContext';
+import { apiClient } from '../../../services/apiClient';
 import MetricsBar from './MetricsBar';
 import AssetDetailModal from './AssetDetailModal';
 
@@ -39,20 +40,34 @@ function dinhDangPhanTram(value) {
   return `${sign}${value.toFixed(2)}%`;
 }
 
-function taoDuLieuBienDongTrongNgay(seedValue) {
-  const base = seedValue ?? 1200000;
+// Generate sparkline that visually reflects direction: starts at prevValue, ends at currentValue
+// VN trading session: 09:00–11:30 (ATO+morning), 13:00–15:30 (afternoon)
+// Map 24 points evenly across that 6h window
+function tinhGioPhien(index, total) {
+  // Session start 9:00, end 15:30 → 390 minutes
+  const SESSION_START_MIN = 9 * 60;      // 540
+  const SESSION_END_MIN = 15 * 60 + 30;  // 930
+  const totalMin = SESSION_END_MIN - SESSION_START_MIN;
+  const minOffset = Math.round((index / (total - 1)) * totalMin);
+  const absMin = SESSION_START_MIN + minOffset;
+  const h = Math.floor(absMin / 60).toString().padStart(2, '0');
+  const m = (absMin % 60).toString().padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function taoDuLieuBienDongTrongNgay(currentValue, changeVnd) {
+  const prevValue = currentValue - changeVnd;
   const points = 24;
   const data = [];
-  let v = base * 0.6;
-
+  const noise = Math.abs(changeVnd) * 0.3 || currentValue * 0.005;
   for (let i = 0; i < points; i += 1) {
-    const noise = (Math.random() - 0.5) * (base * 0.08);
-    const drift = base / points;
-    v = Math.max(0, v + drift + noise);
-    data.push({ t: i, v: Math.round(v) });
+    const progress = i / (points - 1);
+    const trend = prevValue + changeVnd * progress;
+    const jitter = (Math.random() - 0.5) * noise;
+    data.push({ t: tinhGioPhien(i, points), v: Math.round(trend + jitter) });
   }
-
-  data[data.length - 1].v = base;
+  // Pin last point to exact current value
+  data[data.length - 1].v = Math.round(currentValue);
   return data;
 }
 
@@ -70,8 +85,10 @@ function TooltipPie({ active, payload }) {
 function TooltipSparkline({ active, payload }) {
   if (!active || !payload?.length) return null;
   const v = payload[0]?.value;
+  const t = payload[0]?.payload?.t;
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm px-3 py-2">
+      {t && <div className="text-xs text-gray-400 mb-0.5">{t}</div>}
       <div className="text-xs text-gray-500">Biến động</div>
       <div className="text-sm font-semibold text-gray-900">{dinhDangTienVnd(v)}</div>
     </div>
@@ -89,6 +106,11 @@ function IconBaCham(props) {
 }
 
 function TopCards({ tongGiaTri, bienDongVnd, bienDongPct, duLieuSparkline }) {
+  const isUp = bienDongPct >= 0;
+  const changeColor = isUp ? 'text-emerald-500' : 'text-red-500';
+  const sparkColor = isUp ? '#10B981' : '#EF4444';
+  const gradientId = isUp ? 'sparkFillUp' : 'sparkFillDown';
+  const gradientColor = sparkColor;
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -100,8 +122,8 @@ function TopCards({ tongGiaTri, bienDongVnd, bienDongPct, duLieuSparkline }) {
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900">Biến động trong ngày</div>
           <div className="mt-2 flex items-baseline gap-3 flex-wrap">
-            <div className="text-3xl font-bold text-emerald-500">{dinhDangTienVnd(bienDongVnd)}</div>
-            <div className="text-lg font-bold text-emerald-500">{dinhDangPhanTram(bienDongPct)}</div>
+            <div className={`text-3xl font-bold ${changeColor}`}>{dinhDangTienVnd(bienDongVnd)}</div>
+            <div className={`text-lg font-bold ${changeColor}`}>{dinhDangPhanTram(bienDongPct)}</div>
           </div>
           <div className="mt-1 text-xs text-gray-500">So với giá đóng cửa gần nhất</div>
         </div>
@@ -110,13 +132,13 @@ function TopCards({ tongGiaTri, bienDongVnd, bienDongPct, duLieuSparkline }) {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={duLieuSparkline} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10B981" stopOpacity={0.28} />
-                  <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={gradientColor} stopOpacity={0.28} />
+                  <stop offset="100%" stopColor={gradientColor} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <Tooltip content={<TooltipSparkline />} cursor={{ stroke: '#E5E7EB', strokeDasharray: '4 4' }} />
-              <Area type="linear" dataKey="v" stroke="#10B981" strokeWidth={2} fill="url(#sparkFill)" dot={false} />
+              <Area type="linear" dataKey="v" stroke={sparkColor} strokeWidth={2} fill={`url(#${gradientId})`} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -230,17 +252,45 @@ export default function PortfolioDashboard() {
   const { activePortfolio } = usePortfolio();
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+  // Map ticker → { open, close } in VND (×1000 already applied)
+  const [openPrices, setOpenPrices] = useState({});
+
+  useEffect(() => {
+    apiClient
+      .get('/market/prices/latest')
+      .then((res) => {
+        const map = {};
+        (res.data ?? []).forEach((r) => {
+          map[r.ticker] = {
+            open: Number(r.open) * 1000,
+            close: Number(r.close) * 1000,
+          };
+        });
+        setOpenPrices(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const assets = useMemo(() => activePortfolio?.assets ?? [], [activePortfolio]);
 
   const { tongGiaTri, bienDongPct, bienDongVnd } = useMemo(() => {
     const total = assets.reduce((acc, a) => acc + a.quantity * a.currentPrice, 0);
-    const pct = 1.66;
-    const change = (total * pct) / 100;
-    return { tongGiaTri: total, bienDongPct: pct, bienDongVnd: change };
-  }, [assets]);
+    // Daily change: sum of (close - open) × quantity for each holding
+    let dailyChangeVnd = 0;
+    assets.forEach((a) => {
+      const prices = openPrices[a.ticker];
+      if (prices && prices.open > 0) {
+        dailyChangeVnd += a.quantity * (prices.close - prices.open);
+      }
+    });
+    const pct = total > 0 ? (dailyChangeVnd / (total - dailyChangeVnd)) * 100 : 0;
+    return { tongGiaTri: total, bienDongPct: pct, bienDongVnd: dailyChangeVnd };
+  }, [assets, openPrices]);
 
-  const duLieuSparkline = useMemo(() => taoDuLieuBienDongTrongNgay(bienDongVnd), [bienDongVnd]);
+  const duLieuSparkline = useMemo(
+    () => taoDuLieuBienDongTrongNgay(tongGiaTri, bienDongVnd),
+    [tongGiaTri, bienDongVnd],
+  );
 
   const pieData = useMemo(() => {
     const totalAlloc = assets.reduce((acc, a) => acc + (a.allocation ?? 0), 0);

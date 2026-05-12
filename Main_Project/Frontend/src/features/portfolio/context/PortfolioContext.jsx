@@ -3,8 +3,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   getMyPortfolios,
   getPortfolioAnalytics,
+  ensureTickerHistory,
   createPortfolio as apiCreatePortfolio,
   addStockToPortfolio,
+  deletePortfolio as apiDeletePortfolio,
 } from '../../../services/portfolioApi';
 
 const PortfolioContext = createContext(null);
@@ -127,6 +129,13 @@ export function PortfolioProvider({ children }) {
         setPortfolios(mapped);
         setActiveId(getInitialActiveId(mapped));
 
+        // Collect all unique tickers across all portfolios
+        const allTickers = [...new Set(dtos.flatMap((dto) => dto.tickers ?? []))];
+
+        // Ensure 1-year of price history is ingested for each ticker (background, non-blocking)
+        await Promise.all(allTickers.map((ticker) => ensureTickerHistory(ticker)));
+        if (cancelled) return;
+
         // Fetch analytics for each portfolio in the background
         for (const dto of dtos) {
           if (cancelled) break;
@@ -230,7 +239,10 @@ export function PortfolioProvider({ children }) {
     setActiveId(merged.id);
 
     // Fetch real analytics from backend (non-blocking)
-    getPortfolioAnalytics(apiPortfolio.id)
+    // First ensure price history exists for all tickers
+    const newTickers = (wizardPortfolio.assets ?? []).map((a) => a.ticker);
+    Promise.all(newTickers.map((t) => ensureTickerHistory(t)))
+      .then(() => getPortfolioAnalytics(apiPortfolio.id))
       .then((analytics) => {
         setPortfolios((prev) =>
           prev.map((p) => (p.id === apiPortfolio.id ? applyAnalytics(p, analytics) : p)),
@@ -239,7 +251,16 @@ export function PortfolioProvider({ children }) {
       .catch(() => {/* analytics not critical */});
   }, []);
 
-  const deleteActivePortfolio = useCallback(() => {
+  const deleteActivePortfolio = useCallback(async () => {
+    if (!activeId) return;
+
+    try {
+      await apiDeletePortfolio(activeId);
+    } catch (err) {
+      console.error('Failed to delete portfolio on server', err);
+      return;
+    }
+
     setPortfolios((prev) => {
       if (!prev.length) return prev;
 

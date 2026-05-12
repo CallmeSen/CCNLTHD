@@ -1,12 +1,22 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Star, TrendingUp, Activity, Sparkles } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useWatchlistStore } from '../../../store/useWatchlistStore'
+import { apiClient } from '../../../services/apiClient'
 
 interface ChartDataPoint {
   date: string
   price: number
+  volume: number
+}
+
+interface PriceStats {
+  high30d: number
+  low30d: number
+  avgVolume10d: number
+  change30dPct: number
+  sentiment: 'positive' | 'negative' | 'neutral'
 }
 
 interface StockDetailScreenProps {
@@ -33,22 +43,69 @@ const generateChartData = (): ChartDataPoint[] => {
   return data
 }
 
-// Mock financial data
-const FINANCIAL_METRICS = {
-  pe: '18.5',
-  eps: '7,320 đ',
-  marketCap: '1.2 tỷ USD',
-  volume24h: '85.3M',
+// Fetch real price history from backend, fallback to seeded mock data
+function usePriceHistory(ticker: string): { chartData: ChartDataPoint[]; stats: PriceStats | null } {
+  const [chartData, setChartData] = useState<ChartDataPoint[]>(() => generateChartData())
+  const [stats, setStats] = useState<PriceStats | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    apiClient
+      .get<{ timestamp: string; open?: string | number | null; close: string | number; volume?: string | number | null }[]>(
+        `/market/stocks/${ticker}/price/daily?limit=30`,
+      )
+      .then((res) => {
+        if (cancelled) return
+        const rows = res.data
+        if (!Array.isArray(rows) || rows.length === 0) return
+        const mapped: ChartDataPoint[] = rows
+          .slice()
+          .reverse()
+          .map((r) => ({
+            date: r.timestamp.split('T')[0],
+            price: Number(r.close) * 1000,
+            volume: Number(r.volume ?? 0),
+          }))
+        setChartData(mapped)
+
+        // Compute stats from price history
+        const prices = mapped.map((d) => d.price)
+        const volumes = mapped.map((d) => d.volume)
+        const high30d = Math.max(...prices)
+        const low30d = Math.min(...prices)
+        const last10vol = volumes.slice(-10).filter((v) => v > 0)
+        const avgVolume10d = last10vol.length > 0 ? last10vol.reduce((a, b) => a + b, 0) / last10vol.length : 0
+        const first = prices[0] ?? 0
+        const last = prices[prices.length - 1] ?? 0
+        const change30dPct = first > 0 ? ((last - first) / first) * 100 : 0
+        // Sentiment: based on last 5 trading days momentum
+        const last5 = prices.slice(-5)
+        const momentum = last5.length >= 2 ? last5[last5.length - 1] - last5[0] : 0
+        const sentimentThreshold = first * 0.01 // 1% threshold
+        const sentiment: PriceStats['sentiment'] =
+          momentum > sentimentThreshold ? 'positive' : momentum < -sentimentThreshold ? 'negative' : 'neutral'
+
+        setStats({ high30d, low30d, avgVolume10d, change30dPct, sentiment })
+      })
+      .catch(() => { /* keep mock data on error */ })
+    return () => { cancelled = true }
+  }, [ticker])
+
+  return { chartData, stats }
 }
 
 // Custom Tooltip cho Recharts
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
+    const raw: string = payload[0].payload.date
+    const label = raw.match(/^\d{4}-\d{2}-\d{2}$/)
+      ? Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
+          new Date(`${raw}T00:00:00Z`),
+        )
+      : raw
     return (
       <div className="rounded-lg bg-white p-3 shadow-lg border border-gray-200">
-        <p className="text-sm font-medium text-gray-900">
-          {payload[0].payload.date}
-        </p>
+        <p className="text-sm font-medium text-gray-900">{label}</p>
         <p className="text-sm font-semibold text-blue-600">
           {payload[0].value.toLocaleString('vi-VN')} đ
         </p>
@@ -169,8 +226,21 @@ const ChartSection = ({
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} interval={Math.floor(chartData.length / 6)} />
-            <YAxis domain={["dataMin - 1000", "dataMax + 1000"]} axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} width={70} />
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#6b7280', fontSize: 12 }}
+              interval={Math.floor(chartData.length / 6)}
+              tickFormatter={(v: string) =>
+                v.match(/^\d{4}-\d{2}-\d{2}$/)
+                  ? Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(
+                      new Date(`${v}T00:00:00Z`),
+                    )
+                  : v
+              }
+            />
+            <YAxis domain={[(min: number) => Math.round(min * 0.98), (max: number) => Math.round(max * 1.02)]} axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} width={70} tickFormatter={(v: number) => v.toLocaleString('vi-VN')} />
             <Tooltip content={<CustomTooltip />} />
             <Area type="monotone" dataKey="price" stroke={strokeColor} strokeWidth={2.5} fillOpacity={1} fill={`url(#${gradientId})`} />
           </AreaChart>
@@ -180,27 +250,57 @@ const ChartSection = ({
   )
 }
 
-// Sentiment card
-const SentimentCard = () => {
+// Sentiment card — driven by real 5-day price momentum
+const SentimentCard = ({ stats }: { stats: PriceStats | null }) => {
+  const sentiment = stats?.sentiment ?? 'neutral'
+  const config = {
+    positive: { label: 'Tích cực', icon: TrendingUp, cls: 'bg-emerald-100 text-emerald-700' },
+    negative: { label: 'Tiêu cực', icon: Activity, cls: 'bg-red-100 text-red-700' },
+    neutral: { label: 'Trung tính', icon: Activity, cls: 'bg-gray-100 text-gray-700' },
+  }[sentiment]
+  const Icon = config.icon
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6">
       <p className="text-sm font-extrabold text-black mb-3">Tâm lý AI đánh giá:</p>
-      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-100">
-        <TrendingUp className="h-5 w-5 text-emerald-600" />
-        <span className="font-bold text-emerald-700">Tích cực</span>
+      <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${config.cls}`}>
+        <Icon className="h-5 w-5" />
+        <span className="font-bold">{config.label}</span>
       </div>
+      {stats && (
+        <p className="mt-2 text-xs text-gray-500">
+          Dựa trên động lượng giá 5 phiên gần nhất
+        </p>
+      )}
     </div>
   )
 }
 
-// Financial metrics card
-const FinancialMetricsCard = () => {
-  const metrics = [
-    { label: 'P/E', value: FINANCIAL_METRICS.pe },
-    { label: 'EPS', value: FINANCIAL_METRICS.eps },
-    { label: 'Vốn hóa', value: FINANCIAL_METRICS.marketCap },
-    { label: 'Khối lượng 24h', value: FINANCIAL_METRICS.volume24h },
-  ]
+// Financial metrics card — computed from real 30-day price history
+const FinancialMetricsCard = ({ stats }: { stats: PriceStats | null }) => {
+  const fmt = (n: number) => n.toLocaleString('vi-VN')
+  const fmtVol = (n: number) => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+    return n.toFixed(0)
+  }
+
+  const metrics = stats
+    ? [
+        { label: 'Giá cao 30 ngày', value: `${fmt(stats.high30d)} đ` },
+        { label: 'Giá thấp 30 ngày', value: `${fmt(stats.low30d)} đ` },
+        { label: 'KL TB 10 ngày', value: fmtVol(stats.avgVolume10d) },
+        {
+          label: '% Thay đổi 30 ngày',
+          value: `${stats.change30dPct >= 0 ? '+' : ''}${stats.change30dPct.toFixed(2)}%`,
+        },
+      ]
+    : [
+        { label: 'Giá cao 30 ngày', value: '—' },
+        { label: 'Giá thấp 30 ngày', value: '—' },
+        { label: 'KL TB 10 ngày', value: '—' },
+        { label: '% Thay đổi 30 ngày', value: '—' },
+      ]
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6">
@@ -218,7 +318,7 @@ const FinancialMetricsCard = () => {
 }
 
 // Stats section (Sentiment + Financial)
-const StatsSection = ({ ticker }: { ticker: string }) => {
+const StatsSection = ({ ticker, stats }: { ticker: string; stats: PriceStats | null }) => {
   const navigate = useNavigate()
 
   const handleAnalyzeWithAI = () => {
@@ -227,8 +327,8 @@ const StatsSection = ({ ticker }: { ticker: string }) => {
 
   return (
     <div className="flex flex-col gap-4">
-      <SentimentCard />
-      <FinancialMetricsCard />
+      <SentimentCard stats={stats} />
+      <FinancialMetricsCard stats={stats} />
 
       {/* CTA Button */}
       <button
@@ -254,7 +354,7 @@ export default function StockDetailScreen(props: StockDetailScreenProps) {
 
   const { watchlistTickers, toggleWatchlist } = useWatchlistStore()
   const isInWatchlist = watchlistTickers.includes(ticker)
-  const chartData = useMemo(() => generateChartData(), [])
+  const { chartData, stats } = usePriceHistory(ticker)
 
   const handleToggleWatchlist = () => {
     toggleWatchlist(ticker)
@@ -279,7 +379,7 @@ export default function StockDetailScreen(props: StockDetailScreenProps) {
 
         {/* Right column - Stats */}
         <div className="lg:col-span-4">
-          <StatsSection ticker={ticker} />
+          <StatsSection ticker={ticker} stats={stats} />
         </div>
       </div>
     </section>

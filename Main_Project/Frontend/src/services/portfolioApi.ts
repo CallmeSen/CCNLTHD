@@ -82,7 +82,7 @@ export const addStockToPortfolio = (portfolioId: string, stock: AddStockInput): 
     .post<PortfolioDto>(`/portfolios/${portfolioId}/stocks`, {
       ticker: stock.ticker,
       quantity: stock.quantity,
-      avg_price: stock.avgPrice,
+      avgPrice: stock.avgPrice,
     })
     .then((r) => r.data)
 
@@ -104,7 +104,25 @@ export const updateRiskProfile = (
     })
     .then((r) => r.data)
 
+export const deletePortfolio = (portfolioId: string): Promise<void> =>
+  apiClient.delete(`/portfolios/${portfolioId}`).then(() => undefined)
+
 export const getPortfolioAnalytics = (portfolioId: string): Promise<PortfolioAnalytics> =>
   apiClient
     .get<PortfolioAnalytics>(`/portfolios/${portfolioId}/analytics`)
     .then((r) => r.data)
+
+/**
+ * Ensure at least 1 year of daily price history is ingested for a ticker.
+ * Safe to call repeatedly — the backend deduplicates existing bars.
+ */
+export const ensureTickerHistory = (ticker: string): Promise<void> => {
+  const to = new Date().toISOString().split('T')[0]
+  const fromDate = new Date()
+  fromDate.setFullYear(fromDate.getFullYear() - 1)
+  const from = fromDate.toISOString().split('T')[0]
+  return apiClient
+    .post(`/market/stocks/${ticker}/fetch`, null, { params: { interval: '1D', from, to } })
+    .then(() => undefined)
+    .catch(() => undefined) // non-critical, ignore errors
+}

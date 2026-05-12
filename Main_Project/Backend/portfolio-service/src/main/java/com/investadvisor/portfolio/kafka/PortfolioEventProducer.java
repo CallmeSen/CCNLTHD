@@ -16,14 +16,18 @@ public class PortfolioEventProducer {
     private final KafkaTemplate<String, PortfolioEvent> kafkaTemplate;
 
     public void publish(PortfolioEvent event) {
-        kafkaTemplate.send(TOPIC, event.getPortfolioId().toString(), event)
-                .whenComplete((result, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to publish portfolio event: {}", ex.getMessage());
-                    } else {
-                        log.debug("Portfolio event [{}] published for portfolio {}",
-                                event.getEventType(), event.getPortfolioId());
-                    }
-                });
+        try {
+            kafkaTemplate.send(TOPIC, event.getPortfolioId().toString(), event)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish portfolio event: {}", ex.getMessage());
+                        } else {
+                            log.debug("Portfolio event [{}] published for portfolio {}",
+                                    event.getEventType(), event.getPortfolioId());
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Failed to send portfolio event (non-fatal): {}", e.getMessage());
+        }
     }
 }
