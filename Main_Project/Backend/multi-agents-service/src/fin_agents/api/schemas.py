@@ -19,6 +19,16 @@ class HealthCheck(BaseModel):
 
 
 # ============================================================================
+# SSE Session Schemas
+# ============================================================================
+
+class MessageCreate(BaseModel):
+    """Request body for sending a message to a chat session."""
+    message: str = Field(..., description="User message content")
+    lang: Optional[str] = Field("en", description="Response language code (en/vi)")
+
+
+# ============================================================================
 # Client Schemas
 # ============================================================================
 

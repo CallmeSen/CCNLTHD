@@ -13,4 +13,5 @@ Main_Project/.vscode/PythonImportHelper-v2-Completion.json
 .vscode
 .cursorignore
 .cursorrules
+**/dist
 /.vscode

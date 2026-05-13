@@ -17,6 +17,7 @@ from src.fin_agents.api.schemas import (
     HealthCheck,
 )
 from src.fin_agents.api.routes import router as portfolio_router
+from src.fin_agents.api.sessions import router as sessions_router
 from src.fin_agents.graphs.registry import list_workflows as _list_workflows
 
 # Create FastAPI app
@@ -30,6 +31,7 @@ app = FastAPI(
 
 # Include portfolio generation router
 app.include_router(portfolio_router)
+app.include_router(sessions_router)
 
 # CORS middleware
 app.add_middleware(

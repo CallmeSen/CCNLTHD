@@ -232,10 +232,10 @@ def fetch_financial_data(
 
 def fetch_market_news(state: TypedDict) -> Dict:
     """Fetches relevant market news using Tavily based on user profile."""
-    from langchain_community.tools.tavily_search.tool import TavilySearchResults
+    from langchain_tavily import TavilySearch
     from src.fin_agents.core.config import TAVILY_API_KEY
 
-    tavily_tool = TavilySearchResults(max_results=3) if TAVILY_API_KEY else None
+    tavily_tool = TavilySearch(max_results=3) if TAVILY_API_KEY else None
     logger.info("Fetching Market News...")
     if not tavily_tool:
         logger.warning("Tavily tool not available. Skipping market news.")
@@ -251,7 +251,14 @@ def fetch_market_news(state: TypedDict) -> Dict:
 
     try:
         news_results = tavily_tool.invoke({"query": query})
-        formatted_news = "\n".join([f"- {item['content']}" for item in news_results]) if news_results else "No specific news found."
+        if not news_results:
+            formatted_news = "No specific news found."
+        elif isinstance(news_results, str):
+            formatted_news = news_results
+        elif isinstance(news_results, list):
+            formatted_news = "\n".join([f"- {item['content']}" for item in news_results if isinstance(item, dict) and "content" in item])
+        else:
+            formatted_news = str(news_results)
         logger.info(f"News Query: {query}\nNews Found: {formatted_news[:200]}...")
         return {"market_news": formatted_news}
     except Exception as e:

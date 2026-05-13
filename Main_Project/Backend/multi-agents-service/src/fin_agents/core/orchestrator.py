@@ -6,13 +6,16 @@ Responsibilities:
   - Persist workflow results into the DB (RiskAssessment, Decision, GeneratedReport, AuditLog)
   - Update AdvisoryRequest status (PENDING -> PROCESSING -> COMPLETED/FAILED)
   - Provide a unified entry point for all workflow execution
+  - Emit SSE events (text_delta, tool_call, tool_result) for real-time UI streaming
 """
 
+import json
 import logging
 import os
 import re
+import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 VIETNAMESE_CHARS = re.compile(r'[\u00C0-\u024F\u1EA0-\u1EF9]')
 
@@ -92,6 +95,7 @@ class OrchestratorService:
         initial_request: str,
         lang: str = "en",
         request_id: Optional[str] = None,
+        event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """
         Run the stock_advisory (portfolio generation) LangGraph workflow.
@@ -101,9 +105,19 @@ class OrchestratorService:
         1. Generate run_id / request_id
         2. Log START to AuditLog
         3. Load and compile the graph via builder
-        4. Persist to DB (RiskAssessment, GeneratedReport, AdvisoryRequest)
-        5. Save report and portfolio to disk
-        6. Return full result dict
+        4. Stream execution with event emissions (if callback provided)
+        5. Persist to DB (RiskAssessment, GeneratedReport, AdvisoryRequest)
+        6. Save report and portfolio to disk
+        7. Return full result dict
+
+        Parameters
+        ----------
+        event_callback: Optional[Callable[[str, Dict[str, Any]], None]]
+            If provided, called with (event_type, data) for each workflow step.
+            Supported event types:
+              - "tool_call": emitted when a workflow node begins execution
+              - "tool_result": emitted when a workflow node completes
+              - "text_delta": emitted for streaming text chunks (if supported)
 
         Returns
         -------
@@ -122,11 +136,40 @@ class OrchestratorService:
             "lang": lang,
         })
 
+        def emit(event_type: str, data: Dict[str, Any]) -> None:
+            # #region debug_log
+            with open("e:\\GitHub\\CCNLTHD\\Main_Project\\Backend\\multi-agents-service\\debug-3ba358.log","a",encoding="utf-8") as f:
+                import json as _json, datetime as _dt
+                f.write(_json.dumps({"sessionId":"3ba358","location":"orchestrator.emit","message":f"backend emit {event_type}","data":{"event_type":event_type,"tool":data.get("tool","")},"timestamp":int(_dt.datetime.utcnow().timestamp()*1000),"hypothesisId":"H3"}) + "\n")
+            # #endregion
+            if event_callback:
+                try:
+                    event_callback(event_type, data)
+                except Exception:
+                    pass
+
         try:
             initial_state: Dict[str, Any] = {"initial_request": initial_request, "lang": lang}
 
             graph = self._load_stock_graph()
-            result: Dict[str, Any] = graph.invoke(initial_state)
+            result: Dict[str, Any] = {}
+
+            for step in graph.stream(initial_state, stream_mode="updates"):
+                for node_name, node_output in step.items():
+                    emit("tool_call", {
+                        "tool": node_name,
+                        "arguments": {"lang": lang},
+                    })
+
+                    emit("tool_result", {
+                        "tool": node_name,
+                        "status": "ok",
+                        "preview": self._summarize_node_output(node_name, node_output),
+                        "elapsed_ms": 0,
+                    })
+
+                    if isinstance(node_output, dict):
+                        result.update(node_output)
 
             final_report = result.get("final_report", "# No report generated")
             status = "completed" if result.get("final_report") else "failed"
@@ -215,6 +258,31 @@ class OrchestratorService:
 
     def _update_status(self, request_id: str, status: str):
         AdvisoryRequestRepository.update_status(self.db, request_id, status)
+
+    @staticmethod
+    def _summarize_node_output(node_name: str, output: Any) -> str:
+        """Create a short preview string for a node's output."""
+        if output is None:
+            return "No output"
+        if isinstance(output, dict):
+            if "final_report" in output:
+                text = output["final_report"]
+                return text[:300] + "..." if len(text) > 300 else text
+            if "proposed_portfolio" in output:
+                return f"Portfolio: {len(output.get('proposed_portfolio', []))} assets"
+            if "metrics" in output:
+                return f"Metrics: {output.get('metrics', {})}"
+            if "user_profile" in output:
+                return f"Profile: {output.get('user_profile', {})}"
+            if "validation_result" in output:
+                return f"Validation: {output.get('validation_result', {})}"
+            if "llm_commentary" in output:
+                return output["llm_commentary"][:200] if output["llm_commentary"] else "No commentary"
+            if "market_news" in output:
+                count = len(output.get("market_news", []))
+                return f"{count} news items fetched"
+            return str(output)[:200]
+        return str(output)[:200]
 
     @staticmethod
     def _load_stock_graph():

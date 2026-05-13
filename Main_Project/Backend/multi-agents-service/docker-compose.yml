@@ -30,6 +30,8 @@ services:
 
   db:
     image: postgres:15-alpine
+    container_name: fin_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -38,6 +40,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d financial_advisor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # redis:  # TODO: uncomment when Redis caching is implemented
   #   image: redis:7-alpine
