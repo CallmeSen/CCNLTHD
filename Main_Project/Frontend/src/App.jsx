@@ -3,7 +3,9 @@ import MainLayout from './components/layouts/Mainlayout';
 import Dashboard from './pages/Dashboard';
 import Portfolio from './pages/Portfolio';
 import StockDetail from './pages/StockDetail';
-import ChatAI from './pages/ChatAI';
+import ChatAI from './pages/ChatAI.tsx';
+import History from './pages/History';
+import Analysis from './pages/Analysis';
 import Market from './pages/Market';
 import Home from './pages/Home';
 import ProtectedRoute from './components/ProtectedRoute'
@@ -21,6 +23,9 @@ function App() {
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="chatai" element={<ChatAI />} />
+          <Route path="agent" element={<ChatAI />} />
+          <Route path="history" element={<History />} />
+          <Route path="analysis" element={<Analysis />} />
           <Route path="portforlios" element={<Portfolio />} />
           <Route path="settings" element={<div>Cài đặt</div>} />
           <Route path="stock/:ticker" element={<StockDetail />} />
