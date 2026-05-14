@@ -1,0 +1,499 @@
+{
+  "info": {
+    "_postman_id": "invest-advisor-e2e-collection",
+    "name": "InvestAdvisor E2E Tests",
+    "description": "End-to-end API tests for InvestAdvisor Microservices platform.\nCovers Flow 1 (register→login→portfolio→stocks→notification) and Flow 2 (analytics).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",     "value": "{{BASE_URL}}",  "type": "string" },
+    { "key": "jwtToken",    "value": "",               "type": "string" },
+    { "key": "userId",      "value": "",               "type": "string" },
+    { "key": "portfolioId", "value": "",               "type": "string" },
+    { "key": "testEmail",   "value": "",               "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Flow 1 — Register → Login → Portfolio → Assets → Notification",
+      "item": [
+        {
+          "name": "F1-01: Register new user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('testEmail', `e2e_${ts}@investadvisor.test`);",
+                  "pm.collectionVariables.set('testPassword', 'E2eTest@2024!');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F1-01: Register returns 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('F1-01: Response has token', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('token');",
+                  "    pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "    pm.collectionVariables.set('jwtToken', body.token);",
+                  "});",
+                  "pm.test('F1-01: Response has user with id', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.user).to.have.property('id');",
+                  "    pm.collectionVariables.set('userId', body.user.id);",
+                  "});",
+                  "pm.test('F1-01: Response contains expirationMs', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('expirationMs');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/register" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"fullName\": \"E2E Test User\",\n  \"phone\": \"0901234567\"\n}"
+            }
+          }
+        },
+        {
+          "name": "F1-01b: Register duplicate email → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F1-01b: Duplicate register returns 409', () => {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "pm.test('F1-01b: Error message indicates duplicate', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error || body.message || JSON.stringify(body))",
+                  "        .to.include('already');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/register" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"AnotherPass@2024!\",\n  \"fullName\": \"Duplicate User\",\n  \"phone\": \"0901234567\"\n}"
+            }
+          }
+        },
+        {
+          "name": "F1-02: Login with registered user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F1-02: Login returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('F1-02: Login response has valid token', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "    pm.collectionVariables.set('jwtToken', body.token);",
+                  "});",
+                  "pm.test('F1-02: Token has 3 parts (JWT format)', () => {",
+                  "    const token = pm.collectionVariables.get('jwtToken');",
+                  "    pm.expect(token.split('.').length).to.equal(3);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "F1-02b: Login with wrong password → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F1-02b: Wrong password returns 401', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"WrongPassword123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "F1-03: Create portfolio (requires JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F1-03: Create portfolio returns 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('F1-03: Portfolio has id', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.collectionVariables.set('portfolioId', body.id);",
+                  "});",
+                  "pm.test('F1-03: Portfolio name is correct', () => {",
+                  "    pm.expect(pm.response.json().name).to.equal('My E2E Portfolio');",
+                  "});",
+                  "pm.test('F1-03: Portfolio riskProfile is set', () => {",
+                  "    pm.expect(pm.response.json().riskProfile).to.be.oneOf(['CONSERVATIVE', 'MODERATE', 'AGGRESSIVE']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/portfolios" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My E2E Portfolio\",\n  \"description\": \"Created by E2E test\",\n  \"riskProfile\": \"MODERATE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "F1-03b: Access portfolio without token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F1-03b: No token returns 401', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/portfolios" }
+          }
+        },
+        {
+          "name": "F1-04: Add stock to portfolio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F1-04: Add stock returns 201', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('F1-04: Response contains watchlist items', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.watchlistItems || body).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/portfolios/{{portfolioId}}/stocks" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticker\": \"VCB\",\n  \"quantity\": 100,\n  \"avgPrice\": 69000\n}"
+            }
+          }
+        },
+        {
+          "name": "F1-04b: Add duplicate stock → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F1-04b: Duplicate stock returns 409', () => {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/portfolios/{{portfolioId}}/stocks" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticker\": \"VCB\",\n  \"quantity\": 50,\n  \"avgPrice\": 70000\n}"
+            }
+          }
+        },
+        {
+          "name": "F1-05: Get notifications (expect welcome notification)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F1-05: Get notifications returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('F1-05: Response is an array', () => {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Flow 2 — Market Data & Portfolio Analytics",
+      "item": [
+        {
+          "name": "F2-01: Get all stocks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F2-01: Get stocks returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('F2-01: Returns array', () => {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/market/stocks" }
+          }
+        },
+        {
+          "name": "F2-02: Get portfolio analytics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F2-02: Analytics returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('F2-02: Analytics has required MPT fields', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.all.keys(",
+                  "        'total_value_vnd', 'total_pnl_vnd',",
+                  "        'expected_return_annual_pct', 'volatility_annual_pct',",
+                  "        'sharpe_ratio', 'beta', 'risk_free_rate_pct',",
+                  "        'metrics_per_ticker', 'rebalance_actions'",
+                  "    );",
+                  "});",
+                  "pm.test('F2-02: sharpe_ratio is a number', () => {",
+                  "    pm.expect(pm.response.json().sharpe_ratio).to.be.a('number');",
+                  "});",
+                  "pm.test('F2-02: beta is a positive number', () => {",
+                  "    pm.expect(pm.response.json().beta).to.be.a('number');",
+                  "});",
+                  "pm.test('F2-02: metrics_per_ticker is array', () => {",
+                  "    pm.expect(pm.response.json().metrics_per_ticker).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/portfolios/{{portfolioId}}/analytics" }
+          }
+        },
+        {
+          "name": "F2-03: Get market indices",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F2-03: Market indices returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('F2-03: Returns list of index names', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an('array');",
+                  "    pm.expect(body.length).to.be.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/market/indices" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Flow 3 — Token Expiry & Authorization",
+      "item": [
+        {
+          "name": "F3-01: Expired token returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F3-01: Expired/invalid token returns 401', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuY29tIiwiZXhwIjoxfQ.INVALID_EXPIRED_TOKEN" }],
+            "url": { "raw": "{{baseUrl}}/api/portfolios" }
+          }
+        },
+        {
+          "name": "F3-02: Missing Authorization header returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F3-02: No auth header returns 401', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/portfolios" }
+          }
+        },
+        {
+          "name": "F3-03: IDOR — access other user portfolio returns 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('F3-03: Access random portfolio returns 404', () => {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/portfolios/00000000-0000-0000-0000-000000000000" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "HC-01: API Gateway actuator health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HC-01: Gateway health returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('HC-01: Status is UP', () => {",
+                  "    pm.expect(pm.response.json().status).to.equal('UP');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/actuator/health" }
+          }
+        },
+        {
+          "name": "HC-02: Market data health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HC-02: Market data health returns 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{marketDataUrl}}/actuator/health" }
+          }
+        }
+      ]
+    }
+  ]
+}

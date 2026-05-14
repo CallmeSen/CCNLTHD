@@ -359,7 +359,7 @@ def _compute_rebalancing(
             "action": "BUY" if qty_delta > 0 else "SELL",
             "quantity_delta": qty_delta,
             "current_price": cp,
-            "estimated_transaction_vnd": round(abs(qty_delta) * cp, 0),
+            "estimated_transaction_vnd": round(abs(qty_delta) * cp * 1000, 0),
         })
 
     return sorted(actions, key=lambda x: abs(x["delta_weight_pct"]), reverse=True)

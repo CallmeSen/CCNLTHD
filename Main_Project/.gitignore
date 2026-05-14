@@ -1,0 +1,23 @@
+# Maven build output
+**/target/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# Python virtual environments
+**/.venv/
+
+# IDE
+.idea/
+*.iml
+.vscode/settings.json
+
+# Env files
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
