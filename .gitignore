@@ -21,3 +21,7 @@ Main_Project\Backend\notification-service\target\classes\application.yml
 Main_Project\Backend\api-gateway\target\classes\application.yml
 Main_Project\Backend\eureka-service\target\classes\application.yml
 Main_Project\Backend\market-data-service\target\classes\application.yml
+/.cursor
+/Main_Project/Backend/multi-agents-service/storage/portfolios
+/Main_Project/Backend/multi-agents-service/storage/reports
+/Main_Project/Backend/multi-agents-service/storage/visualizations
