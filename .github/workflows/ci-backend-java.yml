@@ -1,0 +1,393 @@
+name: CI - Backend (Java)
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+env:
+  JAVA_VERSION: "17"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Eureka Server
+  # ──────────────────────────────────────────────────────────────────────────────
+  ci-eureka:
+    name: Eureka Server
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/eureka-server/') ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/docker-compose.yml')
+    defaults:
+      run:
+        working-directory: Main_Project/Backend/eureka-server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: eclipse-temurin
+          cache: maven
+
+      - name: Checkstyle
+        run: mvn checkstyle:check -B -q
+
+      - name: Compile
+        run: mvn compile -B -q
+
+      - name: Test
+        run: mvn test -B
+        continue-on-error: false
+
+      - name: Build JAR
+        run: mvn package -DskipTests -B -q
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: Main_Project/Backend/eureka-server
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/eureka-server:${{ github.ref == 'refs/heads/main' && 'latest' || format('pr-{0}', github.event.pull_request.number) }}
+            ${{ github.event_name == 'push' && format('pr-{0}', github.event.pull_request.number) == 'pr-' && format('v{0}', github.sha) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-eureka
+          path: "**/target/surefire-reports/*.xml"
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # API Gateway
+  # ──────────────────────────────────────────────────────────────────────────────
+  ci-api-gateway:
+    name: API Gateway
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/api-gateway/') ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/docker-compose.yml')
+    defaults:
+      run:
+        working-directory: Main_Project/Backend/api-gateway
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: eclipse-temurin
+          cache: maven
+
+      - name: Checkstyle
+        run: mvn checkstyle:check -B -q
+
+      - name: Compile
+        run: mvn compile -B -q
+
+      - name: Test
+        run: mvn test -B
+
+      - name: Build JAR
+        run: mvn package -DskipTests -B -q
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: Main_Project/Backend/api-gateway
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api-gateway:${{ github.ref == 'refs/heads/main' && 'latest' || format('pr-{0}', github.event.pull_request.number) }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-api-gateway
+          path: "**/target/surefire-reports/*.xml"
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # User Service
+  # ──────────────────────────────────────────────────────────────────────────────
+  ci-user-service:
+    name: User Service
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/user-service/') ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/docker-compose.yml')
+    defaults:
+      run:
+        working-directory: Main_Project/Backend/user-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: eclipse-temurin
+          cache: maven
+
+      - name: Checkstyle
+        run: mvn checkstyle:check -B -q
+
+      - name: Compile
+        run: mvn compile -B -q
+
+      - name: Test
+        run: mvn test -B
+
+      - name: Build JAR
+        run: mvn package -DskipTests -B -q
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: Main_Project/Backend/user-service
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/user-service:${{ github.ref == 'refs/heads/main' && 'latest' || format('pr-{0}', github.event.pull_request.number) }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-user-service
+          path: "**/target/surefire-reports/*.xml"
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Market Data Service
+  # ──────────────────────────────────────────────────────────────────────────────
+  ci-market-data:
+    name: Market Data Service
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/market-data-service/') ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/docker-compose.yml')
+    defaults:
+      run:
+        working-directory: Main_Project/Backend/market-data-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: eclipse-temurin
+          cache: maven
+
+      - name: Checkstyle
+        run: mvn checkstyle:check -B -q
+
+      - name: Compile
+        run: mvn compile -B -q
+
+      - name: Test
+        run: mvn test -B
+
+      - name: Build JAR
+        run: mvn package -DskipTests -B -q
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: Main_Project/Backend/market-data-service
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/market-data-service:${{ github.ref == 'refs/heads/main' && 'latest' || format('pr-{0}', github.event.pull_request.number) }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-market-data
+          path: "**/target/surefire-reports/*.xml"
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Portfolio Service
+  # ──────────────────────────────────────────────────────────────────────────────
+  ci-portfolio-service:
+    name: Portfolio Service
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/portfolio-service/') ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/docker-compose.yml')
+    defaults:
+      run:
+        working-directory: Main_Project/Backend/portfolio-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: eclipse-temurin
+          cache: maven
+
+      - name: Checkstyle
+        run: mvn checkstyle:check -B -q
+
+      - name: Compile
+        run: mvn compile -B -q
+
+      - name: Test
+        run: mvn test -B
+
+      - name: Build JAR
+        run: mvn package -DskipTests -B -q
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: Main_Project/Backend/portfolio-service
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/portfolio-service:${{ github.ref == 'refs/heads/main' && 'latest' || format('pr-{0}', github.event.pull_request.number) }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-portfolio-service
+          path: "**/target/surefire-reports/*.xml"
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Notification Service
+  # ──────────────────────────────────────────────────────────────────────────────
+  ci-notification-service:
+    name: Notification Service
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/notification-service/') ||
+      contains(github.event.pull_request.changed_files, 'Main_Project/Backend/docker-compose.yml')
+    defaults:
+      run:
+        working-directory: Main_Project/Backend/notification-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: eclipse-temurin
+          cache: maven
+
+      - name: Checkstyle
+        run: mvn checkstyle:check -B -q
+
+      - name: Compile
+        run: mvn compile -B -q
+
+      - name: Test
+        run: mvn test -B
+
+      - name: Build JAR
+        run: mvn package -DskipTests -B -q
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: Main_Project/Backend/notification-service
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/notification-service:${{ github.ref == 'refs/heads/main' && 'latest' || format('pr-{0}', github.event.pull_request.number) }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-notification-service
+          path: "**/target/surefire-reports/*.xml"

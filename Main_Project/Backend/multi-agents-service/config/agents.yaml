@@ -1,0 +1,52 @@
+# Agent Configuration for Stock Advisory Workflow
+# Each agent can be enabled/disabled and tuned via this file.
+
+agents:
+  parse_user_request:
+    enabled: true
+    timeout_seconds: 30
+    llm_temperature: 0.1
+    max_retries: 2
+
+  fetch_market_news:
+    enabled: true
+    timeout_seconds: 30
+    max_results: 5
+
+  fetch_data:
+    enabled: true
+    timeout_seconds: 60
+    data_sources:
+      - yahoo_finance
+
+  calculate_metrics:
+    enabled: true
+    timeout_seconds: 45
+    metrics:
+      - capm
+      - sharpe
+      - beta
+      - sma
+      - drawdown
+
+  propose_portfolio:
+    enabled: true
+    timeout_seconds: 60
+    llm_temperature: 0.3
+
+  validate_portfolio:
+    enabled: true
+    timeout_seconds: 30
+
+  generate_commentary:
+    enabled: true
+    timeout_seconds: 45
+    llm_temperature: 0.2
+
+  structure_output:
+    enabled: true
+    timeout_seconds: 30
+
+  handle_error:
+    enabled: true
+    # always enabled; error handling cannot be disabled
