@@ -1,0 +1,53 @@
+# LangGraph Financial Advisor Configuration
+
+system:
+  name: "Financial Advisor System"
+  version: "0.1.0"
+  environment: "development"
+
+agents:
+  retriever:
+    enabled: true
+    timeout_seconds: 30
+  risk_analyzer:
+    enabled: true
+    timeout_seconds: 60
+  compliance:
+    enabled: true
+    timeout_seconds: 30
+  reporter:
+    enabled: true
+    timeout_seconds: 45
+  critic:
+    enabled: true
+    timeout_seconds: 30
+
+llm:
+  provider: "openrouter"
+  model: "google/gemini-3-flash-preview"
+  temperature: 0.1
+  max_tokens: 2048
+  max_retries: 2
+  
+orchestration:
+  max_retries: 3
+  enable_parallel: false
+  
+audit:
+  enable_logging: true
+  log_all_interactions: true
+  retention_days: 365
+
+human_review:
+  enabled: true
+  trigger_on:
+    - HOLD
+    - BLOCK
+  sla_hours: 24
+  escalation_hours: 48
+
+storage:
+  base_path: "./storage"
+  portfolios_path: "./storage/portfolios"
+  reports_path: "./storage/reports"
+  audit_path: "./storage/audit"

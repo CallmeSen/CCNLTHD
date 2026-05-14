@@ -1,0 +1,44 @@
+# Risk Band Definitions
+
+risk_bands:
+  conservative:
+    max_volatility: 0.08
+    max_equity_percent: 30
+    max_single_asset_percent: 15
+    max_sector_concentration: 25
+    max_drawdown_tolerance: 10
+    
+  moderate:
+    max_volatility: 0.15
+    max_equity_percent: 60
+    max_single_asset_percent: 20
+    max_sector_concentration: 35
+    max_drawdown_tolerance: 20
+    
+  aggressive:
+    max_volatility: 0.25
+    max_equity_percent: 90
+    max_single_asset_percent: 25
+    max_sector_concentration: 50
+    max_drawdown_tolerance: 35
+
+stress_scenarios:
+  equity_crash:
+    equity_shock: -0.30
+    bond_shock: 0.05
+    
+  rate_spike:
+    equity_shock: -0.10
+    bond_shock: -0.15
+    
+  sector_collapse:
+    sector_shock: -0.40
+    market_shock: -0.15
+
+thresholds:
+  flag_concentration: 20  # percent
+  flag_volatility_multiple: 1.5  # vs risk band
+  flag_drawdown_breach: true
+  
+version: "1.0"
+last_updated: "2025-01-08"

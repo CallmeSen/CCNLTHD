@@ -3,26 +3,15 @@ Practice/BT4/Baitap-Microservices/
 Practice/BT4/Bai04_BuildMicoservices/
 Main_Project/.vscode/PythonImportHelper-v2-Completion.json
 
-# Python cache
-__pycache__/
-**/__pycache__/
-*.pyc
-*.pyo
-
 # Environment files (secrets)
 .env
 **/.env
 
 .claude
-
-Main_Project\Backend\portfolio-service\target\classes\application.yml
-Main_Project\Backend\user-service\target\classes\application.yml
-Main_Project\Backend\notification-service\target\classes\application.yml
-Main_Project\Backend\api-gateway\target\classes\application.yml
-Main_Project\Backend\eureka-service\target\classes\application.yml
-Main_Project\Backend\market-data-service\target\classes\application.yml
-/.cursor
-/Main_Project/Backend/multi-agents-service/storage/portfolios
-/Main_Project/Backend/multi-agents-service/storage/reports
-/Main_Project/Backend/multi-agents-service/storage/visualizations
+**/node_modules
+.cursor
+.vscode
+.cursorignore
+.cursorrules
+**/dist
 /.vscode
