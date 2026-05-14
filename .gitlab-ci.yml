@@ -359,7 +359,7 @@ test:unit:market-data-service:
   script:
     - cd Main_Project/Backend/market-data-service
     - pip install --quiet -r requirements.txt -r requirements-test.txt
-    - pytest tests/ -v --cov=app --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=54 --junitxml=junit-report.xml
+    - pytest tests/ -v --cov=app --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=70 --junitxml=junit-report.xml
   coverage: '/TOTAL.*?([0-9]{1,3})%/'
   artifacts:
     when: always
