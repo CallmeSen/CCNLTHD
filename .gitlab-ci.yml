@@ -1,0 +1,576 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# InvestAdvisor — GitLab CI Pipeline
+# Remote: https://gitlab.com/callmesen-group/CCNLTHD.git
+# Source: Main_Project/Backend/ and Main_Project/Frontend/
+#
+# Stages: validate → build → test-unit → test-integration → docker
+#
+# Key design decisions:
+#   - Integration tests use GitLab PostgreSQL service containers (no DinD/Testcontainers).
+#     SPRING_DATASOURCE_URL env var overrides the docker-test profile property.
+#     Kafka → @EmbeddedKafka (in-process). GreenMail/WireMock → also in-process.
+#   - Dockerfiles are multi-stage (maven inside Docker), so docker jobs compile
+#     from source and do NOT need JAR artifacts from build stage.
+#   - docker stage is `when: manual` — prevents accidental image pushes on every push.
+#   - needs: on docker jobs → DAG: each service's docker job starts as soon as its
+#     own integration test passes, without waiting for other services.
+#
+# Required CI/CD Variables (Settings → CI/CD → Variables):
+#   JWT_SECRET     → protected, masked
+#   DB_PASSWORD    → protected, masked
+# ──────────────────────────────────────────────────────────────────────────────
+
+stages:
+  - validate
+  - build
+  - test-unit
+  - test-integration
+  - docker
+
+# ── Defaults ──────────────────────────────────────────────────────────────────
+# interruptible: cancel running pipeline when a newer commit is pushed to the same branch.
+# retry: only retry on runner/infrastructure failure, not on test logic failure.
+
+default:
+  interruptible: true
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Xmx512m"
+  MAVEN_CLI: "--batch-mode --errors --no-transfer-progress"
+  IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+
+workflow:
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+# ── Cache templates ───────────────────────────────────────────────────────────
+# pull-push: build jobs update the cache after downloading dependencies.
+# pull:      test/validate jobs only read from cache (no write contention).
+
+.maven-cache-rw:
+  cache:
+    key: "maven-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .m2/repository
+    policy: pull-push
+
+.maven-cache-ro:
+  cache:
+    key: "maven-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .m2/repository
+    policy: pull
+
+.npm-cache:
+  cache:
+    key:
+      prefix: npm
+      files:
+        - Main_Project/Frontend/package-lock.json
+    paths:
+      - Main_Project/Frontend/node_modules/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: VALIDATE
+# ─────────────────────────────────────────────────────────────────────────────
+
+validate:java:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: validate
+  extends: .maven-cache-ro
+  timeout: 5 minutes
+  script:
+    - |
+      for svc in api-gateway eureka-server user-service portfolio-service notification-service; do
+        echo "=== Validating $svc ==="
+        mvn $MAVEN_CLI -f Main_Project/Backend/$svc/pom.xml validate
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/**/*
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+
+validate:python:
+  image: python:3.12-slim
+  stage: validate
+  timeout: 5 minutes
+  script:
+    - pip install --quiet flake8
+    - flake8 Main_Project/Backend/market-data-service/app/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241 --exclude=__pycache__
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/market-data-service/**/*
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+
+validate:frontend:
+  image: node:20-alpine
+  stage: validate
+  extends: .npm-cache
+  timeout: 10 minutes
+  script:
+    - cd Main_Project/Frontend
+    - npm ci
+    - npm run lint
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Frontend/**/*
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: BUILD
+# compile + package (skip tests). Verifies the project is buildable.
+# ─────────────────────────────────────────────────────────────────────────────
+
+build:user-service:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: build
+  extends: .maven-cache-rw
+  timeout: 15 minutes
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/user-service/pom.xml clean package -DskipTests
+  artifacts:
+    paths:
+      - Main_Project/Backend/user-service/target/*.jar
+    expire_in: 1 hour
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/user-service/**/*
+
+build:portfolio-service:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: build
+  extends: .maven-cache-rw
+  timeout: 15 minutes
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/portfolio-service/pom.xml clean package -DskipTests
+  artifacts:
+    paths:
+      - Main_Project/Backend/portfolio-service/target/*.jar
+    expire_in: 1 hour
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/portfolio-service/**/*
+
+build:notification-service:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: build
+  extends: .maven-cache-rw
+  timeout: 15 minutes
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/notification-service/pom.xml clean package -DskipTests
+  artifacts:
+    paths:
+      - Main_Project/Backend/notification-service/target/*.jar
+    expire_in: 1 hour
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/notification-service/**/*
+
+build:api-gateway:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: build
+  extends: .maven-cache-rw
+  timeout: 15 minutes
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/api-gateway/pom.xml clean package -DskipTests
+  artifacts:
+    paths:
+      - Main_Project/Backend/api-gateway/target/*.jar
+    expire_in: 1 hour
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/api-gateway/**/*
+
+build:eureka-server:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: build
+  extends: .maven-cache-rw
+  timeout: 15 minutes
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/eureka-server/pom.xml clean package -DskipTests
+  artifacts:
+    paths:
+      - Main_Project/Backend/eureka-server/target/*.jar
+    expire_in: 1 hour
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/eureka-server/**/*
+
+build:market-data-service:
+  image: python:3.12-slim
+  stage: build
+  timeout: 10 minutes
+  script:
+    - cd Main_Project/Backend/market-data-service
+    - pip install --quiet -r requirements.txt
+    - python -c "import app.main" 2>/dev/null || python -m py_compile main.py
+    - echo "Python syntax OK"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/market-data-service/**/*
+
+build:frontend:
+  image: node:20-alpine
+  stage: build
+  extends: .npm-cache
+  timeout: 15 minutes
+  script:
+    - cd Main_Project/Frontend
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - Main_Project/Frontend/dist/
+    expire_in: 1 hour
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Frontend/**/*
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: TEST-UNIT
+# mvn test runs unit tests only.
+# IntegrationTest classes are excluded by Surefire config in each service's pom.xml.
+# ─────────────────────────────────────────────────────────────────────────────
+
+test:unit:user-service:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: test-unit
+  extends: .maven-cache-ro
+  timeout: 10 minutes
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/user-service/pom.xml test
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/user-service/target/surefire-reports/TEST-*.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: Main_Project/Backend/user-service/target/site/jacoco/jacoco.xml
+    paths:
+      - Main_Project/Backend/user-service/target/surefire-reports/
+      - Main_Project/Backend/user-service/target/site/jacoco/
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/user-service/**/*
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+
+test:unit:portfolio-service:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: test-unit
+  extends: .maven-cache-ro
+  timeout: 10 minutes
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/portfolio-service/pom.xml test
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/portfolio-service/target/surefire-reports/TEST-*.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: Main_Project/Backend/portfolio-service/target/site/jacoco/jacoco.xml
+    paths:
+      - Main_Project/Backend/portfolio-service/target/surefire-reports/
+      - Main_Project/Backend/portfolio-service/target/site/jacoco/
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/portfolio-service/**/*
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+
+test:unit:notification-service:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: test-unit
+  extends: .maven-cache-ro
+  timeout: 10 minutes
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/notification-service/pom.xml test
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/notification-service/target/surefire-reports/TEST-*.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: Main_Project/Backend/notification-service/target/site/jacoco/jacoco.xml
+    paths:
+      - Main_Project/Backend/notification-service/target/surefire-reports/
+      - Main_Project/Backend/notification-service/target/site/jacoco/
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/notification-service/**/*
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+
+test:unit:api-gateway:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: test-unit
+  extends: .maven-cache-ro
+  timeout: 10 minutes
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/api-gateway/pom.xml test
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/api-gateway/target/surefire-reports/TEST-*.xml
+    paths:
+      - Main_Project/Backend/api-gateway/target/surefire-reports/
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/api-gateway/**/*
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+
+test:unit:market-data-service:
+  image: python:3.12-slim
+  stage: test-unit
+  timeout: 10 minutes
+  script:
+    - cd Main_Project/Backend/market-data-service
+    - pip install --quiet -r requirements.txt -r requirements-test.txt
+    - pytest tests/ -v --cov=app --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=70 --junitxml=junit-report.xml
+  coverage: '/TOTAL.*?([0-9]{1,3})%/'
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/market-data-service/junit-report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: Main_Project/Backend/market-data-service/coverage.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/market-data-service/**/*
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: TEST-INTEGRATION
+#
+# PostgreSQL: GitLab service container.
+#   - POSTGRES_* vars at job level → passed to both the service container and the job.
+#   - SPRING_DATASOURCE_URL env var → overrides application-docker-test.properties
+#     (hostname "localhost" → "postgres" in CI, where the service container is reachable).
+#   - SPRING_DATASOURCE_USERNAME / PASSWORD also set as env vars (belt-and-suspenders).
+#
+# Kafka:   @EmbeddedKafka — runs in-process, no external service needed.
+# GreenMail: embedded SMTP — no external service needed (notification-service).
+# WireMock:  embedded HTTP mock — no external service needed (portfolio-service).
+#
+# retry: 1 — EmbeddedKafka/GreenMail startup can occasionally race under CI load.
+# ─────────────────────────────────────────────────────────────────────────────
+
+test:integration:user-service:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: test-integration
+  extends: .maven-cache-ro
+  timeout: 15 minutes
+  retry: 1
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_DB: user_db_test
+    SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/user_db_test"
+    SPRING_DATASOURCE_USERNAME: postgres
+    SPRING_DATASOURCE_PASSWORD: postgres
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/user-service/pom.xml test -Dtest=UserServiceIntegrationTest -DfailIfNoTests=false -Djacoco.skip=true
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/user-service/target/surefire-reports/TEST-*.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+
+test:integration:portfolio-service:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: test-integration
+  extends: .maven-cache-ro
+  timeout: 15 minutes
+  retry: 1
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_DB: portfolio_db_test
+    SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/portfolio_db_test"
+    SPRING_DATASOURCE_USERNAME: postgres
+    SPRING_DATASOURCE_PASSWORD: postgres
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/portfolio-service/pom.xml test -Dtest=PortfolioServiceIntegrationTest -DfailIfNoTests=false -Djacoco.skip=true
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/portfolio-service/target/surefire-reports/TEST-*.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+
+test:integration:notification-service:
+  image: maven:3.9.6-eclipse-temurin-17-alpine
+  stage: test-integration
+  extends: .maven-cache-ro
+  timeout: 15 minutes
+  retry: 1
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_DB: notification_db_test
+    SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/notification_db_test"
+    SPRING_DATASOURCE_USERNAME: postgres
+    SPRING_DATASOURCE_PASSWORD: postgres
+  script:
+    - mvn $MAVEN_CLI -f Main_Project/Backend/notification-service/pom.xml test -Dtest=NotificationServiceIntegrationTest -DfailIfNoTests=false -Djacoco.skip=true
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/notification-service/target/surefire-reports/TEST-*.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: DOCKER
+# Build multi-stage Dockerfiles and push to GitLab Container Registry.
+# when: manual — requires explicit trigger in GitLab UI (prevents accidental pushes).
+# needs: DAG — each service's docker job depends only on its own integration test.
+#   If integration test was skipped (e.g., feature branch), docker job is also skipped.
+#   optional: true → allow docker job to proceed even if integration test was skipped.
+# ─────────────────────────────────────────────────────────────────────────────
+
+.docker-template:
+  image: docker:24
+  stage: docker
+  timeout: 20 minutes
+  services:
+    - name: docker:24-dind
+      alias: docker
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_TAG =~ /^v.*/
+
+docker:user-service:
+  extends: .docker-template
+  needs:
+    - job: test:integration:user-service
+      optional: true
+    - job: build:user-service
+      optional: true
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE/user-service"
+    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/user-service/
+    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+
+docker:portfolio-service:
+  extends: .docker-template
+  needs:
+    - job: test:integration:portfolio-service
+      optional: true
+    - job: build:portfolio-service
+      optional: true
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE/portfolio-service"
+    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/portfolio-service/
+    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+
+docker:notification-service:
+  extends: .docker-template
+  needs:
+    - job: test:integration:notification-service
+      optional: true
+    - job: build:notification-service
+      optional: true
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE/notification-service"
+    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/notification-service/
+    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+
+docker:api-gateway:
+  extends: .docker-template
+  needs:
+    - job: build:api-gateway
+      optional: true
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE/api-gateway"
+    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/api-gateway/
+    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+
+docker:eureka-server:
+  extends: .docker-template
+  needs:
+    - job: build:eureka-server
+      optional: true
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE/eureka-server"
+    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/eureka-server/
+    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+
+docker:market-data-service:
+  extends: .docker-template
+  needs:
+    - job: test:unit:market-data-service
+      optional: true
+    - job: build:market-data-service
+      optional: true
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE/market-data-service"
+    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/market-data-service/
+    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+
+docker:frontend:
+  extends: .docker-template
+  needs:
+    - job: build:frontend
+      optional: true
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE/frontend"
+    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Frontend/
+    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
