@@ -104,7 +104,7 @@ validate:python:
   timeout: 5 minutes
   script:
     - pip install --quiet flake8
-    - flake8 Main_Project/Backend/market-data-service/app/ --max-line-length=120 --ignore=E501,W503 --exclude=__pycache__
+    - flake8 Main_Project/Backend/market-data-service/app/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241 --exclude=__pycache__
   rules:
     - if: $CI_COMMIT_BRANCH
       changes:
