@@ -25,3 +25,4 @@ Main_Project\Backend\market-data-service\target\classes\application.yml
 /Main_Project/Backend/multi-agents-service/storage/portfolios
 /Main_Project/Backend/multi-agents-service/storage/reports
 /Main_Project/Backend/multi-agents-service/storage/visualizations
+/.vscode
