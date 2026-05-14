@@ -228,17 +228,6 @@ async def send_message(
     }
 
 
-@router.post("/debug-log")
-async def debug_log(payload: dict):
-    """Debug endpoint: frontend writes logs here."""
-    try:
-        line = json.dumps(payload) + "\n"
-        with open("e:\\GitHub\\CCNLTHD\\Main_Project\\Backend\\multi-agents-service\\debug-3ba358.log","a",encoding="utf-8") as f:
-            f.write(line)
-    except: pass
-    return {"ok": True}
-
-
 @router.delete("/{session_id}")
 async def delete_session(session_id: str):
     """Delete a session and clear its history."""

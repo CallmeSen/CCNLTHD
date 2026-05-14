@@ -137,11 +137,6 @@ class OrchestratorService:
         })
 
         def emit(event_type: str, data: Dict[str, Any]) -> None:
-            # #region debug_log
-            with open("e:\\GitHub\\CCNLTHD\\Main_Project\\Backend\\multi-agents-service\\debug-3ba358.log","a",encoding="utf-8") as f:
-                import json as _json, datetime as _dt
-                f.write(_json.dumps({"sessionId":"3ba358","location":"orchestrator.emit","message":f"backend emit {event_type}","data":{"event_type":event_type,"tool":data.get("tool","")},"timestamp":int(_dt.datetime.utcnow().timestamp()*1000),"hypothesisId":"H3"}) + "\n")
-            # #endregion
             if event_callback:
                 try:
                     event_callback(event_type, data)
