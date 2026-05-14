@@ -263,6 +263,30 @@
         "documentation": {}
     },
     {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
         "label": "Dict",
         "importPath": "typing",
         "description": "typing",
@@ -408,6 +432,14 @@
     },
     {
         "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Callable",
         "importPath": "typing",
         "description": "typing",
         "isExtraImport": true,
@@ -1299,6 +1331,30 @@
         "documentation": {}
     },
     {
+        "label": "APIRouter",
+        "importPath": "fastapi",
+        "description": "fastapi",
+        "isExtraImport": true,
+        "detail": "fastapi",
+        "documentation": {}
+    },
+    {
+        "label": "Depends",
+        "importPath": "fastapi",
+        "description": "fastapi",
+        "isExtraImport": true,
+        "detail": "fastapi",
+        "documentation": {}
+    },
+    {
+        "label": "HTTPException",
+        "importPath": "fastapi",
+        "description": "fastapi",
+        "isExtraImport": true,
+        "detail": "fastapi",
+        "documentation": {}
+    },
+    {
         "label": "CORSMiddleware",
         "importPath": "fastapi.middleware.cors",
         "description": "fastapi.middleware.cors",
@@ -1312,6 +1368,14 @@
         "description": "fastapi.staticfiles",
         "isExtraImport": true,
         "detail": "fastapi.staticfiles",
+        "documentation": {}
+    },
+    {
+        "label": "Session",
+        "importPath": "sqlalchemy.orm",
+        "description": "sqlalchemy.orm",
+        "isExtraImport": true,
+        "detail": "sqlalchemy.orm",
         "documentation": {}
     },
     {
@@ -1396,6 +1460,14 @@
     },
     {
         "label": "ensure_postgres_db",
+        "importPath": "src.fin_agents.db.database",
+        "description": "src.fin_agents.db.database",
+        "isExtraImport": true,
+        "detail": "src.fin_agents.db.database",
+        "documentation": {}
+    },
+    {
+        "label": "get_db",
         "importPath": "src.fin_agents.db.database",
         "description": "src.fin_agents.db.database",
         "isExtraImport": true,
@@ -1539,6 +1611,14 @@
         "documentation": {}
     },
     {
+        "label": "MessageCreate",
+        "importPath": "src.fin_agents.api.schemas",
+        "description": "src.fin_agents.api.schemas",
+        "isExtraImport": true,
+        "detail": "src.fin_agents.api.schemas",
+        "documentation": {}
+    },
+    {
         "label": "HealthCheck",
         "importPath": "src.fin_agents.api.schemas",
         "description": "src.fin_agents.api.schemas",
@@ -1579,6 +1659,14 @@
         "documentation": {}
     },
     {
+        "label": "router",
+        "importPath": "src.fin_agents.api.sessions",
+        "description": "src.fin_agents.api.sessions",
+        "isExtraImport": true,
+        "detail": "src.fin_agents.api.sessions",
+        "documentation": {}
+    },
+    {
         "label": "list_workflows",
         "importPath": "src.fin_agents.graphs.registry",
         "description": "src.fin_agents.graphs.registry",
@@ -1593,6 +1681,14 @@
         "importPath": "logging",
         "description": "logging",
         "detail": "logging",
+        "documentation": {}
+    },
+    {
+        "label": "OrchestratorService",
+        "importPath": "src.fin_agents.core.orchestrator",
+        "description": "src.fin_agents.core.orchestrator",
+        "isExtraImport": true,
+        "detail": "src.fin_agents.core.orchestrator",
         "documentation": {}
     },
     {
@@ -1740,6 +1836,50 @@
         "documentation": {}
     },
     {
+        "label": "asyncio",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "asyncio",
+        "description": "asyncio",
+        "detail": "asyncio",
+        "documentation": {}
+    },
+    {
+        "label": "threading",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "threading",
+        "description": "threading",
+        "detail": "threading",
+        "documentation": {}
+    },
+    {
+        "label": "uuid",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "uuid",
+        "description": "uuid",
+        "detail": "uuid",
+        "documentation": {}
+    },
+    {
+        "label": "sse_starlette",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "sse_starlette",
+        "description": "sse_starlette",
+        "detail": "sse_starlette",
+        "documentation": {}
+    },
+    {
+        "label": "EventSourceResponse",
+        "importPath": "sse_starlette.sse",
+        "description": "sse_starlette.sse",
+        "isExtraImport": true,
+        "detail": "sse_starlette.sse",
+        "documentation": {}
+    },
+    {
         "label": "yaml",
         "kind": 6,
         "isExtraImport": true,
@@ -1830,6 +1970,15 @@
         "description": "dotenv",
         "isExtraImport": true,
         "detail": "dotenv",
+        "documentation": {}
+    },
+    {
+        "label": "re",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "re",
+        "description": "re",
+        "detail": "re",
         "documentation": {}
     },
     {
@@ -2142,15 +2291,6 @@
         "description": "src.fin_agents.core.finance.metrics",
         "isExtraImport": true,
         "detail": "src.fin_agents.core.finance.metrics",
-        "documentation": {}
-    },
-    {
-        "label": "re",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "re",
-        "description": "re",
-        "detail": "re",
         "documentation": {}
     },
     {
@@ -3225,7 +3365,7 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.main",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.main",
-        "peekOfCode": "app = FastAPI(\n    title=\"Financial Advisor API\",\n    description=\"LangGraph-powered financial advisory system\",\n    version=\"0.1.0\",\n    docs_url=\"/docs\",\n    redoc_url=\"/redoc\"\n)\n# Include portfolio generation router\napp.include_router(portfolio_router)\n# CORS middleware",
+        "peekOfCode": "app = FastAPI(\n    title=\"Financial Advisor API\",\n    description=\"LangGraph-powered financial advisory system\",\n    version=\"0.1.0\",\n    docs_url=\"/docs\",\n    redoc_url=\"/redoc\"\n)\n# Include portfolio generation router\napp.include_router(portfolio_router)\napp.include_router(sessions_router)",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.main",
         "documentation": {}
     },
@@ -3297,7 +3437,16 @@
         "kind": 6,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.schemas",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.schemas",
-        "peekOfCode": "class HealthCheck(BaseModel):\n    \"\"\"Health check response\"\"\"\n    status: str\n    service: str\n    version: str\n    timestamp: str\n    database: Optional[str] = None\n# ============================================================================\n# Client Schemas\n# ============================================================================",
+        "peekOfCode": "class HealthCheck(BaseModel):\n    \"\"\"Health check response\"\"\"\n    status: str\n    service: str\n    version: str\n    timestamp: str\n    database: Optional[str] = None\n# ============================================================================\n# SSE Session Schemas\n# ============================================================================",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.schemas",
+        "documentation": {}
+    },
+    {
+        "label": "MessageCreate",
+        "kind": 6,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.schemas",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.schemas",
+        "peekOfCode": "class MessageCreate(BaseModel):\n    \"\"\"Request body for sending a message to a chat session.\"\"\"\n    message: str = Field(..., description=\"User message content\")\n    lang: Optional[str] = Field(\"en\", description=\"Response language code (en/vi)\")\n# ============================================================================\n# Client Schemas\n# ============================================================================\nclass ClientBase(BaseModel):\n    \"\"\"Base client schema\"\"\"\n    client_id: str",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.schemas",
         "documentation": {}
     },
@@ -3419,6 +3568,42 @@
         "documentation": {}
     },
     {
+        "label": "EventBus",
+        "kind": 6,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "peekOfCode": "class EventBus:\n    \"\"\"Thread-safe event bus for SSE event distribution.\"\"\"\n    @staticmethod\n    def _get_buffer(session_id: str) -> list:\n        with _lock:\n            if session_id not in _buffers:\n                _buffers[session_id] = []\n            return _buffers[session_id]\n    @staticmethod\n    def _get_queues(session_id: str) -> list:",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nrouter = APIRouter(prefix=\"/sessions\", tags=[\"sessions\"])\n# ---------------------------------------------------------------------------\n# Event Bus\n# ---------------------------------------------------------------------------\n_sessions: Dict[str, Dict[str, Any]] = {}\n_buffers: Dict[str, list] = {}\n_subscribers: Dict[str, list] = {}\n_lock = threading.Lock()\n_loop: Optional[asyncio.AbstractEventLoop] = None",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "documentation": {}
+    },
+    {
+        "label": "router",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "peekOfCode": "router = APIRouter(prefix=\"/sessions\", tags=[\"sessions\"])\n# ---------------------------------------------------------------------------\n# Event Bus\n# ---------------------------------------------------------------------------\n_sessions: Dict[str, Dict[str, Any]] = {}\n_buffers: Dict[str, list] = {}\n_subscribers: Dict[str, list] = {}\n_lock = threading.Lock()\n_loop: Optional[asyncio.AbstractEventLoop] = None\ndef _get_loop() -> asyncio.AbstractEventLoop:",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "documentation": {}
+    },
+    {
+        "label": "_lock",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "peekOfCode": "_lock = threading.Lock()\n_loop: Optional[asyncio.AbstractEventLoop] = None\ndef _get_loop() -> asyncio.AbstractEventLoop:\n    global _loop\n    if _loop is None:\n        try:\n            _loop = asyncio.get_running_loop()\n        except RuntimeError:\n            _loop = asyncio.new_event_loop()\n    return _loop",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.api.sessions",
+        "documentation": {}
+    },
+    {
         "label": "load_agents_config",
         "kind": 2,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.config.loader",
@@ -3459,7 +3644,7 @@
         "kind": 2,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
-        "peekOfCode": "def fetch_market_news(state: TypedDict) -> Dict:\n    \"\"\"Fetches relevant market news using Tavily based on user profile.\"\"\"\n    from langchain_community.tools.tavily_search.tool import TavilySearchResults\n    from src.fin_agents.core.config import TAVILY_API_KEY\n    tavily_tool = TavilySearchResults(max_results=3) if TAVILY_API_KEY else None\n    logger.info(\"Fetching Market News...\")\n    if not tavily_tool:\n        logger.warning(\"Tavily tool not available. Skipping market news.\")\n        return {\"market_news\": \"N/A (Tool not configured)\"}\n    user_profile = state.get(\"user_profile\", {})",
+        "peekOfCode": "def fetch_market_news(state: TypedDict) -> Dict:\n    \"\"\"Fetches relevant market news using Tavily based on user profile.\"\"\"\n    from langchain_tavily import TavilySearch\n    from src.fin_agents.core.config import TAVILY_API_KEY\n    tavily_tool = TavilySearch(max_results=3) if TAVILY_API_KEY else None\n    logger.info(\"Fetching Market News...\")\n    if not tavily_tool:\n        logger.warning(\"Tavily tool not available. Skipping market news.\")\n        return {\"market_news\": \"N/A (Tool not configured)\"}\n    user_profile = state.get(\"user_profile\", {})",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.data_fetcher",
         "documentation": {}
     },
@@ -3567,7 +3752,25 @@
         "kind": 2,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.report",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.report",
-        "peekOfCode": "def structure_output_report(state: Dict) -> str:\n    \"\"\"Formats the final results into a clear Markdown report using tables.\"\"\"\n    logging.info(\"Structuring Output Report\")\n    report = \"# Financial Portfolio Report\\n\\n\"\n    user_profile = state.get(\"user_profile\", {})\n    proposed_portfolio = state.get(\"proposed_portfolio\", {})\n    metrics = state.get(\"metrics\", {})\n    validation = state.get(\"validation_result\", {})\n    commentary = state.get(\"llm_commentary\", \"No commentary generated.\")\n    news = state.get(\"market_news\", None)",
+        "peekOfCode": "def structure_output_report(state: Dict) -> str:\n    \"\"\"Formats the final results into a clear Markdown report using tables.\"\"\"\n    logging.info(\"Structuring Output Report\")\n    lang = state.get(\"lang\", \"en\")\n    T = _REPORT_HEADERS_VI if lang == \"vi\" else _REPORT_HEADERS_EN\n    rf_rate = 0.045\n    exp_market_return = 0.09\n    user_profile = state.get(\"user_profile\", {})\n    proposed_portfolio = state.get(\"proposed_portfolio\", {})\n    metrics = state.get(\"metrics\", {})",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.report",
+        "documentation": {}
+    },
+    {
+        "label": "_REPORT_HEADERS_EN",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.report",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.report",
+        "peekOfCode": "_REPORT_HEADERS_EN = {\n    \"title\": \"# Financial Portfolio Report\",\n    \"execution_error\": \"## Execution Error\",\n    \"user_profile_summary\": \"## User Profile Summary\",\n    \"goal\": \"Goal\",\n    \"risk_tolerance\": \"Risk Tolerance\",\n    \"time_horizon\": \"Time Horizon\",\n    \"initial_capital\": \"Initial Capital\",\n    \"preferences\": \"Preferences\",\n    \"market_news\": \"## Recent Market News Context\",",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.report",
+        "documentation": {}
+    },
+    {
+        "label": "_REPORT_HEADERS_VI",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.report",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.report",
+        "peekOfCode": "_REPORT_HEADERS_VI = {\n    \"title\": \"# Báo Cáo Danh Mục Đầu Tư\",\n    \"execution_error\": \"## Lỗi Thực Thi\",\n    \"user_profile_summary\": \"## Tóm Tắt Hồ Sơ Người Dùng\",\n    \"goal\": \"Mục tiêu\",\n    \"risk_tolerance\": \"Mức chấp nhận rủi ro\",\n    \"time_horizon\": \"Thời hạn đầu tư\",\n    \"initial_capital\": \"Vốn ban đầu\",\n    \"preferences\": \"Sở thích\",\n    \"market_news\": \"## Bối Cảnh Tin Tức Thị Trường Gần Đây\",",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.finance.report",
         "documentation": {}
     },
@@ -3802,6 +4005,15 @@
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.orchestrator",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.orchestrator",
         "peekOfCode": "class OrchestratorService:\n    \"\"\"\n    Central service that coordinates LangGraph workflow execution and\n    persists all results into the database.\n    \"\"\"\n    def __init__(self, db: Session):\n        self.db = db\n    def run_stock_workflow(\n        self,\n        initial_request: str,",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.orchestrator",
+        "documentation": {}
+    },
+    {
+        "label": "VIETNAMESE_CHARS",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.orchestrator",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.orchestrator",
+        "peekOfCode": "VIETNAMESE_CHARS = re.compile(r'[\\u00C0-\\u024F\\u1EA0-\\u1EF9]')\ndef _detect_lang(text: str) -> str:\n    \"\"\"Detect Vietnamese vs English from text. Returns 'vi' or 'en'.\"\"\"\n    if VIETNAMESE_CHARS.search(text):\n        return \"vi\"\n    words_lower = text.lower()\n    vi_keywords = [\n        \"phân tích\", \"cổ phiếu\", \"đầu tư\", \"danh mục\", \"rủi ro\", \"lợi nhuận\",\n        \"thị trường\", \"chứng khoán\", \"tài chính\", \"vốn\", \"ngân hàng\",\n        \"mua\", \"bán\", \"giá\", \"cổ tức\", \"lãi suất\", \"cho tôi\", \"tôi muốn\",",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.core.orchestrator",
         "documentation": {}
     },
@@ -4152,7 +4364,7 @@
         "kind": 6,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.commentary_agent",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.commentary_agent",
-        "peekOfCode": "class CommentaryAgent:\n    \"\"\"Generates a natural-language explanation of the portfolio allocation.\"\"\"\n    name = \"generate_commentary\"\n    description = \"Generates LLM commentary explaining the portfolio allocation\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        user_profile = state.get(\"user_profile\") or {}\n        portfolio = state.get(\"proposed_portfolio\") or {}",
+        "peekOfCode": "class CommentaryAgent:\n    \"\"\"Generates a natural-language explanation of the portfolio allocation.\"\"\"\n    name = \"generate_commentary\"\n    description = \"Generates LLM commentary explaining the portfolio allocation\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        lang = state.get(\"lang\", \"en\")\n        system_prompt = GENERATE_COMMENTARY_SYSTEM_VI if lang == \"vi\" else GENERATE_COMMENTARY_SYSTEM_EN",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.commentary_agent",
         "documentation": {}
     },
@@ -4161,7 +4373,7 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.commentary_agent",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.commentary_agent",
-        "peekOfCode": "logger = logging.getLogger(__name__)\nclass CommentaryAgent:\n    \"\"\"Generates a natural-language explanation of the portfolio allocation.\"\"\"\n    name = \"generate_commentary\"\n    description = \"Generates LLM commentary explaining the portfolio allocation\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        user_profile = state.get(\"user_profile\") or {}",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass CommentaryAgent:\n    \"\"\"Generates a natural-language explanation of the portfolio allocation.\"\"\"\n    name = \"generate_commentary\"\n    description = \"Generates LLM commentary explaining the portfolio allocation\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        lang = state.get(\"lang\", \"en\")",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.commentary_agent",
         "documentation": {}
     },
@@ -4224,7 +4436,7 @@
         "kind": 6,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.parse_agent",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.parse_agent",
-        "peekOfCode": "class ParseAgent:\n    \"\"\"Parses natural language investment request into a structured user profile.\"\"\"\n    name = \"parse_user_request\"\n    description = \"Parses natural language request into structured user profile\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        from pydantic.v1 import BaseModel, Field\n        from typing import Optional as Opt, List",
+        "peekOfCode": "class ParseAgent:\n    \"\"\"Parses natural language investment request into a structured user profile.\"\"\"\n    name = \"parse_user_request\"\n    description = \"Parses natural language request into structured user profile\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        lang = state.get(\"lang\", \"en\")\n        system_prompt = PARSE_USER_SYSTEM_VI if lang == \"vi\" else PARSE_USER_SYSTEM_EN",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.parse_agent",
         "documentation": {}
     },
@@ -4242,7 +4454,7 @@
         "kind": 6,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.portfolio_agent",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.portfolio_agent",
-        "peekOfCode": "class PortfolioAgent:\n    \"\"\"Proposes a weighted portfolio allocation based on metrics and user profile.\"\"\"\n    name = \"propose_portfolio\"\n    description = \"Proposes portfolio allocation weights using LLM\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        from pydantic.v1 import BaseModel, Field\n        from typing import Optional as Opt",
+        "peekOfCode": "class PortfolioAgent:\n    \"\"\"Proposes a weighted portfolio allocation based on metrics and user profile.\"\"\"\n    name = \"propose_portfolio\"\n    description = \"Proposes portfolio allocation weights using LLM\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        lang = state.get(\"lang\", \"en\")\n        system_prompt = PROPOSE_PORTFOLIO_SYSTEM_VI if lang == \"vi\" else PROPOSE_PORTFOLIO_SYSTEM_EN",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.portfolio_agent",
         "documentation": {}
     },
@@ -4251,7 +4463,7 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.portfolio_agent",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.portfolio_agent",
-        "peekOfCode": "logger = logging.getLogger(__name__)\nclass PortfolioAgent:\n    \"\"\"Proposes a weighted portfolio allocation based on metrics and user profile.\"\"\"\n    name = \"propose_portfolio\"\n    description = \"Proposes portfolio allocation weights using LLM\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        from pydantic.v1 import BaseModel, Field",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass PortfolioAgent:\n    \"\"\"Proposes a weighted portfolio allocation based on metrics and user profile.\"\"\"\n    name = \"propose_portfolio\"\n    description = \"Proposes portfolio allocation weights using LLM\"\n    def __init__(self, llm=None, config: Optional[dict] = None):\n        self._llm = llm if llm is not None else get_shared_llm()\n        self._config = config or {}\n    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:\n        lang = state.get(\"lang\", \"en\")",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.agents.portfolio_agent",
         "documentation": {}
     },
@@ -4386,7 +4598,7 @@
         "kind": 6,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.states.workflow_state",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.states.workflow_state",
-        "peekOfCode": "class BaseWorkflowState(TypedDict, total=False):\n    \"\"\"Base workflow fields used across the entire pipeline.\"\"\"\n    initial_request: str\n    final_report: Optional[str]\n    error_message: Optional[str]\n    step: Optional[str]\nclass StockAdvisoryState(MarketState, RiskState, PortfolioState, BaseWorkflowState):\n    \"\"\"Full composed state for the stock advisory workflow.\n    Inherits from all partial states to produce a single flat TypedDict\n    that covers every field used by every node in the graph.",
+        "peekOfCode": "class BaseWorkflowState(TypedDict, total=False):\n    \"\"\"Base workflow fields used across the entire pipeline.\"\"\"\n    initial_request: str\n    lang: str\n    final_report: Optional[str]\n    error_message: Optional[str]\n    step: Optional[str]\nclass StockAdvisoryState(MarketState, RiskState, PortfolioState, BaseWorkflowState):\n    \"\"\"Full composed state for the stock advisory workflow.\n    Inherits from all partial states to produce a single flat TypedDict",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.states.workflow_state",
         "documentation": {}
     },
@@ -4431,7 +4643,25 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
-        "peekOfCode": "TODAY = date.today().strftime(\"%Y-%m-%d\")\n# --------------------------------------------------------------------------- #\n# Parse User Request\n# --------------------------------------------------------------------------- #\nPARSE_USER_SYSTEM = f\"\"\"You are an expert financial analyst assistant. Parse the user's request to understand their investment profile.\nExtract the goal, risk tolerance, time horizon, initial capital, and any specific preferences mentioned (store simple preferences as a string in 'specific_preferences').\nIdentify any specific assets the user suggested.\nAlso, extract `start_date` and `end_date` (in YYYY-MM-DD format) if the user specifies a precise date range for analysis. If a date range is given, it should take precedence over a general time horizon.\n**Asset Generation Rules (Strict Adherence Required):**\n1. **CRITICAL & ABSOLUTE REQUIREMENT: If the user explicitly requests a specific number of tickers (e.g., \"select 20 tickers\", \"give me 10 stocks\"), you MUST generate EXACTLY that number of diverse assets matching the profile.** This instruction overrides any other general guidelines on asset count, including any defaults suggested in field descriptions. The 'suggested_assets' field in your JSON output must reflect this exact count.",
+        "peekOfCode": "TODAY = date.today().strftime(\"%Y-%m-%d\")\n# --------------------------------------------------------------------------- #\n# Parse User Request — English\n# --------------------------------------------------------------------------- #\nPARSE_USER_SYSTEM_EN = f\"\"\"You are an expert financial analyst assistant. Parse the user's request to understand their investment profile.\nExtract the goal, risk tolerance, time horizon, initial capital, and any specific preferences mentioned (store simple preferences as a string in 'specific_preferences').\nIdentify any specific assets the user suggested.\nAlso, extract `start_date` and `end_date` (in YYYY-MM-DD format) if the user specifies a precise date range for analysis. If a date range is given, it should take precedence over a general time horizon.\n**Asset Generation Rules (Strict Adherence Required):**\n1. **CRITICAL & ABSOLUTE REQUIREMENT: If the user explicitly requests a specific number of tickers (e.g., \"select 20 tickers\", \"give me 10 stocks\"), you MUST generate EXACTLY that number of diverse assets matching the profile.** This instruction overrides any other general guidelines on asset count, including any defaults suggested in field descriptions. The 'suggested_assets' field in your JSON output must reflect this exact count.",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "documentation": {}
+    },
+    {
+        "label": "PARSE_USER_SYSTEM_EN",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "peekOfCode": "PARSE_USER_SYSTEM_EN = f\"\"\"You are an expert financial analyst assistant. Parse the user's request to understand their investment profile.\nExtract the goal, risk tolerance, time horizon, initial capital, and any specific preferences mentioned (store simple preferences as a string in 'specific_preferences').\nIdentify any specific assets the user suggested.\nAlso, extract `start_date` and `end_date` (in YYYY-MM-DD format) if the user specifies a precise date range for analysis. If a date range is given, it should take precedence over a general time horizon.\n**Asset Generation Rules (Strict Adherence Required):**\n1. **CRITICAL & ABSOLUTE REQUIREMENT: If the user explicitly requests a specific number of tickers (e.g., \"select 20 tickers\", \"give me 10 stocks\"), you MUST generate EXACTLY that number of diverse assets matching the profile.** This instruction overrides any other general guidelines on asset count, including any defaults suggested in field descriptions. The 'suggested_assets' field in your JSON output must reflect this exact count.\n2. If the user suggests 5 or more specific assets AND does not specify an exact number, use those primarily, potentially adding more diverse assets to reach a count of around 15.\n3. If the user suggests fewer than 5 assets AND does NOT specify an exact number, generate a diverse list of approximately 20 suitable assets (considering stocks, bonds, ETFs relevant to the profile).\nPopulate the 'suggested_assets' field with the final list of tickers. Ensure the list contains ONLY valid tickers.\nOutput ONLY the JSON object matching the required schema. **IMPORTANT: Do NOT include any comments (like //) inside the JSON output.** Today's Date: {TODAY}.\"\"\"",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "documentation": {}
+    },
+    {
+        "label": "PARSE_USER_SYSTEM_VI",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "peekOfCode": "PARSE_USER_SYSTEM_VI = f\"\"\"Bạn là chuyên gia phân tích tài chính. Phân tích yêu cầu của người dùng để hiểu hồ sơ đầu tư của họ.\nTrích xuất mục tiêu, mức chấp nhận rủi ro, thời hạn đầu tư, vốn ban đầu và bất kỳ sở thích cụ thể nào được đề cập (lưu sở thích đơn giản dưới dạng chuỗi trong 'specific_preferences').\nXác định các tài sản cụ thể mà người dùng đề xuất.\nĐồng thời trích xuất `start_date` và `end_date` (định dạng YYYY-MM-DD) nếu người dùng chỉ định khoảng ngày cụ thể cho phân tích. Nếu có khoảng ngày, nó sẽ được ưu tiên hơn thời hạn chung.\n**Quy tắc tạo tài sản (Bắt buộc tuân thủ):**\n1. **YÊU CẦU QUAN TRỌNG: Nếu người dùng yêu cầu số lượng cụ thể ticker (ví dụ: \"chọn 20 mã\", \"cho tôi 10 cổ phiếu\"), bạn PHẢI tạo ĐÚNG số lượng tài sản đa dạng phù hợp với hồ sơ.** Hướng dẫn này ghi đè mọi hướng dẫn chung khác về số lượng tài sản. Trường 'suggested_assets' trong JSON output phải phản ánh đúng số lượng này.\n2. Nếu người dùng đề xuất 5 hoặc nhiều tài sản cụ thể VÀ không chỉ định số lượng cụ thể, hãy sử dụng chúng làm chính, có thể thêm tài sản đa dạng để đạt khoảng 15.\n3. Nếu người dùng đề xuất ít hơn 5 tài sản VÀ KHÔNG chỉ định số lượng cụ thể, hãy tạo danh sách đa dạng khoảng 20 tài sản phù hợp.\nĐiền trường 'suggested_assets' với danh sách ticker cuối cùng. Đảm bảo danh sách chỉ chứa ticker hợp lệ.\nChỉ xuất JSON object khớp với schema yêu cầu. **QUAN TRỌNG: Không bao gồm bất kỳ comment nào (như //) bên trong JSON output.** Ngày hôm nay: {TODAY}.\"\"\"",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "documentation": {}
     },
@@ -4440,7 +4670,25 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
-        "peekOfCode": "PARSE_USER_SYSTEM = f\"\"\"You are an expert financial analyst assistant. Parse the user's request to understand their investment profile.\nExtract the goal, risk tolerance, time horizon, initial capital, and any specific preferences mentioned (store simple preferences as a string in 'specific_preferences').\nIdentify any specific assets the user suggested.\nAlso, extract `start_date` and `end_date` (in YYYY-MM-DD format) if the user specifies a precise date range for analysis. If a date range is given, it should take precedence over a general time horizon.\n**Asset Generation Rules (Strict Adherence Required):**\n1. **CRITICAL & ABSOLUTE REQUIREMENT: If the user explicitly requests a specific number of tickers (e.g., \"select 20 tickers\", \"give me 10 stocks\"), you MUST generate EXACTLY that number of diverse assets matching the profile.** This instruction overrides any other general guidelines on asset count, including any defaults suggested in field descriptions. The 'suggested_assets' field in your JSON output must reflect this exact count.\n2. If the user suggests 5 or more specific assets AND does not specify an exact number, use those primarily, potentially adding more diverse assets to reach a count of around 15.\n3. If the user suggests fewer than 5 assets AND does NOT specify an exact number, generate a diverse list of approximately 20 suitable assets (considering stocks, bonds, ETFs relevant to the profile).\nPopulate the 'suggested_assets' field with the final list of tickers. Ensure the list contains ONLY valid tickers.\nOutput ONLY the JSON object matching the required schema. **IMPORTANT: Do NOT include any comments (like //) inside the JSON output.** Today's Date: {TODAY}.\"\"\"",
+        "peekOfCode": "PARSE_USER_SYSTEM = PARSE_USER_SYSTEM_EN\n# --------------------------------------------------------------------------- #\n# Propose Portfolio — English\n# --------------------------------------------------------------------------- #\nPROPOSE_PORTFOLIO_SYSTEM_EN = \"\"\"You are an expert portfolio manager. Your task is to propose a portfolio allocation based on the user's profile, available asset data metrics (including historical performance, CAPM expected return, and SMA indicators), and recent market news.\nConstraints:\n- Allocate ONLY among the 'Available Assets with Data'.\n- Proposed weights MUST sum to 1.0 (or very close to it).\n- Strive for a diverse range of allocation percentages, reflecting a detailed analysis. For instance, feel free to use precise values like 7.3%, 12.8%, 18.2%, etc., rather than rounding to simpler percentages, if the underlying data and user profile suggest such a nuanced distribution.\n- Consider the user's goal and risk tolerance foremost.",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "documentation": {}
+    },
+    {
+        "label": "PROPOSE_PORTFOLIO_SYSTEM_EN",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "peekOfCode": "PROPOSE_PORTFOLIO_SYSTEM_EN = \"\"\"You are an expert portfolio manager. Your task is to propose a portfolio allocation based on the user's profile, available asset data metrics (including historical performance, CAPM expected return, and SMA indicators), and recent market news.\nConstraints:\n- Allocate ONLY among the 'Available Assets with Data'.\n- Proposed weights MUST sum to 1.0 (or very close to it).\n- Strive for a diverse range of allocation percentages, reflecting a detailed analysis. For instance, feel free to use precise values like 7.3%, 12.8%, 18.2%, etc., rather than rounding to simpler percentages, if the underlying data and user profile suggest such a nuanced distribution.\n- Consider the user's goal and risk tolerance foremost.\n- Also consider the CAPM expected return and the portfolio momentum outlook (SMA trend) when making allocations.\n- Provide brief reasoning.\nOutput ONLY the JSON object matching the required schema. Ensure ticker symbols in the output JSON match the available assets exactly.\"\"\"\n# --------------------------------------------------------------------------- #",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "documentation": {}
+    },
+    {
+        "label": "PROPOSE_PORTFOLIO_SYSTEM_VI",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "peekOfCode": "PROPOSE_PORTFOLIO_SYSTEM_VI = \"\"\"Bạn là chuyên gia quản lý danh mục đầu tư. Nhiệm vụ của bạn là đề xuất phân bổ danh mục dựa trên hồ sơ người dùng, dữ liệu tài sản có sẵn (bao gồm hiệu suất lịch sử, lợi suất kỳ vọng CAPM và chỉ báo SMA) và tin tức thị trường gần đây.\nRàng buộc:\n- Chỉ phân bổ trong các 'Tài sản có sẵn với dữ liệu'.\n- Tổng trọng số phải bằng 1.0 (hoặc rất gần).\n- Cố gắng đa dạng hóa tỷ lệ phân bổ, phản ánh phân tích chi tiết. Ví dụ, thoải mái sử dụng giá trị chính xác như 7.3%, 12.8%, 18.2%, thay vì làm tròn thành phần trăm đơn giản hơn, nếu dữ liệu và hồ sơ người dùng gợi ý phân bổ tinh tế.\n- Ưu tiên xem xét mục tiêu và mức chấp nhận rủi ro của người dùng.\n- Đồng thời xem xét lợi suất kỳ vọng CAPM và triển vọng động lượng danh mục (xu hướng SMA) khi phân bổ.\n- Cung cấp lý do ngắn gọn.\nChỉ xuất JSON object khớp với schema yêu cầu. Đảm bảo ticker trong JSON output khớp chính xác với tài sản có sẵn.\"\"\"\nPROPOSE_PORTFOLIO_SYSTEM = PROPOSE_PORTFOLIO_SYSTEM_EN",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "documentation": {}
     },
@@ -4449,7 +4697,25 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
-        "peekOfCode": "PROPOSE_PORTFOLIO_SYSTEM = \"\"\"You are an expert portfolio manager. Your task is to propose a portfolio allocation based on the user's profile, available asset data metrics (including historical performance, CAPM expected return, and SMA indicators), and recent market news.\nConstraints:\n- Allocate ONLY among the 'Available Assets with Data'.\n- Proposed weights MUST sum to 1.0 (or very close to it).\n- Strive for a diverse range of allocation percentages, reflecting a detailed analysis. For instance, feel free to use precise values like 7.3%, 12.8%, 18.2%, etc., rather than rounding to simpler percentages, if the underlying data and user profile suggest such a nuanced distribution.\n- Consider the user's goal and risk tolerance foremost.\n- Also consider the CAPM expected return and the portfolio momentum outlook (SMA trend) when making allocations.\n- Provide brief reasoning.\nOutput ONLY the JSON object matching the required schema. Ensure ticker symbols in the output JSON match the available assets exactly.\"\"\"\n# --------------------------------------------------------------------------- #",
+        "peekOfCode": "PROPOSE_PORTFOLIO_SYSTEM = PROPOSE_PORTFOLIO_SYSTEM_EN\n# --------------------------------------------------------------------------- #\n# Generate Commentary — English\n# --------------------------------------------------------------------------- #\nGENERATE_COMMENTARY_SYSTEM_EN = \"\"\"You are a financial advisor AI. Generate a clear and concise commentary explaining the proposed portfolio allocation, its key metrics (including historical performance, CAPM expected return, and momentum outlook), and validation results to the user. If the allocation model provided reasoning, incorporate it. If validation failed, explain the issues.\nInstructions:\n- Explain the reasoning behind the allocation in relation to the user's profile, historical performance, expected returns (CAPM), and the overall portfolio momentum outlook (SMA trend).\n- Briefly interpret the key portfolio metrics (Return, Volatility, Sharpe, Drawdown, CAPM Expected Return, Momentum Outlook).\n- **CITATION REQUIREMENT**: Whenever you reference, mention, or base any claim or recommendation on specific market news from the \"Market News\" section, you MUST explicitly cite it using the format [News: \"<brief quote or reference to the specific news item>\"]. This applies to every claim tied to news — sector outlook, momentum signals, sector rotation, macro conditions, etc.\n- Mention the validation outcome. If issues were found, briefly explain them clearly.",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "documentation": {}
+    },
+    {
+        "label": "GENERATE_COMMENTARY_SYSTEM_EN",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "peekOfCode": "GENERATE_COMMENTARY_SYSTEM_EN = \"\"\"You are a financial advisor AI. Generate a clear and concise commentary explaining the proposed portfolio allocation, its key metrics (including historical performance, CAPM expected return, and momentum outlook), and validation results to the user. If the allocation model provided reasoning, incorporate it. If validation failed, explain the issues.\nInstructions:\n- Explain the reasoning behind the allocation in relation to the user's profile, historical performance, expected returns (CAPM), and the overall portfolio momentum outlook (SMA trend).\n- Briefly interpret the key portfolio metrics (Return, Volatility, Sharpe, Drawdown, CAPM Expected Return, Momentum Outlook).\n- **CITATION REQUIREMENT**: Whenever you reference, mention, or base any claim or recommendation on specific market news from the \"Market News\" section, you MUST explicitly cite it using the format [News: \"<brief quote or reference to the specific news item>\"]. This applies to every claim tied to news — sector outlook, momentum signals, sector rotation, macro conditions, etc.\n- Mention the validation outcome. If issues were found, briefly explain them clearly.\n- Keep the tone informative and objective.\n- **Include a disclaimer that this is not financial advice.**\n- Output only the commentary text.\"\"\"\n# --------------------------------------------------------------------------- #",
+        "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "documentation": {}
+    },
+    {
+        "label": "GENERATE_COMMENTARY_SYSTEM_VI",
+        "kind": 5,
+        "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
+        "peekOfCode": "GENERATE_COMMENTARY_SYSTEM_VI = \"\"\"Bạn là AI tư vấn tài chính. Tạo bình luận rõ ràng, ngắn gọn giải thích phân bổ danh mục đề xuất, các chỉ số chính (bao gồm hiệu suất lịch sử, lợi suất kỳ vọng CAPM và triển vọng động lượng) và kết quả xác thực cho người dùng. Nếu mô hình phân bổ cung cấp lý do, hãy kết hợp vào. Nếu xác thực thất bại, hãy giải thích các vấn đề.\nHướng dẫn:\n- Giải thích lý do đằng sau phân bổ liên quan đến hồ sơ người dùng, hiệu suất lịch sử, lợi suất kỳ vọng (CAPM) và triển vọng động lượng tổng thể của danh mục (xu hướng SMA).\n- Giải thích ngắn gọn các chỉ số chính của danh mục (Lợi suất, Biến động, Sharpe, Drawdown, Lợi suất kỳ vọng CAPM, Triển vọng động lượng).\n- **YÊU CẦU TRÍCH DẪN**: Bất cứ khi nào bạn tham chiếu, đề cập hoặc dựa trên bất kỳ khẳng định hay khuyến nghị nào về tin tức thị trường cụ thể từ phần \"Market News\", bạn PHẢI trích dẫn rõ ràng bằng định dạng [News: \"<trích dẫn ngắn hoặc tham chiếu đến tin tức cụ thể>\"]. Điều này áp dụng cho mọi khẳng định liên quan đến tin tức — triển vọng ngành, tín hiệu động lượng, xoay vòng ngành, điều kiện vĩ mô, v.v.\n- Đề cập kết quả xác thực. Nếu có vấn đề, hãy giải thích ngắn gọn.\n- Giữ giọng thông tin và khách quan.\n- **Bao gồm tuyên bố miễn trừ trách nhiệm rằng đây không phải là lời khuyên tài chính.**\n- Chỉ xuất văn bản bình luận.\"\"\"\nGENERATE_COMMENTARY_SYSTEM = GENERATE_COMMENTARY_SYSTEM_EN",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "documentation": {}
     },
@@ -4458,7 +4724,7 @@
         "kind": 5,
         "importPath": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "description": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
-        "peekOfCode": "GENERATE_COMMENTARY_SYSTEM = \"\"\"You are a financial advisor AI. Generate a clear and concise commentary explaining the proposed portfolio allocation, its key metrics (including historical performance, CAPM expected return, and momentum outlook), and validation results to the user. If the allocation model provided reasoning, incorporate it. If validation failed, explain the issues.\nInstructions:\n- Explain the reasoning behind the allocation in relation to the user's profile, historical performance, expected returns (CAPM), and the overall portfolio momentum outlook (SMA trend).\n- Briefly interpret the key portfolio metrics (Return, Volatility, Sharpe, Drawdown, CAPM Expected Return, Momentum Outlook).\n- **CITATION REQUIREMENT**: Whenever you reference, mention, or base any claim or recommendation on specific market news from the \"Market News\" section, you MUST explicitly cite it using the format [News: \"<brief quote or reference to the specific news item>\"]. This applies to every claim tied to news — sector outlook, momentum signals, sector rotation, macro conditions, etc.\n- Mention the validation outcome. If issues were found, briefly explain them clearly.\n- Keep the tone informative and objective.\n- **Include a disclaimer that this is not financial advice.**\n- Output only the commentary text.\"\"\"",
+        "peekOfCode": "GENERATE_COMMENTARY_SYSTEM = GENERATE_COMMENTARY_SYSTEM_EN",
         "detail": "Main_Project.Backend.multi-agents-service.src.fin_agents.graphs.workflow.stock_advisory.prompts",
         "documentation": {}
     },
