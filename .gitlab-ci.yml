@@ -56,28 +56,14 @@ workflow:
 
 .maven-cache-rw:
   cache:
-    key:
-      prefix: maven
-      files:
-        - Main_Project/Backend/user-service/pom.xml
-        - Main_Project/Backend/portfolio-service/pom.xml
-        - Main_Project/Backend/notification-service/pom.xml
-        - Main_Project/Backend/api-gateway/pom.xml
-        - Main_Project/Backend/eureka-server/pom.xml
+    key: "maven-$CI_COMMIT_REF_SLUG"
     paths:
       - .m2/repository
     policy: pull-push
 
 .maven-cache-ro:
   cache:
-    key:
-      prefix: maven
-      files:
-        - Main_Project/Backend/user-service/pom.xml
-        - Main_Project/Backend/portfolio-service/pom.xml
-        - Main_Project/Backend/notification-service/pom.xml
-        - Main_Project/Backend/api-gateway/pom.xml
-        - Main_Project/Backend/eureka-server/pom.xml
+    key: "maven-$CI_COMMIT_REF_SLUG"
     paths:
       - .m2/repository
     policy: pull
