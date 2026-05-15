@@ -1,0 +1,92 @@
+// ── Scrape Java services via Prometheus endpoint ──────────────────────────────
+prometheus.scrape "java_services" {
+  targets = [
+    { __address__ = "user-service:8081",         __metrics_path__ = "/actuator/prometheus", service = "user-service" },
+    { __address__ = "portfolio-service:8083",     __metrics_path__ = "/actuator/prometheus", service = "portfolio-service" },
+    { __address__ = "notification-service:8084",  __metrics_path__ = "/actuator/prometheus", service = "notification-service" },
+    { __address__ = "api-gateway:8080",           __metrics_path__ = "/actuator/prometheus", service = "api-gateway" },
+    { __address__ = "eureka-server:8761",         __metrics_path__ = "/actuator/prometheus", service = "eureka-server" },
+  ]
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// ── Scrape Python market-data-service ────────────────────────────────────────
+prometheus.scrape "python_services" {
+  targets = [
+    { __address__ = "market-data-service:8082", __metrics_path__ = "/metrics", service = "market-data-service" },
+  ]
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// ── Scrape Oracle VM system metrics (node-exporter) ───────────────────────────
+prometheus.scrape "node_exporter" {
+  targets = [
+    { __address__ = "node-exporter:9100", service = "oracle-vm" },
+  ]
+  scrape_interval = "60s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// ── Remote write → Grafana Cloud Prometheus ───────────────────────────────────
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_CLOUD_PROMETHEUS_URL")
+    basic_auth {
+      username = env("GRAFANA_CLOUD_PROMETHEUS_USERNAME")
+      password = env("GRAFANA_CLOUD_API_KEY")
+    }
+    queue_config {
+      max_samples_per_send = 1000
+      batch_send_deadline  = "5s"
+    }
+  }
+  external_labels = {
+    project     = "invest-advisor",
+    environment = "production",
+    host        = env("ORACLE_VM_HOSTNAME"),
+  }
+}
+
+// ── Collect Docker container logs → Grafana Cloud Loki ───────────────────────
+discovery.docker "all_containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "container_logs" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.all_containers.targets
+  forward_to = [loki.write.grafana_cloud.receiver]
+
+  relabel_rules {
+    rule {
+      source_labels = ["__meta_docker_container_name"]
+      target_label  = "container"
+      regex         = "/?(.*)"
+      replacement   = "$1"
+    }
+    rule {
+      source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+      target_label  = "service"
+    }
+  }
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_CLOUD_LOKI_URL")
+    basic_auth {
+      username = env("GRAFANA_CLOUD_LOKI_USERNAME")
+      password = env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+  external_labels = {
+    project     = "invest-advisor",
+    environment = "production",
+  }
+}
+
+// ── Alloy UI (localhost only) ─────────────────────────────────────────────────
+http { listen_addr = "0.0.0.0:12345" }

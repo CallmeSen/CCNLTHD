@@ -1,0 +1,46 @@
+# Production overlay — tắt các port không cần expose ra ngoài
+# Usage: docker compose -f docker-compose.yml -f docker-compose.production.yml -f docker-compose.monitoring.yml up -d
+
+services:
+
+  zookeeper:
+    ports: !reset []        # Không expose Zookeeper ra ngoài
+
+  kafka:
+    ports: !reset []        # Kafka chỉ internal
+
+  kafka-ui:
+    ports:
+      - "127.0.0.1:8090:8080"   # Kafka UI chỉ truy cập qua localhost
+
+  eureka-server:
+    ports:
+      - "127.0.0.1:8761:8761"   # Eureka chỉ truy cập qua localhost
+    environment:
+      ENVIRONMENT: production
+    restart: always
+
+  api-gateway:
+    environment:
+      ENVIRONMENT: production
+    restart: always
+
+  user-service:
+    environment:
+      ENVIRONMENT: production
+    restart: always
+
+  market-data-service:
+    environment:
+      ENVIRONMENT: production
+    restart: always
+
+  portfolio-service:
+    environment:
+      ENVIRONMENT: production
+    restart: always
+
+  notification-service:
+    environment:
+      ENVIRONMENT: production
+    restart: always

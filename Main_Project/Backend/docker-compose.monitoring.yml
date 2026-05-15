@@ -1,0 +1,49 @@
+# Monitoring overlay — dùng cùng với docker-compose.yml trên Oracle Cloud VM
+# Usage: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+
+services:
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: invest_node_exporter
+    restart: always
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    networks:
+      - invest-network
+
+  grafana-alloy:
+    image: grafana/alloy:v1.4.0
+    container_name: invest_alloy
+    restart: always
+    volumes:
+      - ./monitoring/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      GRAFANA_CLOUD_PROMETHEUS_URL: ${GRAFANA_CLOUD_PROMETHEUS_URL}
+      GRAFANA_CLOUD_PROMETHEUS_USERNAME: ${GRAFANA_CLOUD_PROMETHEUS_USERNAME}
+      GRAFANA_CLOUD_LOKI_URL: ${GRAFANA_CLOUD_LOKI_URL}
+      GRAFANA_CLOUD_LOKI_USERNAME: ${GRAFANA_CLOUD_LOKI_USERNAME}
+      GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY}
+      ORACLE_VM_HOSTNAME: ${ORACLE_VM_HOSTNAME:-invest-oracle-vm}
+    command: run /etc/alloy/config.alloy
+    ports:
+      - "127.0.0.1:12345:12345"
+    depends_on:
+      - eureka-server
+    networks:
+      - invest-network
+
+networks:
+  invest-network:
+    name: invest-network

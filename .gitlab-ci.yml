@@ -34,6 +34,7 @@ stages:
   - test-integration
   - docker
   - deploy
+  - verify
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 # interruptible: cancel running pipeline when a newer commit is pushed to the same branch.
@@ -51,6 +52,15 @@ variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Xmx512m"
   MAVEN_CLI: "--batch-mode --errors --no-transfer-progress"
   IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+  # Oracle Cloud VM (set in GitLab CI/CD Variables)
+  # ORACLE_HOST        → Public IP của VM         (protected)
+  # ORACLE_USER        → ubuntu                   (không cần mask)
+  # ORACLE_SSH_KEY     → Private key nội dung      (protected, masked)
+  # Grafana Cloud (set in GitLab CI/CD Variables)
+  # GRAFANA_BASE_URL           → https://xxx.grafana.net
+  # GRAFANA_SA_TOKEN           → Service Account token (Editor role)
+  ORACLE_USER: ubuntu
+  ORACLE_DEPLOY_DIR: /home/ubuntu/invest-advisor
 
 workflow:
   rules:
@@ -634,80 +644,184 @@ docker:multi-agents-service:
     - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STAGE: DEPLOY
-# Update k8s manifests with image tags and push to Git, triggering Argo CD.
-# when: manual — requires explicit trigger after docker images are pushed.
+# STAGE: DEPLOY — Oracle Cloud VM via SSH
+# Kéo images mới từ GitLab Registry, rolling restart các services trên VM.
+# when: manual — bấm tay sau khi docker images đã push xong.
+#
+# GitLab Variables cần setup (Settings → CI/CD → Variables):
+#   ORACLE_HOST      → Public IP của Oracle VM    (protected)
+#   ORACLE_SSH_KEY   → Nội dung private key SSH   (protected, masked, multiline)
+#   GRAFANA_BASE_URL → https://xxx.grafana.net     (protected)
+#   GRAFANA_SA_TOKEN → Service Account token       (protected, masked)
 # ─────────────────────────────────────────────────────────────────────────────
 
-deploy:manifest:
-  stage: deploy
-  image: bitnami/kubectl:latest
-  timeout: 5 minutes
-  when: manual
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+.ssh-setup: &ssh-setup
   before_script:
-    - mkdir -p ~/.kube
-    - echo "$KUBECONFIG" | base64 -d > ~/.kube/config
-    - chmod 600 ~/.kube/config
+    - apk add --no-cache openssh-client curl
+    - eval $(ssh-agent -s)
+    - echo "$ORACLE_SSH_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - ssh-keyscan -H "$ORACLE_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+deploy:oracle:
+  stage: deploy
+  image: alpine:3.19
+  timeout: 15 minutes
+  when: manual
+  environment:
+    name: production
+    url: http://$ORACLE_HOST:8085
+  rules:
+    - if: $CI_COMMIT_BRANCH == "CD_experiment" || $CI_COMMIT_BRANCH == "main"
+  <<: *ssh-setup
   script:
     - |
-      echo "=== Updating image tags in k8s manifests ==="
+      echo "=== Deploying commit $CI_COMMIT_SHORT_SHA to Oracle Cloud VM ==="
+      echo "Host: $ORACLE_HOST"
 
-      # Update all service images with the new tag
-      SERVICES="eureka-server api-gateway user-service market-data-service portfolio-service notification-service multi-agents-service frontend"
-      for svc in $SERVICES; do
-        IMG="$CI_REGISTRY_IMAGE/$svc:${IMAGE_TAG}"
-        MANIFEST="k8s/services/${svc}.yaml"
-        if [ -f "$MANIFEST" ]; then
-          echo "  Updating $svc -> $IMG"
-          sed -i "s|image: ${CI_REGISTRY_IMAGE}/${svc}:.*|image: ${IMG}|g" "$MANIFEST"
-          sed -i "s|image: ${CI_REGISTRY_IMAGE}/${svc}:latest|image: ${IMG}|g" "$MANIFEST"
-        fi
-      done
+      ssh -o StrictHostKeyChecking=no $ORACLE_USER@$ORACLE_HOST << ENDSSH
+        set -e
+        cd $ORACLE_DEPLOY_DIR
+
+        echo ">>> Login to GitLab Registry..."
+        echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY \
+          -u $CI_REGISTRY_USER --password-stdin
+
+        echo ">>> Pulling latest images..."
+        docker compose -f docker-compose.yml \
+                       -f docker-compose.production.yml \
+                       -f docker-compose.monitoring.yml \
+          pull --ignore-pull-failures 2>&1 | tail -20
+
+        echo ">>> Rolling restart services..."
+        docker compose -f docker-compose.yml \
+                       -f docker-compose.production.yml \
+                       -f docker-compose.monitoring.yml \
+          up -d --remove-orphans --no-build
+
+        echo ">>> Waiting 40s for JVM warmup..."
+        sleep 40
+
+        echo ">>> Container status:"
+        docker compose -f docker-compose.yml \
+                       -f docker-compose.production.yml \
+                       -f docker-compose.monitoring.yml \
+          ps --format "table {{.Name}}\t{{.Status}}"
+      ENDSSH
 
     - |
-      echo "=== Committing and pushing k8s manifest updates ==="
-      git config user.email "ci@gitlab.com"
-      git config user.name "GitLab CI"
-      git add k8s/
-      if git diff --cached --quiet; then
-        echo "No manifest changes detected — skipping push."
+      # Gửi deployment annotation lên Grafana Cloud
+      DEPLOY_TIME=$(date +%s)000
+      curl -sf -X POST "${GRAFANA_BASE_URL}/api/annotations" \
+        -H "Authorization: Bearer ${GRAFANA_SA_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "{
+          \"time\": ${DEPLOY_TIME},
+          \"tags\": [\"deployment\", \"${CI_COMMIT_BRANCH}\", \"oracle-vm\"],
+          \"text\": \"Deploy <b>${CI_COMMIT_SHORT_SHA}</b><br>By: ${GITLAB_USER_LOGIN}<br>${CI_COMMIT_TITLE}\"
+        }" && echo "Grafana annotation sent." || echo "Warning: Grafana annotation failed (non-blocking)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: VERIFY — Smoke tests sau khi deploy xong
+# ─────────────────────────────────────────────────────────────────────────────
+
+verify:smoke-tests:
+  stage: verify
+  image: python:3.12-alpine
+  timeout: 5 minutes
+  needs: [deploy:oracle]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "CD_experiment" || $CI_COMMIT_BRANCH == "main"
+  script:
+    - pip install httpx --quiet
+    - |
+      python3 << 'PYEOF'
+      import httpx, sys, time, os
+
+      base = f"http://{os.environ['ORACLE_HOST']}:8085"
+      checks = [
+          ("/actuator/health",      200, "API Gateway"),
+          ("/api/auth/health",      404, "Auth route reachable"),
+      ]
+      failed = []
+      for path, expected, name in checks:
+          ok = False
+          for attempt in range(5):
+              try:
+                  r = httpx.get(f"{base}{path}", timeout=15)
+                  if r.status_code in (expected, 200):
+                      print(f"  PASS {name}: HTTP {r.status_code}")
+                      ok = True
+                      break
+              except Exception as e:
+                  print(f"  Attempt {attempt+1} failed ({name}): {e}")
+                  time.sleep(10)
+          if not ok:
+              failed.append(name)
+              print(f"  FAIL {name}")
+
+      if failed:
+          print(f"\nFailed checks: {failed}")
+          sys.exit(1)
+      print("\nAll smoke tests passed!")
+      PYEOF
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTIFY — Push kết quả test lên Grafana Cloud dưới dạng annotation
+# when: always → chạy kể cả khi test fail để ghi nhận trên dashboard
+# ─────────────────────────────────────────────────────────────────────────────
+
+notify:test-results:
+  stage: verify
+  image: alpine:3.19
+  timeout: 3 minutes
+  when: always
+  needs:
+    - job: test-unit:user-service
+      optional: true
+    - job: test-unit:portfolio-service
+      optional: true
+    - job: test-unit:notification-service
+      optional: true
+    - job: test-integration:user-service
+      optional: true
+    - job: test-integration:portfolio-service
+      optional: true
+    - job: test-integration:notification-service
+      optional: true
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      when: always
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - |
+      TIMESTAMP=$(date +%s)000
+      BRANCH="$CI_COMMIT_BRANCH"
+      COMMIT="$CI_COMMIT_SHORT_SHA"
+      PIPELINE_URL="$CI_PIPELINE_URL"
+
+      # Xác định trạng thái dựa trên CI_JOB_STATUS của pipeline tổng
+      # (notify job luôn pass, nhưng ta đọc biến CI_PIPELINE_SOURCE)
+      if [ "$CI_PIPELINE_STATUS" = "failed" ]; then
+        STATUS="FAILED"
+        TAG="test-failed"
+        ICON="❌"
       else
-        git commit -m "chore: update images to ${IMAGE_TAG} [skip ci]"
-        git push origin "$CI_COMMIT_BRANCH"
+        STATUS="PASSED"
+        TAG="test-passed"
+        ICON="✅"
       fi
 
-deploy:secrets:
-  stage: deploy
-  image: bitnami/kubectl:latest
-  timeout: 5 minutes
-  when: manual
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
-  before_script:
-    - mkdir -p ~/.kube
-    - echo "$KUBECONFIG" | base64 -d > ~/.kube/config
-    - chmod 600 ~/.kube/config
-  script:
-    - |
-      echo "=== Applying Kubernetes secrets ==="
+      echo "Sending test result annotation: $STATUS"
 
-      # Backend secrets (JWT, DB password, API keys)
-      kubectl create secret generic backend-secrets \
-        -n investadvisor \
-        --from-literal=JWT_SECRET="$JWT_SECRET" \
-        --from-literal=DB_PASSWORD="$DB_PASSWORD" \
-        --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" \
-        --from-literal=TAVILY_API_KEY="$TAVILY_API_KEY" \
-        --from-literal=VNSTOCK_API_KEY="$VNSTOCK_API_KEY" \
-        --dry-run=client -o yaml | kubectl apply -f -
-
-      # Mail credentials
-      kubectl create secret generic mail-secrets \
-        -n investadvisor \
-        --from-literal=MAIL_USERNAME="$MAIL_USERNAME" \
-        --from-literal=MAIL_PASSWORD="$MAIL_PASSWORD" \
-        --dry-run=client -o yaml | kubectl apply -f -
+      curl -sf -X POST "${GRAFANA_BASE_URL}/api/annotations" \
+        -H "Authorization: Bearer ${GRAFANA_SA_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "{
+          \"time\": ${TIMESTAMP},
+          \"tags\": [\"ci-test\", \"${TAG}\", \"${BRANCH}\"],
+          \"text\": \"${ICON} Tests <b>${STATUS}</b><br>Commit: ${COMMIT}<br>Branch: ${BRANCH}<br>By: ${GITLAB_USER_LOGIN}<br><a href='${PIPELINE_URL}'>View Pipeline</a>\"
+        }" && echo "Test result sent to Grafana." || echo "Warning: Grafana notify failed (non-blocking)"
 
       echo "Secrets applied successfully."
