@@ -1,0 +1,30 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: market-data-service-vpa
+  namespace: investadvisor
+  labels:
+    app: market-data-service
+    app.kubernetes.io/name: market-data-service
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: market-data-service
+  updatePolicy:
+    updateMode: "Auto"
+    minReplicas: 2
+    maxReplicas: 10
+  resourcePolicy:
+    containerPolicies:
+      - containerName: market-data-service
+        minAllowed:
+          cpu: 50m
+          memory: 128Mi
+        maxAllowed:
+          cpu: 2000m
+          memory: 4Gi
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsAndLimits

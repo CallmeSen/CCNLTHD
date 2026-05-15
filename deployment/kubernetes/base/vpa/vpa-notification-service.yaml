@@ -1,0 +1,30 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: notification-service-vpa
+  namespace: investadvisor
+  labels:
+    app: notification-service
+    app.kubernetes.io/name: notification-service
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notification-service
+  updatePolicy:
+    updateMode: "Auto"
+    minReplicas: 1
+    maxReplicas: 5
+  resourcePolicy:
+    containerPolicies:
+      - containerName: notification-service
+        minAllowed:
+          cpu: 50m
+          memory: 128Mi
+        maxAllowed:
+          cpu: 1000m
+          memory: 2Gi
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsAndLimits

@@ -3,7 +3,7 @@ spring:
     gateway:
       routes:
         - id: ai-intelligence-service
-          uri: http://fin_multi_agents:8000
+          uri: http://fin_multi_agents:8086
           predicates:
             - Path=/api/ai/**
           filters:

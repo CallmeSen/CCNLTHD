@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: investadvisor
+  labels:
+    app.kubernetes.io/name: investadvisor
+    app.kubernetes.io/managed-by: argocd

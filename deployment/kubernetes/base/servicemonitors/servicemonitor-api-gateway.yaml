@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: api-gateway-monitor
+  namespace: investadvisor
+  labels:
+    app: api-gateway
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/part-of: investadvisor
+    monitoring: prometheus
+spec:
+  jobLabel: api-gateway
+  selector:
+    matchLabels:
+      app: api-gateway
+  namespaceSelector:
+    matchNames:
+      - investadvisor
+  endpoints:
+    - port: gateway
+      path: /actuator/prometheus
+      interval: 15s
+      scrapeTimeout: 10s
+      honorLabels: true
+  metricRelabelings:
+    - sourceLabels:
+        - __name__
+      regex: "^(http_server_requests_seconds_.*|jvm_.*|process_.*|system_.*)$"
+      action: keep

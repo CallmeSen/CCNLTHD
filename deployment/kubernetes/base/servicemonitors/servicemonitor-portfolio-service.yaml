@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: portfolio-service-monitor
+  namespace: investadvisor
+  labels:
+    app: portfolio-service
+    app.kubernetes.io/name: portfolio-service
+    app.kubernetes.io/part-of: investadvisor
+    monitoring: prometheus
+spec:
+  jobLabel: portfolio-service
+  selector:
+    matchLabels:
+      app: portfolio-service
+  namespaceSelector:
+    matchNames:
+      - investadvisor
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+      scrapeTimeout: 10s
+      honorLabels: true
+  metricRelabelings:
+    - sourceLabels:
+        - __name__
+      regex: "^(http_server_requests_seconds_.*|jvm_.*|process_.*|system_.*)$"
+      action: keep

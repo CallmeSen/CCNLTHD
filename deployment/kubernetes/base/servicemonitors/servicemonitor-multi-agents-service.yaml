@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: multi-agents-service-monitor
+  namespace: investadvisor
+  labels:
+    app: multi-agents-service
+    app.kubernetes.io/name: multi-agents-service
+    app.kubernetes.io/part-of: investadvisor
+    monitoring: prometheus
+spec:
+  jobLabel: multi-agents-service
+  selector:
+    matchLabels:
+      app: multi-agents-service
+  namespaceSelector:
+    matchNames:
+      - investadvisor
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      honorLabels: true
+  metricRelabelings:
+    - sourceLabels:
+        - __name__
+      regex: "^(python_.*|process_.*|sse_.*|kafka_.*|agent_.*)$"
+      action: keep
