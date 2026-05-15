@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from './apiClient';
+import { saveReportHistory } from './reportHistory';
 import type {
   SessionResponse,
   SendMessageRequest,
@@ -11,6 +12,7 @@ import type {
   AnalyzeRequest,
   AnalyzeResponse,
 } from '../types/agent';
+import type { ChatSession } from '../types/agent';
 
 const BASE_URL = '/ai';
 
@@ -100,6 +102,19 @@ export const sessionApi = {
   },
 
   /**
+   * Lấy messages/history của session
+   */
+  getMessages: async (sessionId: string): Promise<ChatSession> => {
+    try {
+      const response = await apiClient.get<ChatSession>(`${BASE_URL}/sessions/${sessionId}/messages`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get session messages:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Phân tích portfolio (endpoint riêng cho analysis screen)
    */
   analyze: async (request: AnalyzeRequest): Promise<AnalyzeResponse> => {
@@ -108,7 +123,27 @@ export const sessionApi = {
         `${BASE_URL}/portfolio/analyze`,
         request
       );
-      return response.data;
+      const result = response.data;
+      if (result?.run_id) {
+        saveReportHistory({
+          run_id: result.run_id,
+          timestamp: Date.now(),
+          status: result.status,
+          request: request.request,
+          report: result.report || result.final_report || result.llm_commentary || '',
+          final_report: result.final_report,
+          summary: result.llm_commentary || undefined,
+          metrics: (result.metrics as Record<string, any>) || null,
+          user_profile: (result.user_profile as Record<string, any>) || null,
+          proposed_portfolio: (result.proposed_portfolio as Record<string, number>) || null,
+          validation_result: (result.validation_result as Record<string, any>) || null,
+          llm_commentary: result.llm_commentary || null,
+          market_news: result.market_news || null,
+          visualization_url: result.visualization_url || null,
+          source: 'analysis',
+        });
+      }
+      return result;
     } catch (error) {
       console.error('Failed to analyze portfolio:', error);
       throw error;
@@ -132,7 +167,7 @@ export const sessionApi = {
       return response.data;
     } catch (error) {
       console.error('Failed to get history:', error);
-      throw error;
+      return [];
     }
   },
 

@@ -186,7 +186,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         return (
           <div className="flex justify-start mb-4 w-full">
             <div className="w-full">
-              <PortfolioReport content={message.content} />
+              <PortfolioReport content={message.content || ''} compact />
               <div className="flex justify-between items-center mt-2">
                 <p className="text-xs text-gray-400">
                   {new Date(message.timestamp).toLocaleTimeString('vi-VN', {

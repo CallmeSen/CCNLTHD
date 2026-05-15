@@ -6,6 +6,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAgentStore } from '../store/useAgentStore';
 import { TOKEN_KEY } from '../services/apiClient';
+import { saveReportHistory } from '../services/reportHistory';
 import type { ParsedSSEMessage, ToolCallEntry, AgentMessage } from '../types/agent';
 
 interface UseSSEOptions {
@@ -145,10 +146,22 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
 
               // If we generated a local run id, store the report in localStorage so Analysis page can read it
               try {
-                if (!runIdentifier) {
-                  const payload = JSON.stringify({ report: reportContent, metrics: (data.metrics as Record<string, any>) || null });
-                  window.localStorage.setItem(`agent-report-${finalRunId}`, payload);
-                }
+                saveReportHistory({
+                  run_id: finalRunId,
+                  timestamp: Date.now(),
+                  status: String(data.status || 'completed'),
+                  report: reportContent,
+                  final_report: String(data.final_report || ''),
+                  summary: String(data.summary || ''),
+                  metrics: (data.metrics as Record<string, any>) || null,
+                  user_profile: (data.user_profile as Record<string, any>) || null,
+                  proposed_portfolio: (data.proposed_portfolio as Record<string, number>) || null,
+                  validation_result: (data.validation_result as Record<string, any>) || null,
+                  llm_commentary: String(data.llm_commentary || ''),
+                  market_news: String(data.market_news || ''),
+                  visualization_url: String(data.visualization_url || ''),
+                  source: 'chat',
+                });
               } catch (e) {
                 // ignore storage errors
                 // eslint-disable-next-line no-console

@@ -183,7 +183,7 @@ export interface AgentStoreState {
   setSseStatus: (status: SSEStatus) => void;
   clearMessages: () => void;
   clearStreaming: () => void;
-  loadSession: (sessionId: string) => void;
+  loadSession: (sessionId: string) => Promise<void>;
 }
 
 /**

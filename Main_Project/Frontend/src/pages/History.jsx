@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { sessionApi } from '../services/sessionApi';
+import { listStoredReports } from '../services/reportHistory';
 
 export default function History() {
   const [history, setHistory] = useState([]);
@@ -10,8 +12,22 @@ export default function History() {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await sessionApi.getHistory();
-        setHistory(data || []);
+        const [remoteHistory, localHistory] = await Promise.all([
+          sessionApi.getHistory().catch(() => []),
+          Promise.resolve(listStoredReports()),
+        ]);
+
+        const merged = [...remoteHistory, ...localHistory]
+          .filter((item) => item && item.run_id)
+          .map((item) => ({
+            ...item,
+            timestamp: item.timestamp || Date.now(),
+          }))
+          .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+
+        const unique = merged.filter((item, index, array) => array.findIndex((candidate) => candidate.run_id === item.run_id) === index);
+
+        setHistory(unique);
       } catch (err) {
         setError('Không thể tải lịch sử');
       } finally {
@@ -34,9 +50,16 @@ export default function History() {
               <div className="flex justify-between">
                 <div>
                   <div className="font-medium">Run: {h.run_id || '—'}</div>
-                  <div className="text-sm text-gray-500">{h.status}</div>
+                  <div className="text-sm text-gray-500">{h.status || 'completed'}</div>
+                  {h.summary && <div className="text-sm text-gray-600 mt-1 line-clamp-2">{h.summary}</div>}
                 </div>
                 <div className="text-sm text-gray-600">{new Date(h.timestamp || Date.now()).toLocaleString()}</div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Link to={`/analysis?runId=${encodeURIComponent(h.run_id)}`} className="text-sm text-blue-600 hover:underline">
+                  Mở báo cáo
+                </Link>
+                {h.request && <span className="text-sm text-gray-400">• {h.request}</span>}
               </div>
             </div>
           ))}

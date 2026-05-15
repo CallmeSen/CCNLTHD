@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { sessionApi } from '../services/sessionApi';
 import PortfolioReport from '../components/chat/PortfolioReport';
-import { useNavigate } from 'react-router-dom';
+import { getStoredReport } from '../services/reportHistory';
 
 export default function Analysis() {
   const [request, setRequest] = useState('');
@@ -37,14 +37,12 @@ export default function Analysis() {
     setError(null);
     (async () => {
       try {
-        // If runId looks like a local fallback, try to read from localStorage first
-        if (runId.startsWith('local-')) {
-          const stored = localStorage.getItem(`agent-report-${runId}`);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (mounted) setResult(parsed);
-            return;
+        const stored = getStoredReport(runId);
+        if (stored) {
+          if (mounted) {
+            setResult(stored);
           }
+          return;
         }
 
         const res = await sessionApi.getReport(runId);
@@ -66,7 +64,7 @@ export default function Analysis() {
 
   return (
     <div className="p-6">
-      <h1 className="!text-black">Phân tích chi tiết </h1>
+      <h1 className="text-black!">Phân tích chi tiết </h1>
 
       {error && <p className="text-red-600 mt-4">{error}</p>}
 

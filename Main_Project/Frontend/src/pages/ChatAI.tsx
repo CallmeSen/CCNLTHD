@@ -43,6 +43,7 @@ export default function ChatAI() {
     clearStreaming,
     clearMessages,
   } = useAgentStore();
+  const loadSession = useAgentStore((s) => s.loadSession);
 
   // Local state
   const [inputValue, setInputValue] = useState('');
@@ -71,19 +72,34 @@ export default function ChatAI() {
     }
   };
 
-  // Always create a new session on mount (unless URL has ?session= param for sharing)
+  // Create or reuse a session on mount. If a session already exists or
+  // messages are present, reuse them so returning from detail view keeps chat.
+  const sharedSession = searchParams.get('session');
+
   useEffect(() => {
     const initSession = async () => {
       try {
-        // Always create a fresh new session on load so a stale URL session
-        // does not break when the backend service restarts.
-        const prompt = ticker
-          ? `Phân tích cổ phiếu ${ticker}`
-          : 'New chat session';
+
+        // If an existing session is already set, reuse it
+        if (sessionId) return;
+
+        // If the URL has a shared session id, load it
+        if (sharedSession) {
+          await loadSession(sharedSession);
+          setSearchParams({ session: sharedSession }, { replace: true });
+          return;
+        }
+
+        // If there are already messages in the store, do not create a fresh session
+        if (messages && messages.length > 0) {
+          return;
+        }
+
+        // Otherwise create a fresh session
+        const prompt = ticker ? `Phân tích cổ phiếu ${ticker}` : 'New chat session';
         const response = await sessionApi.create(prompt);
         if (response.session_id) {
-          localStorage.removeItem('agent-store');
-          clearMessages();
+          // Only clear streaming/error/status when starting a truly new session
           clearStreaming();
           setError(null);
           setStatus('idle');
@@ -99,7 +115,7 @@ export default function ChatAI() {
     };
 
     initSession();
-  }, []);
+  }, [sharedSession]);
 
   // Handle send message
   const handleSendMessage = async () => {

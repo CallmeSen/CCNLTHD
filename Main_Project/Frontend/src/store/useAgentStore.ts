@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { sessionApi } from '../services/sessionApi';
 import type {
   AgentStoreState,
   AgentMessage,
@@ -100,13 +101,21 @@ export const useAgentStore = create<AgentStoreState>()(
         });
       },
 
-      // Load session (for future session persistence)
-      loadSession: (sessionId: string) => {
-        set({
-          sessionId,
-          status: 'sessionLoading',
-        });
-        // TODO: Fetch session data từ backend nếu cần
+      // Load session and populate messages from backend
+      loadSession: async (sessionId: string) => {
+        set({ status: 'sessionLoading' });
+        try {
+          const session = await sessionApi.getMessages(sessionId);
+          set({
+            sessionId: session.session_id,
+            messages: session.messages || [],
+            status: 'idle',
+            error: null,
+          });
+        } catch (err) {
+          console.error('Failed to load session messages:', err);
+          set({ status: 'error', error: 'Không thể tải phiên chat' });
+        }
       },
     }),
     {
