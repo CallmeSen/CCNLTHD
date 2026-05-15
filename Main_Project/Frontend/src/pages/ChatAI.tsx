@@ -14,9 +14,9 @@ import { MessageBubble } from '../components/chat/MessageBubble';
 import { ThinkingTimeline } from '../components/chat/ThinkingTimeline';
 import { ConversationTimeline } from '../components/chat/ConversationTimeline';
 import ChatHeader from '../components/chat/ChatHeader';
-import ChatFooter from '../components/chat/ChatFooter';
+
 import ChatSettings from '../components/chat/ChatSettings';
-import AgentSidebar from '../components/chat/AgentSidebar';
+
 import type { AgentMessage } from '../types/agent';
 
 export default function ChatAI() {
@@ -295,11 +295,7 @@ export default function ChatAI() {
           <div ref={messagesEndRef} />
           </div>
 
-          {toolCalls.length > 0 && (
-            <aside className="hidden xl:block w-80 shrink-0 sticky top-24 max-h-[calc(100vh-10rem)] overflow-y-auto border border-gray-200 bg-white rounded-lg shadow-sm">
-              <AgentSidebar />
-            </aside>
-          )}
+         
         </div>
       </div>
 
@@ -359,16 +355,10 @@ export default function ChatAI() {
           {(isStreaming || status !== 'idle') && (
             <p className="text-xs text-gray-500 mt-2 text-center">
               {isStreaming && '🔄 Đang xử lý...'}
-              {status === 'error' && '❌ Có lỗi xảy ra'}
-              {status === 'idle' && '✓ Sẵn sàng'}
+              {status === 'error' && 'Có lỗi xảy ra'}
+              {status === 'idle' && 'Sẵn sàng'}
             </p>
           )}
-        </div>
-      </div>
-
-      <div className="px-4 md:px-6">
-        <div className="max-w-4xl mx-auto">
-          <ChatFooter onSelectPrompt={handlePromptSelect} />
         </div>
       </div>
 

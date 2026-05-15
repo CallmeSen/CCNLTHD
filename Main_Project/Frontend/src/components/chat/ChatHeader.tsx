@@ -1,5 +1,7 @@
 import { Download, Settings, RefreshCcw } from "lucide-react";
 import { useAgentStore } from "../../store/useAgentStore";
+import { useNavigate } from 'react-router-dom';
+import { MessageCircle, Zap, History } from 'lucide-react';
 
 export function ChatHeader({
   onExport,
@@ -13,11 +15,11 @@ export function ChatHeader({
   restoreLoading?: boolean;
 }) {
   const status = useAgentStore((s) => s.status);
-
+  const navigate = useNavigate();
   return (
     <div className="shrink-0 px-1 pb-4 flex items-center justify-between">
       <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight animate-slide-up">Agent Chat</h1>
+        <h1 className="text-2xl !text-black font-bold text-foreground tracking-tight animate-slide-up">Agent Chat</h1>
         <p className="text-muted-foreground text-sm mt-0.5 animate-slide-up">Multi-agent portfolio advisory system</p>
       </div>
 
@@ -48,14 +50,14 @@ export function ChatHeader({
         >
           <Download className="w-3.5 h-3.5" />
         </button>
-
         <button
-          onClick={onOpenSettings}
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border border-border hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
-          title="Settings"
+          onClick={() => navigate('/history')}
+          className="px-3 py-1.5 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 flex items-center gap-2"
         >
-          <Settings className="w-3.5 h-3.5" />
+          <History className="w-4 h-4" />
+          Lịch Sử
         </button>
+        
       </div>
     </div>
   );

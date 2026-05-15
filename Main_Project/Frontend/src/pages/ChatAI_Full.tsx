@@ -12,7 +12,7 @@ import { sessionApi } from '../services/sessionApi';
 import { WelcomeScreen } from '../components/chat/WelcomeScreen';
 import { MessageBubble } from '../components/chat/MessageBubble';
 import { ThinkingTimeline } from '../components/chat/ThinkingTimeline';
-import { ConversationTimeline } from '../components/chat/ConversationTimeline';
+//import { ConversationTimeline } from '../components/chat/ConversationTimeline';
 import type { AgentMessage } from '../types/agent';
 
 export default function ChatAI() {
@@ -300,7 +300,7 @@ export default function ChatAI() {
                   ? 'Đang xử lý...'
                   : 'Hỏi AI về cổ phiếu, portfolio...'
               }
-              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-700"
             />
 
             {isStreaming ? (
@@ -310,7 +310,7 @@ export default function ChatAI() {
                 className="px-4 py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors flex items-center gap-2"
               >
                 <Square className="w-4 h-4" />
-                <span className="hidden md:inline">Dừng</span>
+                <span className="hidden md:inline">Dừng lại</span>
               </button>
             ) : (
               <button

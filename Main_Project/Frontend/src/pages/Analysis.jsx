@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { sessionApi } from '../services/sessionApi';
 import PortfolioReport from '../components/chat/PortfolioReport';
+import { useNavigate } from 'react-router-dom';
 
 export default function Analysis() {
   const [request, setRequest] = useState('');
@@ -65,23 +66,7 @@ export default function Analysis() {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Phân tích Portfolio</h2>
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
-        <textarea
-          value={request}
-          onChange={(e) => setRequest(e.target.value)}
-          placeholder="Mô tả yêu cầu phân tích..."
-          className="w-full p-3 border rounded h-32"
-        />
-        <div className="flex items-center gap-3">
-          <label className="text-sm">Ngôn ngữ:</label>
-          <select value={lang} onChange={(e) => setLang(e.target.value)} className="p-2 border rounded">
-            <option value="vi">Tiếng Việt</option>
-            <option value="en">English</option>
-          </select>
-          <button type="submit" className="ml-auto px-4 py-2 bg-blue-500 text-white rounded">{loading ? 'Đang...' : 'Phân tích'}</button>
-        </div>
-      </form>
+      <h1 className="!text-black">Phân tích chi tiết </h1>
 
       {error && <p className="text-red-600 mt-4">{error}</p>}
 

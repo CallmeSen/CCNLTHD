@@ -28,7 +28,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSelect }) 
       </div>
 
       {/* Title */}
-      <h1 className="text-4xl font-bold text-gray-900 mb-3 text-center">
+      <h1 className="text-4xl font-bold !text-gray-900 mb-3 text-center">
         AI Investment Advisor
       </h1>
 
@@ -60,26 +60,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSelect }) 
 
       {/* Quick Links */}
       <div className="flex gap-4 flex-wrap justify-center">
-        <button
-          onClick={() => navigate('/analysis')}
-          className="px-6 py-3 bg-white border border-gray-200 rounded-lg text-gray-700 font-medium hover:shadow-md transition-all duration-200"
-        >
-          Phân Tích
-        </button>
-        <button
-          onClick={() => navigate('/history')}
-          className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 flex items-center gap-2"
-        >
-          <History className="w-4 h-4" />
-          Lịch Sử
-        </button>
+       
+        
       </div>
 
       {/* Footer */}
-      <div className="mt-16 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Chatbot hỗ trợ bởi AI multi-agent</p>
-        <p>Tất cả dữ liệu được xử lý an toàn</p>
-      </div>
+      
     </div>
   );
 };

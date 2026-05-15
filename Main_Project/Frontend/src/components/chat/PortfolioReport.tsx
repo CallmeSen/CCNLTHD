@@ -91,9 +91,8 @@ export const PortfolioReport: React.FC<PortfolioReportProps> = ({ content }) => 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden max-w-4xl">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
-        <h2 className="text-2xl font-bold mb-2">📊 Báo Cáo Phân Tích Portfolio</h2>
-        <p className="text-blue-100 text-sm">Phân tích chi tiết từ AI Financial Advisor</p>
+      <div className="bg-gradient-to-r from-blue-500 to-blue-700 text-white p-6">
+        <h2 className="text-2xl font-bold mb-2">Phân tích chi tiết từ AI Financial Advisor</h2>
       </div>
 
       {/* Content */}
@@ -159,8 +158,8 @@ export const PortfolioReport: React.FC<PortfolioReportProps> = ({ content }) => 
         {/* Key Insights */}
         {sections['LLM Commentary & Reasoning'] && (
           <section>
-            <h3 className="text-lg font-bold text-gray-800 mb-4">💡 Nhận Định Chính</h3>
-            <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded">
+            <h3 className="text-lg font-bold text-gray-800 mb-4"> Nhận Định Chính</h3>
+            <div className="bg-amber-50 border-l-4 border-amber-100 p-4 rounded">
               {sections['LLM Commentary & Reasoning']
                 .split('\n')
                 .filter((line) => line.trim() && !line.includes('**'))
@@ -188,18 +187,7 @@ export const PortfolioReport: React.FC<PortfolioReportProps> = ({ content }) => 
         )}
 
         {/* Disclaimer */}
-        <section className="bg-gray-100 rounded-lg p-4 border border-gray-300">
-          <div className="flex gap-2">
-            <AlertCircle className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-gray-700 mb-1">⚠️ Lưu Ý Pháp Lý</p>
-              <p className="text-xs text-gray-600">
-                Báo cáo này chỉ mang tính chất thông tin. Không phải lời khuyên tài chính. Vui lòng tham khảo ý kiến chuyên gia
-                tài chính trước khi quyết định đầu tư.
-              </p>
-            </div>
-          </div>
-        </section>
+        
       </div>
 
       {/* Footer */}
