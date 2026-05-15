@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+commonLabels:
+  environment: staging
+
+replicas:
+  - name: api-gateway
+    count: 3
+  - name: user-service
+    count: 3
+  - name: market-data-service
+    count: 3
+  - name: portfolio-service
+    count: 3
+  - name: notification-service
+    count: 2
+  - name: multi-agents-service
+    count: 3
+  - name: eureka-server
+    count: 1
+  - name: frontend
+    count: 3
+
+images:
+  - name: docker.io/callmesen/investadvisor-api-gateway
+    newTag: staging-latest
+  - name: docker.io/callmesen/investadvisor-user-service
+    newTag: staging-latest
+  - name: docker.io/callmesen/investadvisor-market-data-service
+    newTag: staging-latest
+  - name: docker.io/callmesen/investadvisor-portfolio-service
+    newTag: staging-latest
+  - name: docker.io/callmesen/investadvisor-notification-service
+    newTag: staging-latest
+  - name: docker.io/callmesen/investadvisor-multi-agents-service
+    newTag: staging-latest
+  - name: docker.io/callmesen/investadvisor-eureka-server
+    newTag: staging-latest
+  - name: docker.io/callmesen/investadvisor-frontend
+    newTag: staging-latest

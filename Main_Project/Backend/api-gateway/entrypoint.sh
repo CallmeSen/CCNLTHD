@@ -1,7 +1,7 @@
 #!/bin/sh
 # Wait for fin_multi_agents to be reachable
 echo "Waiting for fin_multi_agents..."
-while ! wget -q -O- -T 2 http://fin_multi_agents:8000/health > /dev/null 2>&1; do
+while ! wget -q -O- -T 2 http://fin_multi_agents:8086/health > /dev/null 2>&1; do
     sleep 1
 done
 echo "fin_multi_agents is up!"

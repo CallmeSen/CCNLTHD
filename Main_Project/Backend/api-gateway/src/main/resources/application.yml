@@ -8,55 +8,14 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true
-          lower-case-service-id: true
+          enabled: false
       httpclient:
         response-timeout: 300000
         connect-timeout: 10000
-      routes:
-        # User Service — public auth + protected user endpoints
-        - id: user-service-auth
-          uri: lb://user-service
-          predicates:
-            - Path=/api/auth/**
-        - id: user-service
-          uri: lb://user-service
-          predicates:
-            - Path=/api/users/**
-          filters:
-            - AuthenticationFilter
-
-        # Market Data Service
-        - id: market-data-service
-          uri: lb://market-data-service
-          predicates:
-            - Path=/api/market/**
-          filters:
-            - AuthenticationFilter
-
-        # Portfolio Service
-        - id: portfolio-service
-          uri: lb://portfolio-service
-          predicates:
-            - Path=/api/portfolios/**
-          filters:
-            - AuthenticationFilter
-
-        # Notification Service
-        - id: notification-service
-          uri: lb://notification-service
-          predicates:
-            - Path=/api/notifications/**
-          filters:
-            - AuthenticationFilter
-
-        # AI Intelligence Service (Multi-agents-service — Python, registered via Eureka)
-        - id: ai-intelligence-service
-          uri: lb://ai-intelligence-service
-          predicates:
-            - Path=/api/ai/**
-          filters:
-            - AuthenticationFilter
+      # Try disabling Spring Cloud LoadBalancer reactive support to avoid
+      # RouteLocator URI parsing issues in SC Gateway 4.x.
+      loadbalancer:
+        enabled: false
 
       globalcors:
         cors-configurations:
@@ -77,10 +36,10 @@ eureka:
   client:
     service-url:
       defaultZone: http://${EUREKA_HOST:localhost}:8761/eureka/
-    fetch-registry: true
-    register-with-eureka: true
+    fetch-registry: false
+    register-with-eureka: false
   instance:
-    prefer-ip-address: true
+    prefer-ip-address: false
 
 jwt:
   secret: ${JWT_SECRET:InvestAdvisorJwtSecretKeyMustBeAtLeast256BitsLong2024!}

@@ -1,0 +1,30 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: eureka-server-vpa
+  namespace: investadvisor
+  labels:
+    app: eureka-server
+    app.kubernetes.io/name: eureka-server
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: eureka-server
+  updatePolicy:
+    updateMode: "Auto"
+    minReplicas: 1
+    maxReplicas: 3
+  resourcePolicy:
+    containerPolicies:
+      - containerName: eureka-server
+        minAllowed:
+          cpu: 50m
+          memory: 128Mi
+        maxAllowed:
+          cpu: 2000m
+          memory: 2Gi
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsAndLimits

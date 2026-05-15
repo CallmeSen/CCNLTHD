@@ -1,0 +1,30 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: multi-agents-service-vpa
+  namespace: investadvisor
+  labels:
+    app: multi-agents-service
+    app.kubernetes.io/name: multi-agents-service
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: multi-agents-service
+  updatePolicy:
+    updateMode: "Auto"
+    minReplicas: 2
+    maxReplicas: 10
+  resourcePolicy:
+    containerPolicies:
+      - containerName: multi-agents-service
+        minAllowed:
+          cpu: 100m
+          memory: 256Mi
+        maxAllowed:
+          cpu: 4000m
+          memory: 16Gi
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsAndLimits

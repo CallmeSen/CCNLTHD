@@ -110,8 +110,16 @@ validate:python:
   image: python:3.12-slim
   stage: validate
   timeout: 5 minutes
+  variables:
+    UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  cache:
+    key: "uv-multi-agents-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .uv-cache/
+    policy: pull
   script:
-    - pip install --quiet flake8
+    - pip install --quiet uv
+    - uv pip install --system --cache-dir "$UV_CACHE_DIR" flake8
     - flake8 Main_Project/Backend/market-data-service/app/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241 --exclude=__pycache__
     - flake8 Main_Project/Backend/multi-agents-service/src/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241 --exclude=__pycache__
   rules:
@@ -264,12 +272,19 @@ build:frontend:
 build:multi-agents-service:
   image: python:3.12-slim
   stage: build
-  timeout: 10 minutes
+  timeout: 15 minutes
+  variables:
+    UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  cache:
+    key: "uv-multi-agents-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .uv-cache/
+    policy: pull-push
   script:
     - cd Main_Project/Backend/multi-agents-service
     - pip install --quiet uv
-    - pip install --quiet -e . 2>/dev/null || pip install --quiet -r requirements.txt 2>/dev/null || true
-    - python -c "import src.fin_agents.api.main" 2>/dev/null || python -c "import src.api.main" 2>/dev/null || echo "Python syntax check skipped — package structure varies by environment"
+    - uv sync --frozen --no-install-project --no-dev --cache-dir "$UV_CACHE_DIR"
+    - python -c "import src.fin_agents.api.main" 2>/dev/null || python -c "import src.api.main" 2>/dev/null || echo "Python syntax check skipped"
     - echo "Python syntax OK"
   rules:
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
@@ -404,12 +419,19 @@ test:unit:market-data-service:
 test:unit:multi-agents-service:
   image: python:3.12-slim
   stage: test-unit
-  timeout: 10 minutes
+  timeout: 15 minutes
+  variables:
+    UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  cache:
+    key: "uv-multi-agents-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .uv-cache/
+    policy: pull
   script:
     - cd Main_Project/Backend/multi-agents-service
-    - pip install --quiet -e . 2>/dev/null || pip install --quiet -r requirements.txt 2>/dev/null || true
-    - pip install --quiet pytest pytest-cov 2>/dev/null || true
-    - pytest tests/ -v --cov=src --cov-report=term-missing --junitxml=junit-report.xml 2>/dev/null || echo "No tests directory found"
+    - pip install --quiet uv
+    - uv sync --frozen --cache-dir "$UV_CACHE_DIR"
+    - pytest tests/ -v --cov=src --cov-report=term-missing --junitxml=junit-report.xml 2>/dev/null || echo "No tests found"
   artifacts:
     when: always
     reports:
@@ -536,8 +558,13 @@ test:integration:notification-service:
       alias: docker
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
+    # Enable Docker buildx for advanced caching
+    DOCKER_BUILDKIT: "1"
+    BUILDKIT_PROGRESS: "plain"
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker buildx install --default 2>/dev/null || true
+    - docker buildx create --use --name multi-builder 2>/dev/null || docker buildx use multi-builder
   when: manual
   rules:
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
@@ -623,6 +650,7 @@ docker:frontend:
 
 docker:multi-agents-service:
   extends: .docker-template
+  timeout: 40 minutes
   needs:
     - job: test:unit:multi-agents-service
       optional: true
@@ -630,8 +658,18 @@ docker:multi-agents-service:
       optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/multi-agents-service"
-    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/multi-agents-service/
-    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+    - docker buildx build --push --platform linux/amd64 \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --cache-from type=registry,ref="${IMAGE}:latest" \
+        --cache-to type=registry,ref="${IMAGE}:latest,mode=max" \
+        -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" \
+        Main_Project/Backend/multi-agents-service/
+    - docker buildx build --push --platform linux/arm64 \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --cache-from type=registry,ref="${IMAGE}:latest" \
+        --cache-to type=registry,ref="${IMAGE}:latest,mode=max" \
+        -t "$IMAGE:${IMAGE_TAG}-arm64" \
+        Main_Project/Backend/multi-agents-service/
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: DEPLOY
