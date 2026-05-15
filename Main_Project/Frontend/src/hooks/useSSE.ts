@@ -67,6 +67,10 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
 
         // Xử lý từng loại event
         switch (eventType) {
+          // Some backends may emit a short "done" event instead of "attempt.completed"
+          // Treat them equivalently so we attach runId and final answer.
+          case 'done':
+            // fallthrough to attempt.completed handling
           case 'text_delta':
             // Nối thêm văn bản streaming
             appendStreamingText(String(data.text || data.delta || ''));
@@ -129,14 +133,40 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
           case 'attempt.completed':
             // Workflow completed
             if (data.summary || data.final_report || data.report) {
+              // Try several keys for run identifier to be robust to backend naming
+              const runIdentifier = String(
+                data.run_id || (data as any).runId || data.id || raw.run_id || raw.runId || ''
+              );
+
+              // If backend didn't provide a run id, generate a local one and persist the report
+              const finalRunId = runIdentifier && runIdentifier !== 'undefined' ? runIdentifier : `local-${Date.now()}`;
+
+              const reportContent = String(data.summary || data.final_report || data.report || '');
+
+              // If we generated a local run id, store the report in localStorage so Analysis page can read it
+              try {
+                if (!runIdentifier) {
+                  const payload = JSON.stringify({ report: reportContent, metrics: (data.metrics as Record<string, any>) || null });
+                  window.localStorage.setItem(`agent-report-${finalRunId}`, payload);
+                }
+              } catch (e) {
+                // ignore storage errors
+                // eslint-disable-next-line no-console
+                console.warn('[useSSE] failed to persist local report', e);
+              }
+
               const answerMsg: AgentMessage = {
                 id: `answer-${Date.now()}`,
                 type: 'answer',
-                content: String(data.summary || data.final_report || data.report || ''),
+                content: reportContent,
                 timestamp: Date.now(),
-                runId: String(data.run_id || data.id || ''),
+                runId: finalRunId,
                 metrics: (data.metrics as Record<string, any>) || undefined,
               };
+              // Debug log to help trace runId issues
+              // Remove or lower verbosity in production
+              // eslint-disable-next-line no-console
+              console.debug('[useSSE] emitting answerMsg', { answerMsg, raw, data });
               addMessage(answerMsg);
               clearStreaming();
               setStatus('idle');

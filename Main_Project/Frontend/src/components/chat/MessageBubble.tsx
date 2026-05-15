@@ -4,6 +4,7 @@
  */
 
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { PortfolioReport } from './PortfolioReport';
 import type { AgentMessage, ToolCallEntry } from '../../types/agent';
 
@@ -165,19 +166,39 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
        message.content.includes('Portfolio Allocation'));
 
     if (isPortfolioReport) {
-      return (
-        <div className="flex justify-start mb-4 w-full">
-          <div className="w-full">
-            <PortfolioReport content={message.content} />
-            <p className="text-xs text-gray-400 mt-2 text-right">
-              {new Date(message.timestamp).toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
+        // If backend didn't provide a runId, persist a local copy so user can open full report
+        let effectiveRunId = message.runId;
+        try {
+          if (!effectiveRunId || effectiveRunId === '') {
+            // derive from message id or timestamp
+            const localId = `local-${message.id || message.timestamp || Date.now()}`;
+            const storageKey = `agent-report-${localId}`;
+            // only write if not already present
+            if (!localStorage.getItem(storageKey)) {
+              localStorage.setItem(storageKey, JSON.stringify({ report: message.content, timestamp: message.timestamp }));
+            }
+            effectiveRunId = localId;
+          }
+        } catch (e) {
+          // ignore storage errors
+        }
+
+        return (
+          <div className="flex justify-start mb-4 w-full">
+            <div className="w-full">
+              <PortfolioReport content={message.content} />
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-xs text-gray-400">
+                  {new Date(message.timestamp).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+                <a href={`/analysis?runId=${effectiveRunId}`} className="text-sm text-blue-600 hover:underline">Xem chi tiết báo cáo</a>
+              </div>
+            </div>
           </div>
-        </div>
-      );
+        );
     }
 
     return (
@@ -185,7 +206,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-white border border-gray-200 rounded-lg shadow">
           <p className="text-sm md:text-base text-gray-800 break-words">{message.content}</p>
           {message.runId && (
-            <p className="text-xs text-gray-500 mt-2">Run ID: {message.runId}</p>
+            <>
+              <p className="text-xs text-gray-500 mt-2">Run ID: {message.runId}</p>
+              <Link
+                to={`/analysis?runId=${message.runId}`}
+                className="text-sm text-blue-600 hover:underline mt-1 inline-block"
+              >
+                Xem chi tiết báo cáo
+              </Link>
+            </>
           )}
           <p className="text-xs text-gray-400 mt-2">
             {new Date(message.timestamp).toLocaleTimeString('vi-VN', {

@@ -221,6 +221,7 @@ async def send_message(
                 })
             else:
                 EventBus.emit(session_id, "attempt.completed", {
+                    "run_id": result.get("run_id"),
                     "run_dir": result.get("run_id"),
                     "summary": assistant_content,
                 })

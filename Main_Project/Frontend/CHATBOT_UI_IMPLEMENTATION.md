@@ -35,6 +35,11 @@ Luồng chính (tóm tắt): User -> sessionApi.create (nếu cần) -> sessionA
   - Message list: render nhóm tin nhắn, timeline, streaming area.
   - Input: textarea (Enter gửi, Shift+Enter newline), nút gửi / stop.
 
+- Report/Run detail pages — `src/pages/Report.tsx`, `src/pages/RunDetail.tsx`
+  - Hiển thị output đã được chuẩn hoá từ `AnalyzeResponse` / `ReportResponse`.
+  - `Report.tsx`: bố cục dashboard đầy đủ gồm pie chart, bar chart, market news, AI commentary, visualization, validation, full markdown report.
+  - `RunDetail.tsx`: view rút gọn hơn, tập trung vào metrics, proposed portfolio, compliance và text report.
+
 - Welcome screen — `src/components/chat/WelcomeScreen.tsx`
   - Hiển thị mẫu prompt, links tới Analysis / History.
   - Gọi `onSelectPrompt(prompt)` khi người dùng chọn mẫu.
@@ -65,6 +70,8 @@ Luồng chính (tóm tắt): User -> sessionApi.create (nếu cần) -> sessionA
   - Props: `message: AgentMessage`, `isStreaming?: boolean`.
   - Render theo `message.type`: `user`, `answer` (assistant), `tool_call`, `tool_result`, `compact`, `error`.
   - Sử dụng `react-markdown` + `remark-gfm` để render markdown, code blocks, bảng, link.
+  - Với `answer`, component là format output chính của chatbot: hỗ trợ markdown, code inline / code block, link, bảng, blockquote, và trạng thái streaming.
+  - Nếu `message.runId` tồn tại, bubble sẽ hiện link `>> Full report` trỏ sang trang report tương ứng.
 
 - `ThinkingTimeline` — [src/components/chat/ThinkingTimeline.tsx](src/components/chat/ThinkingTimeline.tsx)
   - Props: `toolCalls: ToolCallEntry[]`.
@@ -75,6 +82,19 @@ Luồng chính (tóm tắt): User -> sessionApi.create (nếu cần) -> sessionA
   - Nếu có >= 2 user messages, hiển thị series dot timeline để scroll tới từng user message.
 
 - `ToolCallCard` / `MetricCard` — dùng để hiển thị tool calls và metrics (xem mã để các chi tiết UI nhỏ).
+
+- `Report` page components — [src/pages/Report.tsx](src/pages/Report.tsx)
+  - `PortfolioPieChart`: biểu diễn `proposed_portfolio` dạng vòng tròn.
+  - `MetricsBarChart`: biểu diễn các metrics chính từ `data.metrics.portfolio`.
+  - `VisualizationEmbed`: nhúng dashboard/iframe từ `visualization_url`.
+  - `LLMChatMessage`: render `llm_commentary` bằng markdown.
+  - `NewsSection`: render `market_news` theo từng dòng bullet.
+  - `ValidationBadge`: render trạng thái compliance và lỗi nếu có.
+  - `MarkdownContent`: render toàn bộ `report` bằng markdown + GFM.
+
+- `RunDetail` page components — [src/pages/RunDetail.tsx](src/pages/RunDetail.tsx)
+  - Hiển thị cấu trúc gọn hơn của output report: metrics, portfolio allocation, compliance, full report text.
+  - Phù hợp khi cần xem nhanh kết quả run thay vì toàn bộ dashboard chi tiết.
 
 ---
 
@@ -139,6 +159,19 @@ interface ToolCallEntry {
 
 - `AgentMessage` (trong `src/types/index.ts`): có `type` là `user|answer|error|tool_call|tool_result|run_complete|thinking|compact`, `content`, `timestamp`, optional `tool`, `status`, `elapsed_ms`, `runId`.
 
+- `AnalyzeResponse` / `ReportResponse` (trong `src/types/index.ts`): là format output cuối của pipeline phân tích.
+  - `run_id`: mã định danh phiên phân tích.
+  - `status`: trạng thái run.
+  - `report`: nội dung báo cáo markdown hoàn chỉnh.
+  - `final_report`: bản report cuối cùng trong một số luồng analyze.
+  - `user_profile`: thông tin người dùng đã suy luận.
+  - `proposed_portfolio`: allocation đề xuất theo ticker.
+  - `metrics`: nhóm số liệu tài chính / đánh giá.
+  - `validation_result`: trạng thái kiểm tra compliance và danh sách lỗi/cảnh báo.
+  - `llm_commentary`: phần nhận xét chi tiết của AI.
+  - `market_news`: tin thị trường liên quan.
+  - `visualization_url`: link dashboard/biểu đồ tương tác.
+
 ---
 
 ## 7. UI behavior & UX details
@@ -148,6 +181,15 @@ interface ToolCallEntry {
 - Auto-scroll: chỉ tự cuộn khi người dùng đang gần cuối; nếu không thì hiện nút scroll-to-bottom.
 - Cancel: gọi `sessionApi.cancel(sessionId)` để yêu cầu backend hủy; frontend sẽ `clearStreaming()` và set `status` về `idle`.
 - Export: tạo markdown export bằng cách duyệt `messages` và map thành section.
+
+### 7.1 Format output theo màn hình
+
+- Chat output được chia thành 3 lớp: `tool_call`, `tool_result`, `answer`.
+- `MessageBubble` quyết định cách hiển thị từng message type.
+- `ThinkingTimeline` quyết định cách hiển thị tiến trình tool call trước và trong lúc AI stream text.
+- Report output được chia thành các khối dữ liệu riêng: `user_profile`, `proposed_portfolio`, `metrics`, `validation_result`, `llm_commentary`, `market_news`, `visualization_url`, `report`.
+- `Report.tsx` render các khối đó thành dashboard đầy đủ.
+- `RunDetail.tsx` render cùng dữ liệu nhưng ở dạng tóm tắt hơn để xem nhanh.
 
 ---
 
@@ -180,10 +222,40 @@ interface ToolCallEntry {
 
 ---
 
-Nếu bạn muốn, tôi có thể:
 
-- Thêm sơ đồ luồng (Mermaid) vào file này.
-- Viết tests nhỏ mock SSE để CI kiểm thử tính năng streaming.
-- Tạo checklist thay đổi khi porting backend (event names / payloads).
+
+## 11. Bảng bàn giao component
+
+Bảng dưới đây dùng để bàn giao nhanh cấu trúc hiển thị output của AI trong hệ thống. Mỗi dòng mô tả một component, dữ liệu đầu vào, output mà component tạo ra, và phần UI người dùng nhìn thấy.
+
+| Component | Input | Output | UI hiển thị |
+|---|---|---|---|
+| `Agent.tsx` | Prompt người dùng, `sessionId`, SSE events, store state | Điều phối toàn bộ luồng chat, tạo session, mở SSE, đẩy message vào store | Trang chat chính, có input, timeline, nút send/stop, export |
+| `useSSE.ts` | URL SSE và handler cho `text_delta`, `tool_call`, `tool_result`, `attempt.completed`, `attempt.failed` | Parse sự kiện stream và gọi action cập nhật store | Không render trực tiếp, nhưng quyết định dữ liệu live trên màn hình |
+| `useAgentStore.ts` | Message, delta text, tool call, tool result, runId | Gom state `messages`, `streamingText`, `toolCalls`, `status` | Nền dữ liệu cho toàn bộ chat UI |
+| `MessageBubble.tsx` | Một `AgentMessage` và cờ `isStreaming` | Bubble theo type message | User bubble, assistant markdown bubble, error bubble, tool result bubble |
+| `ThinkingTimeline.tsx` | Danh sách `toolCalls` | Timeline theo bước xử lý của agent | Khối “Thinking” với trạng thái pending/running/done/error |
+| `ConversationTimeline.tsx` | Danh sách `messages` và ref container | Mốc điều hướng theo user message | Dải dot timeline để nhảy nhanh giữa các đoạn hội thoại |
+| `Report.tsx` | `ReportResponse` từ API | Dashboard báo cáo đầy đủ theo từng khối dữ liệu | Trang report chi tiết gồm chart, commentary, news, validation, markdown report |
+| `RunDetail.tsx` | `ReportResponse` từ API | View rút gọn của report | Trang chi tiết run, ưu tiên đọc nhanh metrics, allocation, compliance |
+| `MetricsCard.tsx` | `metrics` object | Grid/summary metrics | Khối số liệu tài chính, tỷ suất, độ biến động, drawdown |
+| `ToolCallCard.tsx` | Tool name, status, arguments, preview | Card cho từng tool call | Khối log tool hoặc bước suy luận trung gian |
+| `WelcomeScreen.tsx` | Callback chọn prompt | Prompt mẫu hoặc gợi ý bắt đầu | Màn hình chào, gợi ý câu lệnh, entry point của chat |
+
+### Luồng bàn giao output của AI
+
+1. User gửi prompt trong `Agent.tsx`.
+2. `useSSE.ts` nhận stream từ backend và tách ra thành `tool_call`, `tool_result`, `text_delta`.
+3. `useAgentStore.ts` gom dữ liệu live thành `messages`, `streamingText`, `toolCalls`.
+4. `MessageBubble.tsx` và `ThinkingTimeline.tsx` render phần output đang chạy ngay trong chat.
+5. Khi `attempt.completed`, `finishStreaming` tạo message `answer` cuối cùng và gắn `runId` nếu có.
+6. Người dùng bấm `>> Full report` để chuyển sang `Report.tsx` hoặc `RunDetail.tsx`, nơi output được trình bày thành dashboard/bản báo cáo hoàn chỉnh.
+
+### Ghi chú bàn giao
+
+- Nếu backend chỉ trả text thuần, `MessageBubble` vẫn hiển thị được vì đã dùng markdown renderer.
+- Nếu report có đủ `metrics`, `proposed_portfolio`, `validation_result`, `llm_commentary`, `market_news`, `visualization_url`, UI report sẽ tự động mở rộng thành dashboard đầy đủ.
+- Nếu một trường dữ liệu không có, component tương ứng trả `null` và ẩn luôn khối UI đó.
+- Tất cả output cuối đều quy về hai đích chính: hiển thị trong chat hoặc hiển thị ở report/detail page.
 
 Ghi chú: file này được tạo tự động từ mã nguồn hiện có; nếu bạn muốn tài liệu chi tiết hơn ở từng dòng, tôi có thể chèn ví dụ payload thực tế từ log SSE hoặc trích xuất mẫu event từ backend.
