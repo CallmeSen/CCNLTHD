@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useAgentStore } from '../store/useAgentStore';
+import { TOKEN_KEY } from '../services/apiClient';
 import type { ParsedSSEMessage, ToolCallEntry, AgentMessage } from '../types/agent';
 
 interface UseSSEOptions {
@@ -197,8 +198,10 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
           handleSSEError();
         };
       } else {
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        const eventSourceUrl = `${baseUrl}/api/ai/sessions/${sessionId}/events`;
+        const token = localStorage.getItem(TOKEN_KEY);
+        const eventSourceUrl = token
+          ? `/api/ai/sessions/${sessionId}/events?token=${encodeURIComponent(token)}`
+          : `/api/ai/sessions/${sessionId}/events`;
 
         eventSourceRef.current = new EventSource(eventSourceUrl);
       }

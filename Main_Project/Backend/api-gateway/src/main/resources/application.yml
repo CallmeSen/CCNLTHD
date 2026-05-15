@@ -10,6 +10,9 @@ spring:
         locator:
           enabled: true
           lower-case-service-id: true
+      httpclient:
+        response-timeout: 300000
+        connect-timeout: 10000
       routes:
         # User Service — public auth + protected user endpoints
         - id: user-service-auth

@@ -1,0 +1,10 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: ai-intelligence-service
+          uri: http://fin_multi_agents:8000
+          predicates:
+            - Path=/api/ai/**
+          filters:
+            - StripPrefix=2

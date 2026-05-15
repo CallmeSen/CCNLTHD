@@ -64,22 +64,22 @@ export default function ChatAI() {
     }
   };
 
-  // Create or load session on mount
+  // Always create a new session on mount (unless URL has ?session= param for sharing)
   useEffect(() => {
     const initSession = async () => {
       try {
         const sessionIdParam = searchParams.get('session');
         if (sessionIdParam) {
+          // Load shared session from URL
           setSessionId(sessionIdParam);
-        } else if (!sessionId) {
-          // Tạo session mới
+        } else {
+          // Always create a fresh new session
           const prompt = ticker
             ? `Phân tích cổ phiếu ${ticker}`
             : 'New chat session';
           const response = await sessionApi.create(prompt);
           if (response.session_id) {
             setSessionId(response.session_id);
-            // Update URL
             setSearchParams({ session: response.session_id });
           }
         }
@@ -246,7 +246,7 @@ export default function ChatAI() {
           {streamingText && (
             <div className="flex justify-start">
               <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-white border border-gray-200 rounded-lg shadow">
-                <p className="text-sm md:text-base text-gray-800 break-words">
+                <p className="text-sm md:text-base text-gray-800 break-all">
                   {streamingText}
                 </p>
               </div>

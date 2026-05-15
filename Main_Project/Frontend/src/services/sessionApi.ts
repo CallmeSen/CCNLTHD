@@ -42,7 +42,10 @@ export const sessionApi = {
    * Gửi message vào session
    */
   send: async (sessionId: string, message: string): Promise<SendMessageResponse> => {
-    const mockFlag = import.meta.env.VITE_MOCK_API === 'true' || localStorage.getItem('mockBackend') === '1';
+    const mockFlag =
+      import.meta.env.VITE_MOCK_API === 'true' ||
+      localStorage.getItem('mockBackend') === '1' ||
+      sessionId.startsWith('mock-');
     if (mockFlag) {
       // Simulate accepted send
       // Emit mock events via mockEventBus asynchronously
@@ -77,19 +80,11 @@ export const sessionApi = {
    * Trả về EventSource object để client có thể lắng nghe events
    */
   getEventStream: (sessionId: string): EventSource => {
-    const token = localStorage.getItem('authToken');
-    const url = `${apiClient.defaults.baseURL}${BASE_URL}/sessions/${sessionId}/events`;
-    
-    const eventSource = new EventSource(url);
-    
-    // Thêm authorization header nếu có (mặc dù SSE không hỗ trợ headers trực tiếp)
-    // Có thể cần thêm token vào URL query param nếu backend yêu cầu
-    if (token) {
-      // Nếu backend hỗ trợ, có thể truyền token qua query param
-      // eventSource = new EventSource(`${url}?token=${token}`);
-    }
-    
-    return eventSource;
+    const token = localStorage.getItem(TOKEN_KEY);
+    const url = token
+      ? `/api/ai/sessions/${sessionId}/events?token=${encodeURIComponent(token)}`
+      : `/api/ai/sessions/${sessionId}/events`;
+    return new EventSource(url);
   },
 
   /**

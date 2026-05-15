@@ -15,7 +15,7 @@ import uuid
 from typing import Any, Dict, Optional
 
 import sse_starlette
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.orm import Session
 
@@ -149,8 +149,21 @@ async def create_session():
 
 
 @router.get("/{session_id}/events")
-async def session_events(session_id: str):
-    """SSE stream for a session."""
+async def session_events(
+    session_id: str,
+    token: Optional[str] = Query(
+        default=None,
+        description="Bearer token for session authentication (alternative to Authorization header)"
+    ),
+):
+    """SSE stream for a session.
+
+    Supports two auth methods:
+    1. Query param: ?token=<jwt>
+    2. Forwarded from API Gateway via X-User-Id header (set by gateway's JWT filter)
+
+    Both are optional — the API Gateway already validated the token before forwarding.
+    """
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 

@@ -41,6 +41,24 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres_ma:
+    image: postgres:15-alpine
+    container_name: fin_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: financial_advisor
+    volumes:
+      - postgres_ma_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d financial_advisor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: invest_zookeeper
@@ -138,7 +156,15 @@ services:
       - "${API_GATEWAY_PORT:-8085}:8080"
     environment:
       <<: *common-env
+      MULTI_AGENTS_HOST: fin_multi_agents
       SPRING_AUTOCONFIGURE_EXCLUDE: "org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration,org.springframework.boot.autoconfigure.security.reactive.ReactiveUserDetailsServiceAutoConfiguration,org.springframework.boot.actuate.autoconfigure.security.reactive.ReactiveManagementWebSecurityAutoConfiguration"
+      SPRING_CLOUD_GATEWAY_HTTP_CLIENT_RESPONSE_TIMEOUT: 300000
+      SPRING_CLOUD_GATEWAY_HTTP_CLIENT_CONNECT_TIMEOUT: 10000
+      SPRING_CLOUD_GATEWAY_GLOBAL_CORS_CORS-CONFIGURATIONS_0_ALLOWEDORIGINPATTERNS_0: "http://localhost:5173"
+      SPRING_CLOUD_GATEWAY_GLOBAL_CORS_CORS-CONFIGURATIONS_0_ALLOWEDORIGINPATTERNS_1: "http://localhost:3000"
+      SPRING_CLOUD_GATEWAY_GLOBAL_CORS_CORS-CONFIGURATIONS_0_ALLOWEDORIGINPATTERNS_2: "http://127.0.0.1:5173"
+      SPRING_CLOUD_GATEWAY_GLOBAL_CORS_CORS-CONFIGURATIONS_0_ALLOWEDORIGINPATTERNS_3: "http://127.0.0.1:3000"
+      SPRING_CLOUD_GATEWAY_GLOBAL_CORS_CORS-CONFIGURATIONS_0_ALLOWCREDENTIALS: "false"
 
   # ── Microservices ────────────────────────────────────────────────────────────
 
@@ -223,8 +249,36 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-noreply@investadvisor.com}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-changeme}
 
+  multi-agents-service:
+    build:
+      context: ./multi-agents-service
+      dockerfile: Dockerfile
+    container_name: fin_multi_agents
+    restart: unless-stopped
+    depends_on:
+      postgres_ma:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./multi-agents-service/.env
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      EUREKA_HOST: eureka-server
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8000/health', timeout=5.0)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 # ── Volumes ───────────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
+  postgres_ma_data:
   zookeeper_data:
   kafka_data:
