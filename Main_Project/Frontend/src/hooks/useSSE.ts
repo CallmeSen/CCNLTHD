@@ -56,7 +56,9 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
   const handleSSEMessage = useCallback(
     (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data) as ParsedSSEMessage;
+        const raw = JSON.parse(event.data) as ParsedSSEMessage & { event?: string; type?: string; [key: string]: unknown };
+        const eventType = String(raw.type || raw.event || 'message');
+        const data = (raw.data && typeof raw.data === 'object') ? (raw.data as Record<string, unknown>) : raw;
 
         // Gọi callback nếu có
         if (onEvent) {
@@ -64,46 +66,47 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
         }
 
         // Xử lý từng loại event
-        switch (data.type) {
+        switch (eventType) {
           case 'text_delta':
             // Nối thêm văn bản streaming
-            appendStreamingText(data.data?.text || '');
+            appendStreamingText(String(data.text || data.delta || ''));
             break;
 
           case 'tool_call':
             // Thêm tool call mới
-            if (data.data) {
+            if (data) {
+              const currentTools = useAgentStore.getState().toolCalls;
               const toolCall: ToolCallEntry = {
-                id: data.data.id || `tool-${Date.now()}`,
-                tool: data.data.tool || 'Unknown',
-                arguments: data.data.arguments || {},
+                id: String(data.id || `tool-${Date.now()}`),
+                tool: String(data.tool || 'Unknown'),
+                arguments: (data.arguments as Record<string, any>) || {},
                 status: 'running',
-                timestamp: data.timestamp || Date.now(),
+                timestamp: Number((data.timestamp as number) || Date.now()),
               };
-              setToolCalls((prev) => [...(prev || []), toolCall]);
+              setToolCalls([...currentTools, toolCall]);
             }
             break;
 
           case 'tool_result':
             // Cập nhật tool call với kết quả
-            if (data.data?.id) {
-              updateToolCall(data.data.id, {
-                status: data.data.error ? 'error' : 'done',
-                result: data.data.result,
-                error: data.data.error,
-                preview: data.data.preview,
-                elapsed_ms: data.data.elapsed_ms,
+            if (data.id || data.tool) {
+              updateToolCall(String(data.id || data.tool), {
+                status: data.error ? 'error' : 'done',
+                result: data.result,
+                error: data.error,
+                preview: data.preview,
+                elapsed_ms: data.elapsed_ms,
               });
             }
             break;
 
           case 'thinking_done':
             // Sự kiện thinking hoàn thành
-            if (data.data?.content) {
+            if (data.content) {
               const thinkingMsg: AgentMessage = {
                 id: `thinking-${Date.now()}`,
                 type: 'thinking',
-                content: data.data.content,
+                content: String(data.content),
                 timestamp: Date.now(),
               };
               addMessage(thinkingMsg);
@@ -112,11 +115,11 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
 
           case 'compact':
             // Context compacting
-            if (data.data?.status) {
+            if (data.status) {
               const compactMsg: AgentMessage = {
                 id: `compact-${Date.now()}`,
                 type: 'compact',
-                content: `Compacting context... (${data.data.status})`,
+                content: `Compacting context... (${String(data.status)})`,
                 timestamp: Date.now(),
               };
               addMessage(compactMsg);
@@ -125,14 +128,14 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
 
           case 'attempt.completed':
             // Workflow completed
-            if (data.data?.summary) {
+            if (data.summary || data.final_report || data.report) {
               const answerMsg: AgentMessage = {
                 id: `answer-${Date.now()}`,
                 type: 'answer',
-                content: data.data.summary,
+                content: String(data.summary || data.final_report || data.report || ''),
                 timestamp: Date.now(),
-                runId: data.data.run_id,
-                metrics: data.data.metrics,
+                runId: String(data.run_id || data.id || ''),
+                metrics: (data.metrics as Record<string, any>) || undefined,
               };
               addMessage(answerMsg);
               clearStreaming();
@@ -147,7 +150,7 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
             const errorMsg: AgentMessage = {
               id: `error-${Date.now()}`,
               type: 'error',
-              content: data.data?.error || 'An error occurred during processing',
+              content: String(data.error || 'An error occurred during processing'),
               timestamp: Date.now(),
             };
             addMessage(errorMsg);
@@ -163,7 +166,7 @@ export const useSSE = ({ sessionId, enabled = true, onEvent }: UseSSEOptions) =>
             break;
 
           default:
-            console.warn('Unknown SSE event type:', data.type);
+            console.warn('Unknown SSE event type:', eventType);
         }
       } catch (error) {
         console.error('Error parsing SSE message:', error);

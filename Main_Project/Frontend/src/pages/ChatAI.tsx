@@ -13,9 +13,15 @@ import { WelcomeScreen } from '../components/chat/WelcomeScreen';
 import { MessageBubble } from '../components/chat/MessageBubble';
 import { ThinkingTimeline } from '../components/chat/ThinkingTimeline';
 import { ConversationTimeline } from '../components/chat/ConversationTimeline';
+import ChatHeader from '../components/chat/ChatHeader';
+import ChatFooter from '../components/chat/ChatFooter';
+import ChatSettings from '../components/chat/ChatSettings';
+import AgentSidebar from '../components/chat/AgentSidebar';
 import type { AgentMessage } from '../types/agent';
 
 export default function ChatAI() {
+  const [showSettings, setShowSettings] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const ticker = searchParams.get('ticker');
   const action = searchParams.get('action');
@@ -35,6 +41,7 @@ export default function ChatAI() {
     setStatus,
     setError,
     clearStreaming,
+    clearMessages,
   } = useAgentStore();
 
   // Local state
@@ -68,20 +75,20 @@ export default function ChatAI() {
   useEffect(() => {
     const initSession = async () => {
       try {
-        const sessionIdParam = searchParams.get('session');
-        if (sessionIdParam) {
-          // Load shared session from URL
-          setSessionId(sessionIdParam);
-        } else {
-          // Always create a fresh new session
-          const prompt = ticker
-            ? `Phân tích cổ phiếu ${ticker}`
-            : 'New chat session';
-          const response = await sessionApi.create(prompt);
-          if (response.session_id) {
-            setSessionId(response.session_id);
-            setSearchParams({ session: response.session_id });
-          }
+        // Always create a fresh new session on load so a stale URL session
+        // does not break when the backend service restarts.
+        const prompt = ticker
+          ? `Phân tích cổ phiếu ${ticker}`
+          : 'New chat session';
+        const response = await sessionApi.create(prompt);
+        if (response.session_id) {
+          localStorage.removeItem('agent-store');
+          clearMessages();
+          clearStreaming();
+          setError(null);
+          setStatus('idle');
+          setSessionId(response.session_id);
+          setSearchParams({ session: response.session_id }, { replace: true });
         }
       } catch (err) {
         console.error('Failed to create session:', err);
@@ -184,32 +191,42 @@ export default function ChatAI() {
     setInputValue(prompt);
   };
 
+  const handleRestoreSession = async () => {
+    try {
+      setRestoreLoading(true);
+      const response = await sessionApi.create('New chat session');
+      if (response.session_id) {
+        localStorage.removeItem('agent-store');
+        setInputValue('');
+        setError(null);
+        clearStreaming();
+        setStatus('idle');
+        setSessionId(response.session_id);
+        setSearchParams({ session: response.session_id }, { replace: true });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } catch (err) {
+      console.error('Failed to restore session:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`Không thể tạo phiên chat mới: ${msg}`);
+      setStatus('error');
+    } finally {
+      setRestoreLoading(false);
+    }
+  };
+
   // Show welcome screen header if no messages, but keep input visible
   const showWelcome = messages.length === 0;
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-4 md:px-6 py-4 shadow-sm sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Chat với AI</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Session ID: {sessionId?.slice(0, 8)}... | Status: {sseStatus}
-            </p>
-            {ticker && (
-              <p className="text-xs text-blue-600 mt-1">📈 Phân tích: {ticker}</p>
-            )}
-          </div>
-          <button
-            onClick={handleExport}
-            disabled={messages.length === 0}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            <Download className="w-4 h-4" />
-            Xuất
-          </button>
-        </div>
+      <div className="sticky top-0 z-10 bg-white">
+        <ChatHeader
+          onExport={handleExport}
+          onRestoreSession={handleRestoreSession}
+          onOpenSettings={() => setShowSettings(true)}
+          restoreLoading={restoreLoading}
+        />
       </div>
 
       {/* Conversation Timeline */}
@@ -233,7 +250,8 @@ export default function ChatAI() {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-4 md:px-6 py-6"
       >
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="max-w-7xl mx-auto flex gap-4 items-start">
+          <div className="flex-1 min-w-0 space-y-4">
           {/* Welcome screen when no messages */}
           {showWelcome && (
             <div className="py-8">
@@ -275,6 +293,13 @@ export default function ChatAI() {
           )}
 
           <div ref={messagesEndRef} />
+          </div>
+
+          {toolCalls.length > 0 && (
+            <aside className="hidden xl:block w-80 shrink-0 sticky top-24 max-h-[calc(100vh-10rem)] overflow-y-auto border border-gray-200 bg-white rounded-lg shadow-sm">
+              <AgentSidebar />
+            </aside>
+          )}
         </div>
       </div>
 
@@ -340,6 +365,14 @@ export default function ChatAI() {
           )}
         </div>
       </div>
+
+      <div className="px-4 md:px-6">
+        <div className="max-w-4xl mx-auto">
+          <ChatFooter onSelectPrompt={handlePromptSelect} />
+        </div>
+      </div>
+
+      <ChatSettings open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 }

@@ -4,6 +4,7 @@
  */
 
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { PortfolioReport } from './PortfolioReport';
 import type { AgentMessage, ToolCallEntry } from '../../types/agent';
 
 interface MessageBubbleProps {
@@ -156,6 +157,29 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   // Answer/Assistant message
   if (message.type === 'answer' || message.type === 'run_complete') {
+    // Check if content is a portfolio report
+    const isPortfolioReport = 
+      message.content && 
+      (message.content.includes('Financial Portfolio Report') || 
+       message.content.includes('Portfolio Performance Metrics') ||
+       message.content.includes('Portfolio Allocation'));
+
+    if (isPortfolioReport) {
+      return (
+        <div className="flex justify-start mb-4 w-full">
+          <div className="w-full">
+            <PortfolioReport content={message.content} />
+            <p className="text-xs text-gray-400 mt-2 text-right">
+              {new Date(message.timestamp).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex justify-start mb-4">
         <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-white border border-gray-200 rounded-lg shadow">

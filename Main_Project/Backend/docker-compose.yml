@@ -267,6 +267,7 @@ services:
     env_file:
       - ./multi-agents-service/.env
     environment:
+      DATABASE_URL: postgresql://user:password@postgres_ma:5432/financial_advisor
       KAFKA_BROKERS: kafka:9092
       EUREKA_HOST: eureka-server
     healthcheck:
