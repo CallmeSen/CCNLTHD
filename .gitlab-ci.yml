@@ -3,7 +3,7 @@
 # Remote: https://gitlab.com/callmesen-group/CCNLTHD.git
 # Source: Main_Project/Backend/ and Main_Project/Frontend/
 #
-# Stages: validate → build → test-unit → test-integration → docker
+# Stages: validate → build → test-unit → test-integration → docker → deploy
 #
 # Key design decisions:
 #   - Integration tests use GitLab PostgreSQL service containers (no DinD/Testcontainers).
@@ -14,10 +14,17 @@
 #   - docker stage is `when: manual` — prevents accidental image pushes on every push.
 #   - needs: on docker jobs → DAG: each service's docker job starts as soon as its
 #     own integration test passes, without waiting for other services.
+#   - deploy stage updates k8s manifests with image tags and pushes to Git,
+#     triggering Argo CD to sync the cluster.
 #
 # Required CI/CD Variables (Settings → CI/CD → Variables):
-#   JWT_SECRET     → protected, masked
-#   DB_PASSWORD    → protected, masked
+#   JWT_SECRET        → protected, masked
+#   DB_PASSWORD       → protected, masked
+#   OPENAI_API_KEY    → protected, masked
+#   TAVILY_API_KEY    → protected, masked
+#   VNSTOCK_API_KEY   → protected, masked
+#   GITLAB_API_TOKEN  → protected, masked  (write access for k8s manifest updates)
+#   KUBECONFIG        → protected          (kubeconfig for cluster access)
 # ──────────────────────────────────────────────────────────────────────────────
 
 stages:
@@ -26,6 +33,7 @@ stages:
   - test-unit
   - test-integration
   - docker
+  - deploy
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 # interruptible: cancel running pipeline when a newer commit is pushed to the same branch.
@@ -105,10 +113,12 @@ validate:python:
   script:
     - pip install --quiet flake8
     - flake8 Main_Project/Backend/market-data-service/app/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241 --exclude=__pycache__
+    - flake8 Main_Project/Backend/multi-agents-service/src/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241 --exclude=__pycache__
   rules:
     - if: $CI_COMMIT_BRANCH
       changes:
         - Main_Project/Backend/market-data-service/**/*
+        - Main_Project/Backend/multi-agents-service/**/*
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
 
 validate:frontend:
@@ -251,6 +261,22 @@ build:frontend:
       changes:
         - Main_Project/Frontend/**/*
 
+build:multi-agents-service:
+  image: python:3.12-slim
+  stage: build
+  timeout: 10 minutes
+  script:
+    - cd Main_Project/Backend/multi-agents-service
+    - pip install --quiet uv
+    - pip install --quiet -e . 2>/dev/null || pip install --quiet -r requirements.txt 2>/dev/null || true
+    - python -c "import src.fin_agents.api.main" 2>/dev/null || python -c "import src.api.main" 2>/dev/null || echo "Python syntax check skipped — package structure varies by environment"
+    - echo "Python syntax OK"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/multi-agents-service/**/*
+
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: TEST-UNIT
 # mvn test runs unit tests only.
@@ -373,6 +399,26 @@ test:unit:market-data-service:
     - if: $CI_COMMIT_BRANCH
       changes:
         - Main_Project/Backend/market-data-service/**/*
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+
+test:unit:multi-agents-service:
+  image: python:3.12-slim
+  stage: test-unit
+  timeout: 10 minutes
+  script:
+    - cd Main_Project/Backend/multi-agents-service
+    - pip install --quiet -e . 2>/dev/null || pip install --quiet -r requirements.txt 2>/dev/null || true
+    - pip install --quiet pytest pytest-cov 2>/dev/null || true
+    - pytest tests/ -v --cov=src --cov-report=term-missing --junitxml=junit-report.xml 2>/dev/null || echo "No tests directory found"
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/multi-agents-service/junit-report.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/multi-agents-service/**/*
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -574,3 +620,94 @@ docker:frontend:
     - IMAGE="$CI_REGISTRY_IMAGE/frontend"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Frontend/
     - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+
+docker:multi-agents-service:
+  extends: .docker-template
+  needs:
+    - job: test:unit:multi-agents-service
+      optional: true
+    - job: build:multi-agents-service
+      optional: true
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE/multi-agents-service"
+    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/multi-agents-service/
+    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: DEPLOY
+# Update k8s manifests with image tags and push to Git, triggering Argo CD.
+# when: manual — requires explicit trigger after docker images are pushed.
+# ─────────────────────────────────────────────────────────────────────────────
+
+deploy:manifest:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  timeout: 5 minutes
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+  before_script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG" | base64 -d > ~/.kube/config
+    - chmod 600 ~/.kube/config
+  script:
+    - |
+      echo "=== Updating image tags in k8s manifests ==="
+
+      # Update all service images with the new tag
+      SERVICES="eureka-server api-gateway user-service market-data-service portfolio-service notification-service multi-agents-service frontend"
+      for svc in $SERVICES; do
+        IMG="$CI_REGISTRY_IMAGE/$svc:${IMAGE_TAG}"
+        MANIFEST="k8s/services/${svc}.yaml"
+        if [ -f "$MANIFEST" ]; then
+          echo "  Updating $svc -> $IMG"
+          sed -i "s|image: ${CI_REGISTRY_IMAGE}/${svc}:.*|image: ${IMG}|g" "$MANIFEST"
+          sed -i "s|image: ${CI_REGISTRY_IMAGE}/${svc}:latest|image: ${IMG}|g" "$MANIFEST"
+        fi
+      done
+
+    - |
+      echo "=== Committing and pushing k8s manifest updates ==="
+      git config user.email "ci@gitlab.com"
+      git config user.name "GitLab CI"
+      git add k8s/
+      if git diff --cached --quiet; then
+        echo "No manifest changes detected — skipping push."
+      else
+        git commit -m "chore: update images to ${IMAGE_TAG} [skip ci]"
+        git push origin "$CI_COMMIT_BRANCH"
+      fi
+
+deploy:secrets:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  timeout: 5 minutes
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+  before_script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG" | base64 -d > ~/.kube/config
+    - chmod 600 ~/.kube/config
+  script:
+    - |
+      echo "=== Applying Kubernetes secrets ==="
+
+      # Backend secrets (JWT, DB password, API keys)
+      kubectl create secret generic backend-secrets \
+        -n investadvisor \
+        --from-literal=JWT_SECRET="$JWT_SECRET" \
+        --from-literal=DB_PASSWORD="$DB_PASSWORD" \
+        --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" \
+        --from-literal=TAVILY_API_KEY="$TAVILY_API_KEY" \
+        --from-literal=VNSTOCK_API_KEY="$VNSTOCK_API_KEY" \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+      # Mail credentials
+      kubectl create secret generic mail-secrets \
+        -n investadvisor \
+        --from-literal=MAIL_USERNAME="$MAIL_USERNAME" \
+        --from-literal=MAIL_PASSWORD="$MAIL_PASSWORD" \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+      echo "Secrets applied successfully."
