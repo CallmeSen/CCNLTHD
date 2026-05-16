@@ -1,138 +1,162 @@
 """
-Unit tests for Pydantic schemas used throughout the API.
+Unit tests for chat session and message schemas.
 """
 import pytest
+from datetime import datetime
 from pydantic import ValidationError
 from src.fin_agents.api.schemas import (
-    HealthCheck,
-    HistoryItem,
-    StockAnalyzeRequest,
-    StockAnalyzeResponse,
+    ChatMessageResponse,
+    ChatSessionResponse,
+    ChatSessionListItem,
+    MessageCreate,
 )
 
 
-class TestHealthCheck:
-    def test_valid_health_check(self):
-        hc = HealthCheck(
-            status="healthy",
-            service="Financial Advisor API",
-            version="0.1.0",
-            timestamp="2026-04-28T00:00:00",
+class TestChatMessageResponse:
+    def test_valid_message_response(self):
+        msg = ChatMessageResponse(
+            message_id=1,
+            session_id="550e8400-e29b-41d4-a716-446655440000",
+            role="user",
+            content="Phan tich co phieu FPT",
+            lang="vi",
+            created_at=datetime(2026, 5, 16, 12, 0, 0),
         )
-        assert hc.status == "healthy"
-        assert hc.service == "Financial Advisor API"
+        assert msg.message_id == 1
+        assert msg.role == "user"
+        assert msg.content == "Phan tich co phieu FPT"
+        assert msg.lang == "vi"
 
-    def test_health_check_with_database(self):
-        hc = HealthCheck(
-            status="healthy",
-            service="Financial Advisor API",
-            version="0.1.0",
-            timestamp="2026-04-28T00:00:00",
-            database="connected",
+    def test_assistant_message_response(self):
+        msg = ChatMessageResponse(
+            message_id=2,
+            session_id="550e8400-e29b-41d4-a716-446655440000",
+            role="assistant",
+            content="Duoc, toi se phan tich ngay.",
+            lang="vi",
+            created_at=datetime(2026, 5, 16, 12, 1, 0),
         )
-        assert hc.database == "connected"
+        assert msg.role == "assistant"
 
-    def test_health_check_missing_required(self):
+    def test_message_without_lang(self):
+        msg = ChatMessageResponse(
+            message_id=3,
+            session_id="550e8400-e29b-41d4-a716-446655440000",
+            role="user",
+            content="Build a portfolio",
+            lang=None,
+            created_at=datetime(2026, 5, 16, 12, 0, 0),
+        )
+        assert msg.lang is None
+
+    def test_message_missing_required_fields(self):
         with pytest.raises(ValidationError):
-            HealthCheck(status="healthy")  # missing required fields
+            ChatMessageResponse(
+                message_id=1,
+                session_id="550e8400-e29b-41d4-a716-446655440000",
+            )
 
 
-class TestStockAnalyzeRequest:
-    def test_valid_request(self):
-        req = StockAnalyzeRequest(request="Build a retirement portfolio")
-        assert req.request == "Build a retirement portfolio"
-        assert req.lang == "en"  # default
+class TestChatSessionListItem:
+    def test_valid_session_list_item(self):
+        item = ChatSessionListItem(
+            session_id="550e8400-e29b-41d4-a716-446655440000",
+            user_id="user-123",
+            created_at=datetime(2026, 5, 16, 10, 0, 0),
+            updated_at=datetime(2026, 5, 16, 12, 0, 0),
+            is_active=1,
+            message_count=5,
+        )
+        assert item.session_id == "550e8400-e29b-41d4-a716-446655440000"
+        assert item.message_count == 5
+        assert item.is_active == 1
 
-    def test_request_with_vietnamese_lang(self):
-        req = StockAnalyzeRequest(request="Xây dựng danh mục", lang="vi")
-        assert req.lang == "vi"
+    def test_session_without_user_id(self):
+        item = ChatSessionListItem(
+            session_id="550e8400-e29b-41d4-a716-446655440000",
+            user_id=None,
+            created_at=datetime(2026, 5, 16, 10, 0, 0),
+            updated_at=datetime(2026, 5, 16, 12, 0, 0),
+            is_active=0,
+            message_count=0,
+        )
+        assert item.user_id is None
+        assert item.message_count == 0
 
-    def test_request_empty_string_invalid(self):
-        req = StockAnalyzeRequest(request="")
-        assert req.request == ""  # Pydantic v2 accepts empty string unless min_length is set
+    def test_session_defaults_message_count_to_zero(self):
+        item = ChatSessionListItem(
+            session_id="550e8400-e29b-41d4-a716-446655440000",
+            created_at=datetime(2026, 5, 16, 10, 0, 0),
+            updated_at=datetime(2026, 5, 16, 12, 0, 0),
+            is_active=1,
+        )
+        assert item.message_count == 0
 
-    def test_request_missing_field(self):
+
+class TestChatSessionResponse:
+    def test_valid_session_response(self):
+        session = ChatSessionResponse(
+            session_id="550e8400-e29b-41d4-a716-446655440000",
+            user_id="user-123",
+            created_at=datetime(2026, 5, 16, 10, 0, 0),
+            updated_at=datetime(2026, 5, 16, 12, 0, 0),
+            is_active=1,
+            messages=[
+                ChatMessageResponse(
+                    message_id=1,
+                    session_id="550e8400-e29b-41d4-a716-446655440000",
+                    role="user",
+                    content="Phan tich co phieu",
+                    lang="vi",
+                    created_at=datetime(2026, 5, 16, 10, 5, 0),
+                ),
+                ChatMessageResponse(
+                    message_id=2,
+                    session_id="550e8400-e29b-41d4-a716-446655440000",
+                    role="assistant",
+                    content="Noi dung phan tich",
+                    lang="vi",
+                    created_at=datetime(2026, 5, 16, 10, 6, 0),
+                ),
+            ],
+        )
+        assert len(session.messages) == 2
+        assert session.messages[0].role == "user"
+        assert session.messages[1].role == "assistant"
+
+    def test_session_with_empty_messages(self):
+        session = ChatSessionResponse(
+            session_id="550e8400-e29b-41d4-a716-446655440000",
+            created_at=datetime(2026, 5, 16, 10, 0, 0),
+            updated_at=datetime(2026, 5, 16, 10, 0, 0),
+            is_active=1,
+            messages=[],
+        )
+        assert len(session.messages) == 0
+
+    def test_session_missing_required_fields(self):
         with pytest.raises(ValidationError):
-            StockAnalyzeRequest()  # request is required
-
-    def test_request_whitespace_only_invalid(self):
-        req = StockAnalyzeRequest(request="   ")
-        assert req.request == "   "  # Pydantic v2 accepts whitespace by default
-
-    def test_request_max_length(self):
-        long_request = "A" * 10000
-        req = StockAnalyzeRequest(request=long_request)
-        assert len(req.request) == 10000
+            ChatSessionResponse(
+                session_id="550e8400-e29b-41d4-a716-446655440000",
+                created_at=datetime(2026, 5, 16, 10, 0, 0),
+                updated_at=datetime(2026, 5, 16, 10, 0, 0),
+            )
 
 
-class TestStockAnalyzeResponse:
-    def test_complete_response(self):
-        resp = StockAnalyzeResponse(
-            run_id="STK20260428001",
-            status="completed",
-            final_report="# Report\nContent",
-            user_profile={"goal": "retirement"},
-            proposed_portfolio={"AAPL": 0.5, "MSFT": 0.5},
-            metrics={"portfolio": {"sharpe_ratio": 0.5}},
-            validation_result={"status": "pass"},
-        )
-        assert resp.status == "completed"
-        assert resp.run_id == "STK20260428001"
-        assert resp.error is None
+class TestMessageCreate:
+    def test_message_create_user_message(self):
+        msg = MessageCreate(message="Phan tich co phieu VND")
+        assert msg.message == "Phan tich co phieu VND"
+        assert msg.lang is None
 
-    def test_response_with_error(self):
-        resp = StockAnalyzeResponse(
-            run_id="STK20260428001",
-            status="failed",
-            error="Network timeout",
-        )
-        assert resp.status == "failed"
-        assert "Network timeout" in resp.error
+    def test_message_create_with_lang(self):
+        msg = MessageCreate(message="Analyze FPT stock", lang="en")
+        assert msg.lang == "en"
 
-    def test_response_minimal(self):
-        resp = StockAnalyzeResponse(run_id="STK001", status="completed")
-        assert resp.final_report is None
-        assert resp.user_profile is None
-        assert resp.proposed_portfolio is None
+    def test_message_create_whitespace_message_is_valid(self):
+        msg = MessageCreate(message="   ")
+        assert msg.message == "   "
 
-    def test_response_partial_data(self):
-        resp = StockAnalyzeResponse(
-            run_id="STK001",
-            status="completed",
-            user_profile={"goal": "growth"},
-            metrics={},
-        )
-        assert resp.user_profile["goal"] == "growth"
-        assert resp.final_report is None
-
-
-class TestHistoryItem:
-    def test_valid_history_item(self):
-        item = HistoryItem(
-            run_id="STK001",
-            timestamp="2026-04-28T00:00:00",
-            request="Build portfolio",
-            status="COMPLETED",
-        )
-        assert item.run_id == "STK001"
-        assert item.portfolio is None  # optional
-
-    def test_history_item_with_portfolio(self):
-        item = HistoryItem(
-            run_id="STK001",
-            timestamp="2026-04-28T00:00:00",
-            request="Build portfolio",
-            status="COMPLETED",
-            portfolio={"AAPL": 0.6, "MSFT": 0.4},
-        )
-        assert item.portfolio is not None
-        assert item.portfolio["AAPL"] == 0.6
-
-    def test_history_item_failed(self):
-        item = HistoryItem(
-            run_id="STK002",
-            timestamp="2026-04-28T00:00:00",
-            request="Build portfolio",
-            status="FAILED",
-        )
-        assert item.status == "FAILED"
+    def test_message_create_missing_message(self):
+        with pytest.raises(ValidationError):
+            MessageCreate()

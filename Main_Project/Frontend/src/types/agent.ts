@@ -1,9 +1,3 @@
-/**
- * Agent/Chatbot Types
- * Định nghĩa các kiểu dữ liệu cho hệ thống chatbot multi-agent
- */
-
-// Agent message types
 export type AgentMessageType =
   | 'user'
   | 'answer'
@@ -14,42 +8,34 @@ export type AgentMessageType =
   | 'thinking'
   | 'compact';
 
-// Tool call status
 export type ToolCallStatus = 'pending' | 'running' | 'done' | 'error';
-
-// SSE status
 export type SSEStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+export type AgentStatus = 'idle' | 'streaming' | 'error' | 'sessionLoading';
 
-/**
- * Đại diện cho một tool call đang chạy
- */
 export interface ToolCallEntry {
   id: string;
   tool: string;
-  arguments: Record<string, any>;
+  arguments?: Record<string, unknown>;
   status: ToolCallStatus;
   preview?: string;
   elapsed_ms?: number;
   timestamp?: number;
-  result?: any;
+  result?: unknown;
   error?: string;
 }
 
-/**
- * Đại diện cho một message trong hội thoại
- */
 export interface AgentMessage {
   id: string;
   type: AgentMessageType;
-  content?: string;
+  content: string;
   timestamp: number;
   tool?: string;
-  args?: Record<string, any>;
-  status?: string;
+  args?: Record<string, unknown>;
+  status?: ToolCallStatus | string;
   elapsed_ms?: number;
   runId?: string;
-  metrics?: Record<string, any>;
-  equityCurve?: any;
+  metrics?: Record<string, unknown>;
+  equityCurve?: Array<{ time?: string | number; date?: string; equity: number; drawdown?: number }>;
   shadowId?: string;
   error?: string;
   preview?: string;
@@ -57,138 +43,133 @@ export interface AgentMessage {
   summary?: string;
 }
 
-/**
- * Request gửi đến backend để phân tích
- */
 export interface AnalyzeRequest {
   request: string;
   lang?: 'en' | 'vi';
 }
 
-/**
- * Response từ backend sau khi phân tích hoàn thành
- */
+export interface ValidationResult {
+  status?: string;
+  is_valid?: boolean;
+  errors?: string[];
+  warnings?: string[];
+}
+
 export interface AnalyzeResponse {
   run_id: string;
   status: string;
   final_report?: string;
-  report?: any;
-  user_profile?: any;
-  proposed_portfolio?: any;
-  metrics?: any;
-  validation_result?: any;
-  llm_commentary?: string;
-  market_news?: any;
-  visualization_url?: string;
-  lang?: 'en' | 'vi';
+  report?: string;
+  user_profile?: Record<string, unknown>;
+  proposed_portfolio?: Record<string, number>;
+  metrics?: Record<string, unknown>;
+  validation_result?: ValidationResult | Record<string, unknown>;
+  llm_commentary?: string | null;
+  market_news?: string | null;
+  visualization_url?: string | null;
+  equity_curve?: Array<{ date: string; equity: number; drawdown?: number }>;
+  correlation_matrix?: { symbols: string[]; matrix: number[][] };
+  lang?: 'en' | 'vi' | string | null;
   error?: string;
 }
 
-/**
- * Session hội thoại
- */
 export interface ChatSession {
   session_id: string;
-  created_at?: number;
-  updated_at?: number;
+  user_id?: string;
+  created_at?: string | number;
+  updated_at?: string | number;
+  is_active?: number;
   messages: AgentMessage[];
   status?: string;
 }
 
-/**
- * Session response từ backend
- */
+export interface ChatMessageItem {
+  message_id: number | string;
+  session_id: string;
+  role: 'user' | 'assistant' | string;
+  content: string;
+  lang?: string;
+  created_at: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ChatSessionListItem {
+  session_id: string;
+  user_id?: string;
+  created_at: string;
+  updated_at: string;
+  is_active: number;
+  message_count: number;
+}
+
+export interface HistoryItem {
+  run_id: string;
+  timestamp: string | number;
+  request?: string;
+  status: string;
+  portfolio?: Record<string, number> | null;
+  summary?: string;
+}
+
 export interface SessionResponse {
   session_id: string;
   status?: string;
   error?: string;
 }
 
-/**
- * Message request body gửi đến backend
- */
 export interface SendMessageRequest {
   message: string;
+  lang?: 'en' | 'vi';
 }
 
-/**
- * Message response từ backend
- */
 export interface SendMessageResponse {
   session_id: string;
   status: string;
   error?: string;
 }
 
-/**
- * SSE Event types từ backend
- */
-export interface SSEEvent {
-  event: string; // 'text_delta', 'tool_call', 'tool_result', 'thinking_done', 'compact', 'attempt.completed', 'attempt.failed', 'heartbeat', 'reconnect'
-  data?: any;
-  timestamp?: number;
-  id?: string;
-}
-
-/**
- * Parsed SSE message từ backend
- */
 export interface ParsedSSEMessage {
-  type: string;
-  data?: any;
+  type?: string;
+  event?: string;
+  data?: unknown;
+  [key: string]: unknown;
 }
 
-/**
- * State của streaming hiện tại
- */
-export interface StreamingState {
-  isStreaming: boolean;
-  streamingText: string;
-  toolCalls: ToolCallEntry[];
-  currentRunId?: string;
-  status: 'idle' | 'streaming' | 'error';
-  error?: string;
-}
-
-/**
- * Store state cho chatbot
- */
 export interface AgentStoreState {
-  // Session
   sessionId: string | null;
   messages: AgentMessage[];
-  
-  // Streaming
   isStreaming: boolean;
+  sessionLoading: boolean;
   streamingText: string;
   toolCalls: ToolCallEntry[];
-  status: 'idle' | 'streaming' | 'error' | 'sessionLoading';
+  status: AgentStatus;
   error: string | null;
-  
-  // SSE Connection
   sseStatus: SSEStatus;
-  
-  // UI State
   showScrollBtn: boolean;
-  
-  // Methods
-  setSessionId: (id: string) => void;
-  addMessage: (message: AgentMessage) => void;
+  setSessionId: (id: string | null) => void;
+  setSessionLoading: (value: boolean) => void;
+  cacheSession: (id: string, messages: AgentMessage[]) => void;
+  getCachedSession: (id: string) => AgentMessage[] | undefined;
+  switchSession: (id: string, cached?: AgentMessage[]) => void;
+  reset: () => void;
+  addMessage: (message: Partial<AgentMessage> & { type: AgentMessageType; content: string }) => void;
+  loadHistory: (messages: AgentMessage[]) => void;
   updateStreamingText: (text: string) => void;
   appendStreamingText: (text: string) => void;
+  appendDelta: (delta: string) => void;
   setToolCalls: (calls: ToolCallEntry[]) => void;
+  addToolCall: (tool: Omit<ToolCallEntry, 'id'> & { id?: string }) => void;
   updateToolCall: (toolId: string, updates: Partial<ToolCallEntry>) => void;
-  setStatus: (status: 'idle' | 'streaming' | 'error' | 'sessionLoading') => void;
+  clearToolCalls: () => void;
+  setStatus: (status: AgentStatus) => void;
   setError: (error: string | null) => void;
   setSseStatus: (status: SSEStatus) => void;
   clearMessages: () => void;
   clearStreaming: () => void;
+  finishStreaming: (finalContent: string, runId?: string, metrics?: Record<string, unknown>) => void;
   loadSession: (sessionId: string) => Promise<void>;
 }
 
-/**
- * Portfolio analysis related types
- */
 export interface UserProfile {
   risk_tolerance?: string;
   investment_horizon?: string;
@@ -201,10 +182,4 @@ export interface PortfolioMetrics {
   max_drawdown?: number;
   volatility?: number;
   win_rate?: number;
-}
-
-export interface ValidationResult {
-  is_valid: boolean;
-  errors?: string[];
-  warnings?: string[];
 }

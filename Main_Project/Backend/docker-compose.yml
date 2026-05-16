@@ -152,6 +152,8 @@ services:
     depends_on:
       eureka-server:
         condition: service_healthy
+      portfolio-service:
+        condition: service_healthy
     ports:
       - "${API_GATEWAY_PORT:-8085}:8080"
     environment:
@@ -226,6 +228,12 @@ services:
       - "8083:8083"
     environment:
       <<: *common-env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q UP"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
 
   notification-service:
     build:

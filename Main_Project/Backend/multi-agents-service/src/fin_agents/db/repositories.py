@@ -6,7 +6,8 @@ from datetime import date, datetime
 
 from src.fin_agents.db.models import (
     Client, MutualFund, Portfolio, Holding, NAVHistory,
-    AdvisoryRequest, RiskAssessment, Decision, AuditLog, GeneratedReport
+    AdvisoryRequest, RiskAssessment, Decision, AuditLog, GeneratedReport,
+    ChatSession, ChatMessage
 )
 
 
@@ -330,3 +331,91 @@ class GeneratedReportRepository:
         return db.query(GeneratedReport).filter(
             GeneratedReport.request_id == request_id
         ).order_by(desc(GeneratedReport.created_at)).first()
+
+
+class ChatSessionRepository:
+    """Chat session data access layer"""
+
+    @staticmethod
+    def create(db: Session, session_data: Dict[str, Any]) -> ChatSession:
+        """Create a new chat session"""
+        session = ChatSession(**session_data)
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        return session
+
+    @staticmethod
+    def get_by_id(db: Session, session_id: str) -> Optional[ChatSession]:
+        """Get session by ID"""
+        return db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+
+    @staticmethod
+    def get_by_user(db: Session, user_id: str, skip: int = 0, limit: int = 50) -> List[ChatSession]:
+        """Get all sessions for a user, most recent first"""
+        return db.query(ChatSession).filter(
+            ChatSession.user_id == user_id
+        ).order_by(desc(ChatSession.updated_at)).offset(skip).limit(limit).all()
+
+    @staticmethod
+    def list_active(db: Session, skip: int = 0, limit: int = 50) -> List[ChatSession]:
+        """List all active sessions, most recent first"""
+        return db.query(ChatSession).filter(
+            ChatSession.is_active == 1
+        ).order_by(desc(ChatSession.updated_at)).offset(skip).limit(limit).all()
+
+    @staticmethod
+    def update_updated_at(db: Session, session_id: str) -> None:
+        """Touch the updated_at timestamp"""
+        session = ChatSessionRepository.get_by_id(db, session_id)
+        if session:
+            session.updated_at = datetime.utcnow()
+            db.commit()
+
+    @staticmethod
+    def deactivate(db: Session, session_id: str) -> Optional[ChatSession]:
+        """Soft-delete a session"""
+        session = ChatSessionRepository.get_by_id(db, session_id)
+        if session:
+            session.is_active = 0
+            db.commit()
+            db.refresh(session)
+        return session
+
+
+class ChatMessageRepository:
+    """Chat message data access layer"""
+
+    @staticmethod
+    def create(db: Session, message_data: Dict[str, Any]) -> ChatMessage:
+        """Create a new chat message"""
+        message = ChatMessage(**message_data)
+        db.add(message)
+        db.commit()
+        db.refresh(message)
+        return message
+
+    @staticmethod
+    def get_by_session(
+        db: Session,
+        session_id: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[ChatMessage]:
+        """Get all messages for a session, chronological order"""
+        return db.query(ChatMessage).filter(
+            ChatMessage.session_id == session_id
+        ).order_by(ChatMessage.created_at).offset(skip).limit(limit).all()
+
+    @staticmethod
+    def get_session_history(db: Session, session_id: str) -> List[Dict[str, Any]]:
+        """Get full session history as dict list"""
+        messages = ChatMessageRepository.get_by_session(db, session_id, limit=1000)
+        return [
+            {
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in messages
+        ]

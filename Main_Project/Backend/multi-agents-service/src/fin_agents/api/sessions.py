@@ -5,6 +5,7 @@ Architecture:
   - EventBus: thread-safe event bus with per-session asyncio.Queue subscribers
   - POST /sessions/{id}/messages spawns the agent workflow as an asyncio task
   - GET /sessions/{id}/events streams events to the client via SSE
+  - ChatSession and ChatMessage are persisted to fin_postgres
 """
 
 import asyncio
@@ -12,25 +13,42 @@ import json
 import logging
 import threading
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import sse_starlette
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.orm import Session
 
-from src.fin_agents.api.schemas import MessageCreate
+from src.fin_agents.api.schemas import (
+    MessageCreate,
+    ChatSessionResponse,
+    ChatSessionListItem,
+    ChatMessageResponse,
+)
 from src.fin_agents.core.orchestrator import OrchestratorService
 from src.fin_agents.db.database import get_db
+from src.fin_agents.db.repositories import (
+    ChatSessionRepository,
+    ChatMessageRepository,
+)
+from src.fin_agents.db.models import ChatMessage
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/sessions", tags=["sessions"])
+
+
+def _normalize_lang(lang: Optional[str]) -> Optional[str]:
+    if not lang:
+        return None
+    normalized = lang.strip().lower()
+    return normalized if normalized in {"en", "vi"} else None
+
 
 # ---------------------------------------------------------------------------
 # Event Bus
 # ---------------------------------------------------------------------------
 
-_sessions: Dict[str, Dict[str, Any]] = {}
 _buffers: Dict[str, list] = {}
 _subscribers: Dict[str, list] = {}
 _lock = threading.Lock()
@@ -66,9 +84,6 @@ class EventBus:
 
     @staticmethod
     def emit(session_id: str, event_type: str, data: Dict[str, Any]) -> None:
-        # Wrap event type inside data so EventSource.onmessage fires.
-        # Browser's EventSource only dispatches 'message' events via onmessage;
-        # custom event types (tool_call, tool_result) are silently dropped otherwise.
         wrapped = {"event": event_type, **data}
         event = {"event": "message", "data": json.dumps(wrapped)}
         buffer = EventBus._get_buffer(session_id)
@@ -114,6 +129,8 @@ class EventBus:
         while True:
             try:
                 event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                if event is None:
+                    break
                 yield event
             except asyncio.TimeoutError:
                 yield {"event": "heartbeat", "data": "{}"}
@@ -128,24 +145,124 @@ class EventBus:
                     except RuntimeError:
                         pass
                 del _subscribers[session_id]
+            _buffers.pop(session_id, None)
 
 
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
-@router.post("")
-async def create_session():
-    """Create a new chat session and return its ID."""
+@router.post("", response_model=dict)
+async def create_session(
+    body: Optional[dict] = None,
+    db: Session = Depends(get_db),
+):
+    """Create a new chat session and persist it to fin_postgres."""
     session_id = str(uuid.uuid4())
-    _sessions[session_id] = {
-        "id": session_id,
-        "messages": [],
-        "created_at": None,
-    }
-    _buffers[session_id] = []
-    _subscribers[session_id] = []
+    user_id = None
+    if body:
+        user_id = body.get("user_id")
+
+    ChatSessionRepository.create(db, {
+        "session_id": session_id,
+        "user_id": user_id,
+        "is_active": 1,
+    })
+
+    with _lock:
+        _buffers[session_id] = []
+        _subscribers.setdefault(session_id, [])
+
     return {"session_id": session_id}
+
+
+@router.get("", response_model=List[ChatSessionListItem])
+async def list_sessions(
+    user_id: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """List chat sessions. If user_id is provided, filter by user."""
+    if user_id:
+        sessions = ChatSessionRepository.get_by_user(db, user_id, skip, limit)
+    else:
+        sessions = ChatSessionRepository.list_active(db, skip, limit)
+
+    result = []
+    for s in sessions:
+        count = db.query(ChatMessage).filter(ChatMessage.session_id == s.session_id).count()
+        result.append(ChatSessionListItem(
+            session_id=s.session_id,
+            user_id=s.user_id,
+            created_at=s.created_at,
+            updated_at=s.updated_at,
+            is_active=s.is_active,
+            message_count=count,
+        ))
+    return result
+
+
+@router.get("/{session_id}", response_model=ChatSessionResponse)
+async def get_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+):
+    """Get a session with all its messages."""
+    session = ChatSessionRepository.get_by_id(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    messages = ChatMessageRepository.get_by_session(db, session_id)
+    return ChatSessionResponse(
+        session_id=session.session_id,
+        user_id=session.user_id,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        is_active=session.is_active,
+        messages=[
+            ChatMessageResponse(
+                message_id=m.message_id,
+                session_id=m.session_id,
+                role=m.role,
+                content=m.content,
+                lang=m.lang,
+                created_at=m.created_at,
+            )
+            for m in messages
+        ],
+    )
+
+
+@router.get("/{session_id}/messages")
+async def get_session_messages(
+    session_id: str,
+    db: Session = Depends(get_db),
+):
+    """Get all messages for a session (used by frontend)."""
+    session = ChatSessionRepository.get_by_id(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    messages = ChatMessageRepository.get_by_session(db, session_id)
+    return ChatSessionResponse(
+        session_id=session.session_id,
+        user_id=session.user_id,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        is_active=session.is_active,
+        messages=[
+            ChatMessageResponse(
+                message_id=m.message_id,
+                session_id=m.session_id,
+                role=m.role,
+                content=m.content,
+                lang=m.lang,
+                created_at=m.created_at,
+            )
+            for m in messages
+        ],
+    )
 
 
 @router.get("/{session_id}/events")
@@ -155,22 +272,22 @@ async def session_events(
         default=None,
         description="Bearer token for session authentication (alternative to Authorization header)"
     ),
+    db: Session = Depends(get_db),
 ):
     """SSE stream for a session.
 
-    Supports two auth methods:
-    1. Query param: ?token=<jwt>
-    2. Forwarded from API Gateway via X-User-Id header (set by gateway's JWT filter)
-
-    Both are optional — the API Gateway already validated the token before forwarding.
+    Validates session exists in DB, then streams events via EventBus.
     """
-    if session_id not in _sessions:
+    session = ChatSessionRepository.get_by_id(db, session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    with _lock:
+        _buffers.setdefault(session_id, [])
+        _subscribers.setdefault(session_id, [])
 
     async def event_generator():
         async for event in EventBus.subscribe(session_id):
-            if event is None:
-                break
             yield event
 
     return EventSourceResponse(event_generator())
@@ -182,17 +299,28 @@ async def send_message(
     payload: MessageCreate,
     db: Session = Depends(get_db),
 ):
-    """Send a user message to the session and trigger the agent workflow."""
-    if session_id not in _sessions:
+    """Send a user message to the session, persist to DB, and trigger the agent workflow."""
+    session = ChatSessionRepository.get_by_id(db, session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
     if not payload.message or not payload.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
     message = payload.message.strip()
-    lang = payload.lang or "en"
+    lang = _normalize_lang(payload.lang)
 
-    _sessions[session_id]["messages"].append({"role": "user", "content": message})
+    ChatMessageRepository.create(db, {
+        "session_id": session_id,
+        "role": "user",
+        "content": message,
+        "lang": lang,
+    })
+    ChatSessionRepository.update_updated_at(db, session_id)
+
+    with _lock:
+        _buffers.setdefault(session_id, [])
+        _subscribers.setdefault(session_id, [])
 
     async def run_workflow():
         try:
@@ -201,8 +329,6 @@ async def send_message(
             def event_callback(event_type: str, data: Dict[str, Any]) -> None:
                 EventBus.emit(session_id, event_type, data)
 
-            # Run sync workflow in a thread so the event loop stays free
-            # to deliver SSE events immediately as they're emitted.
             result = await asyncio.to_thread(
                 orchestrator.run_stock_workflow,
                 initial_request=message,
@@ -211,13 +337,17 @@ async def send_message(
             )
 
             assistant_content = result.get("final_report") or result.get("report") or ""
-            _sessions[session_id]["messages"].append(
-                {"role": "assistant", "content": assistant_content}
-            )
+            ChatMessageRepository.create(db, {
+                "session_id": session_id,
+                "role": "assistant",
+                "content": assistant_content,
+                "lang": lang,
+            })
+            ChatSessionRepository.update_updated_at(db, session_id)
 
             if result.get("status") == "failed":
                 EventBus.emit(session_id, "attempt.failed", {
-                    "error": result.get("error", "Unknown error"),
+                    "error": result.get("error") or result.get("error_message") or "Unknown error",
                 })
             else:
                 EventBus.emit(session_id, "attempt.completed", {
@@ -243,12 +373,13 @@ async def send_message(
 
 
 @router.delete("/{session_id}")
-async def delete_session(session_id: str):
-    """Delete a session and clear its history."""
+async def delete_session(session_id: str, db: Session = Depends(get_db)):
+    """Delete a session (soft-delete) and clear its event buffers."""
+    session = ChatSessionRepository.get_by_id(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    ChatSessionRepository.deactivate(db, session_id)
     EventBus.close_session(session_id)
-    if session_id in _sessions:
-        del _sessions[session_id]
-    with _lock:
-        _buffers.pop(session_id, None)
-        _subscribers.pop(session_id, None)
+
     return {"status": "ok"}

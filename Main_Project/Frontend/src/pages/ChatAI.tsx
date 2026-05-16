@@ -1,11 +1,17 @@
-/**
- * ChatAI Page
- * Giao diện chatbot chính với realtime streaming, tool timeline, và message history
- */
-
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Send, Square, Download } from 'lucide-react';
+import {
+  ArrowDown,
+  Download,
+  History,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Send,
+  Square,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { useAgentStore } from '../store/useAgentStore';
 import { useSSE } from '../hooks/useSSE';
 import { sessionApi } from '../services/sessionApi';
@@ -13,372 +19,437 @@ import { WelcomeScreen } from '../components/chat/WelcomeScreen';
 import { MessageBubble } from '../components/chat/MessageBubble';
 import { ThinkingTimeline } from '../components/chat/ThinkingTimeline';
 import { ConversationTimeline } from '../components/chat/ConversationTimeline';
-import ChatHeader from '../components/chat/ChatHeader';
+import type { AgentMessage, ChatSessionListItem } from '../types/agent';
 
-import ChatSettings from '../components/chat/ChatSettings';
+function exportMarkdown(messages: AgentMessage[]) {
+  const lines = [
+    '# Xuất hội thoại',
+    '',
+    `Thời gian xuất: ${new Date().toLocaleString('vi-VN')}`,
+    '',
+  ];
 
-import type { AgentMessage } from '../types/agent';
+  for (const message of messages) {
+    const time = new Date(message.timestamp).toLocaleString('vi-VN');
+    if (message.type === 'user') {
+      lines.push(`## Người dùng (${time})`, '', message.content, '');
+    } else if (message.type === 'answer' || message.type === 'run_complete') {
+      lines.push(`## Trợ lý (${time})`, '', message.content, '');
+      if (message.runId) lines.push(`Run ID: ${message.runId}`, '');
+    } else if (message.type === 'error') {
+      lines.push(`## Lỗi (${time})`, '', message.content, '');
+    }
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `chat_${new Date().toISOString().slice(0, 10)}.md`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function ChatAI() {
-  const [showSettings, setShowSettings] = useState(false);
-  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [input, setInput] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
-  const ticker = searchParams.get('ticker');
-  const action = searchParams.get('action');
-
-  // Store
-  const {
-    sessionId,
-    messages,
-    isStreaming,
-    streamingText,
-    toolCalls,
-    status,
-    error,
-    sseStatus,
-    setSessionId,
-    addMessage,
-    setStatus,
-    setError,
-    clearStreaming,
-    clearMessages,
-  } = useAgentStore();
-  const loadSession = useAgentStore((s) => s.loadSession);
-
-  // Local state
-  const [inputValue, setInputValue] = useState('');
+  const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const rafRef = useRef(0);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [sessions, setSessions] = useState<ChatSessionListItem[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
 
-  // SSE hook
-  useSSE({ sessionId, enabled: !!sessionId });
+  const messages = useAgentStore((state) => state.messages);
+  const streamingText = useAgentStore((state) => state.streamingText);
+  const isStreaming = useAgentStore((state) => state.isStreaming);
+  const status = useAgentStore((state) => state.status);
+  const sessionId = useAgentStore((state) => state.sessionId);
+  const toolCalls = useAgentStore((state) => state.toolCalls);
+  const sessionLoading = useAgentStore((state) => state.sessionLoading);
+  const error = useAgentStore((state) => state.error);
+  const sseStatus = useAgentStore((state) => state.sseStatus);
 
-  // Auto scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const { sendMessage, abort, disconnect } = useSSE();
+
+  const urlSessionId = searchParams.get('session');
+  const lastUserIndex = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (messages[index].type === 'user') return index;
+    }
+    return -1;
+  }, [messages]);
+
+  const isNearBottom = useCallback(() => {
+    const element = listRef.current;
+    if (!element) return true;
+    return element.scrollHeight - element.scrollTop - element.clientHeight < 100;
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    if (!isNearBottom()) {
+      setShowScrollBtn(true);
+      return;
+    }
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+    });
+  }, [isNearBottom]);
+
+  const forceScrollToBottom = useCallback(() => {
+    setShowScrollBtn(false);
+    requestAnimationFrame(() => {
+      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+    });
+  }, []);
+
+  useEffect(() => {
+    const element = listRef.current;
+    if (!element) return;
+    const handleScroll = () => {
+      if (isNearBottom()) setShowScrollBtn(false);
+    };
+    element.addEventListener('scroll', handleScroll, { passive: true });
+    return () => element.removeEventListener('scroll', handleScroll);
+  }, [isNearBottom]);
+
+  useEffect(() => {
+    if (!urlSessionId || urlSessionId === sessionId) return;
+    useAgentStore.getState().loadSession(urlSessionId);
+  }, [sessionId, urlSessionId]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingText]);
+  }, [messages, streamingText, toolCalls.length, scrollToBottom]);
 
-  // Handle scroll visibility
-  const handleScroll = () => {
-    if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      setShowScrollBtn(!isNearBottom && scrollHeight > clientHeight);
-    }
-  };
-
-  // Create or reuse a session on mount. If a session already exists or
-  // messages are present, reuse them so returning from detail view keeps chat.
-  const sharedSession = searchParams.get('session');
-
-  useEffect(() => {
-    const initSession = async () => {
-      try {
-
-        // If an existing session is already set, reuse it
-        if (sessionId) return;
-
-        // If the URL has a shared session id, load it
-        if (sharedSession) {
-          await loadSession(sharedSession);
-          setSearchParams({ session: sharedSession }, { replace: true });
-          return;
-        }
-
-        // If there are already messages in the store, do not create a fresh session
-        if (messages && messages.length > 0) {
-          return;
-        }
-
-        // Otherwise create a fresh session
-        const prompt = ticker ? `Phân tích cổ phiếu ${ticker}` : 'New chat session';
-        const response = await sessionApi.create(prompt);
-        if (response.session_id) {
-          // Only clear streaming/error/status when starting a truly new session
-          clearStreaming();
-          setError(null);
-          setStatus('idle');
-          setSessionId(response.session_id);
-          setSearchParams({ session: response.session_id }, { replace: true });
-        }
-      } catch (err) {
-        console.error('Failed to create session:', err);
-        const msg = err instanceof Error ? err.message : String(err);
-        setError(`Không thể tạo phiên chat: ${msg}`);
-        setStatus('error');
-      }
-    };
-
-    initSession();
-  }, [sharedSession]);
-
-  // Handle send message
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || !sessionId || isStreaming) {
-      return;
-    }
-
+  const loadChatSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    setSessionsError(null);
     try {
-      setStatus('streaming');
-      setError(null);
-
-      // Add user message to store
-      const userMsg: AgentMessage = {
-        id: `msg-${Date.now()}`,
-        type: 'user',
-        content: inputValue,
-        timestamp: Date.now(),
-      };
-      addMessage(userMsg);
-
-      // Clear input
-      setInputValue('');
-
-      // Send to backend
-      await sessionApi.send(sessionId, inputValue);
-
-      // SSE connection will handle the streaming
+      const data = await sessionApi.getSessions();
+      setSessions(
+        [...data].sort(
+          (a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime(),
+        ),
+      );
     } catch (err) {
-      console.error('Failed to send message:', err);
-      setError('Không thể gửi tin nhắn');
-      setStatus('error');
-      clearStreaming();
-    }
-  };
-
-  // Handle stop/cancel
-  const handleCancel = async () => {
-    try {
-      if (sessionId) {
-        await sessionApi.cancel(sessionId);
-      }
-      clearStreaming();
-      setStatus('idle');
-    } catch (err) {
-      console.error('Failed to cancel:', err);
-    }
-  };
-
-  // Handle export to markdown
-  const handleExport = () => {
-    if (messages.length === 0) {
-      alert('Không có tin nhắn để xuất');
-      return;
-    }
-
-    let markdown = '# Chat Export\n\n';
-    markdown += `Thời gian xuất: ${new Date().toLocaleString('vi-VN')}\n\n`;
-
-    messages.forEach((msg) => {
-      if (msg.type === 'user') {
-        markdown += `## User\n${msg.content}\n\n`;
-      } else if (msg.type === 'answer' || msg.type === 'run_complete') {
-        markdown += `## Assistant\n${msg.content}\n\n`;
-      } else if (msg.type === 'error') {
-        markdown += `## ❌ Error\n${msg.content}\n\n`;
-      } else if (msg.type === 'tool_call' && msg.toolCalls) {
-        markdown += `### 🔧 Tool Calls\n`;
-        msg.toolCalls.forEach((tool) => {
-          markdown += `- **${tool.tool}** (${tool.status})\n`;
-          if (tool.preview) markdown += `  - Preview: ${tool.preview}\n`;
-          if (tool.elapsed_ms) markdown += `  - Time: ${tool.elapsed_ms}ms\n`;
-        });
-        markdown += '\n';
-      }
-    });
-
-    // Download
-    const blob = new Blob([markdown], { type: 'text/markdown' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `chat-export-${Date.now()}.md`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  // Handle prompt selection from welcome screen
-  const handlePromptSelect = async (prompt: string) => {
-    setInputValue(prompt);
-  };
-
-  const handleRestoreSession = async () => {
-    try {
-      setRestoreLoading(true);
-      const response = await sessionApi.create('New chat session');
-      if (response.session_id) {
-        localStorage.removeItem('agent-store');
-        setInputValue('');
-        setError(null);
-        clearStreaming();
-        setStatus('idle');
-        setSessionId(response.session_id);
-        setSearchParams({ session: response.session_id }, { replace: true });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    } catch (err) {
-      console.error('Failed to restore session:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(`Không thể tạo phiên chat mới: ${msg}`);
-      setStatus('error');
+      console.error('Failed to load chat sessions:', err);
+      setSessionsError('Không thể tải danh sách phiên chat');
     } finally {
-      setRestoreLoading(false);
+      setSessionsLoading(false);
+    }
+  }, []);
+
+  const openSessions = () => {
+    setSessionsOpen(true);
+    loadChatSessions();
+  };
+
+  const selectSession = async (id: string) => {
+    disconnect();
+    setSessionsOpen(false);
+    setSearchParams({ session: id }, { replace: true });
+    await useAgentStore.getState().loadSession(id);
+  };
+
+  const startNewChat = () => {
+    disconnect();
+    useAgentStore.getState().reset();
+    setInput('');
+    setSearchParams({}, { replace: true });
+    inputRef.current?.focus();
+  };
+
+  const runPrompt = useCallback(
+    async (prompt: string) => {
+      const text = prompt.trim();
+      if (!text || status === 'streaming') return;
+
+      const store = useAgentStore.getState();
+      store.clearToolCalls();
+      store.setStatus('streaming');
+      store.setError(null);
+      store.addMessage({ type: 'user', content: text, timestamp: Date.now() });
+      setInput('');
+      forceScrollToBottom();
+
+      try {
+        let activeSessionId = store.sessionId;
+        if (!activeSessionId) {
+          const response = await sessionApi.create(text.slice(0, 80));
+          activeSessionId = response.session_id;
+          store.setSessionId(activeSessionId);
+          setSearchParams({ session: activeSessionId }, { replace: true });
+        }
+
+        await sendMessage(activeSessionId, text);
+      } catch (err) {
+        console.error('Failed to send message:', err);
+        store.setStatus('error');
+        store.setError('Không thể gửi tin nhắn');
+        store.addMessage({
+          type: 'error',
+          content: 'Không thể gửi tin nhắn. Vui lòng thử lại.',
+          timestamp: Date.now(),
+        });
+        toast.error('Không thể gửi tin nhắn');
+      }
+    },
+    [forceScrollToBottom, sendMessage, setSearchParams, status],
+  );
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    runPrompt(input);
+  };
+
+  const handleCancel = async () => {
+    const store = useAgentStore.getState();
+    try {
+      if (sessionId) await sessionApi.cancel(sessionId);
+      abort();
+      store.clearStreaming();
+      store.clearToolCalls();
+      store.setStatus('idle');
+      toast.info('Đã gửi yêu cầu dừng');
+    } catch (err) {
+      console.error('Failed to cancel session:', err);
+      toast.error('Không thể dừng phiên xử lý');
     }
   };
 
-  // Show welcome screen header if no messages, but keep input visible
-  const showWelcome = messages.length === 0;
+  const handlePromptSelect = (prompt: string) => {
+    setInput(prompt);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <div className="sticky top-0 z-10 bg-white">
-        <ChatHeader
-          onExport={handleExport}
-          onRestoreSession={handleRestoreSession}
-          onOpenSettings={() => setShowSettings(true)}
-          restoreLoading={restoreLoading}
-        />
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 py-5">
+      <div className="shrink-0 pb-4 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Chat AI</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            Trợ lý phân tích danh mục và thị trường theo thời gian thực
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {(status === 'streaming' || sseStatus === 'connected') && (
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-primary">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+              </span>
+              Live
+            </div>
+          )}
+
+          <button type="button" onClick={startNewChat} className="btn-ghost text-xs" title="Tạo phiên mới">
+            <Plus className="w-4 h-4" />
+          </button>
+          <button type="button" onClick={openSessions} className="btn-ghost text-xs" title="Lịch sử phiên chat">
+            <History className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => exportMarkdown(messages)}
+            disabled={messages.length === 0}
+            className="btn-ghost text-xs disabled:opacity-40"
+            title="Xuất chat"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Conversation Timeline */}
-      {messages.filter((m) => m.type === 'user').length > 1 && (
-        <div className="border-b border-gray-200 bg-white px-4 md:px-6 py-3">
-          <div className="max-w-4xl mx-auto">
-            <ConversationTimeline
-              messages={messages}
-              onJump={(msgId) => {
-                const el = document.getElementById(`msg-${msgId}`);
-                el?.scrollIntoView({ behavior: 'smooth' });
+      <div ref={listRef} className="flex-1 overflow-y-auto space-y-4 px-1">
+        {sessionLoading && (
+          <div className="space-y-3 animate-pulse">
+            {[1, 2, 3].map((index) => (
+              <div key={index} className="flex gap-3">
+                <div className="w-8 h-8 rounded-xl bg-muted shrink-0" />
+                <div className="h-16 flex-1 rounded-2xl bg-muted" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!sessionLoading && messages.length === 0 && <WelcomeScreen onPromptSelect={handlePromptSelect} />}
+
+        {messages.length > 0 && <ConversationTimeline messages={messages} containerRef={listRef} />}
+
+        {messages.map((message, index) => (
+          <div key={message.id} data-msg-idx={index} id={`msg-${message.id}`}>
+            <MessageBubble message={message} />
+            {index === lastUserIndex && toolCalls.length > 0 && <ThinkingTimeline toolCalls={toolCalls} />}
+          </div>
+        ))}
+
+        {streamingText && (
+          <div className="animate-slide-up">
+            <MessageBubble
+              message={{
+                id: 'streaming',
+                type: 'answer',
+                content: streamingText,
+                timestamp: Date.now(),
               }}
+              isStreaming
             />
           </div>
-        </div>
+        )}
+
+        {status === 'streaming' && toolCalls.length === 0 && !streamingText && (
+          <div className="animate-slide-up mt-3 ml-11">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin text-primary" />
+              <span>Agent đang xử lý...</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showScrollBtn && (
+        <button
+          type="button"
+          onClick={forceScrollToBottom}
+          className="fixed bottom-24 right-8 z-10 w-10 h-10 rounded-full bg-card border border-border shadow-lg flex items-center justify-center hover:bg-muted transition-colors"
+          title="Cuộn xuống cuối"
+        >
+          <ArrowDown className="w-4 h-4 text-muted-foreground" />
+        </button>
       )}
 
-      {/* Messages container */}
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 md:px-6 py-6"
-      >
-        <div className="max-w-7xl mx-auto flex gap-4 items-start">
-          <div className="flex-1 min-w-0 space-y-4">
-          {/* Welcome screen when no messages */}
-          {showWelcome && (
-            <div className="py-8">
-              <WelcomeScreen onPromptSelect={handlePromptSelect} />
-            </div>
-          )}
-
-          {/* Messages */}
-          {messages.map((msg) => (
-            <div key={msg.id} id={`msg-${msg.id}`}>
-              <MessageBubble message={msg} />
-            </div>
-          ))}
-
-          {/* Streaming text */}
-          {streamingText && (
-            <div className="flex justify-start">
-              <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-white border border-gray-200 rounded-lg shadow">
-                <p className="text-sm md:text-base text-gray-800 break-all">
-                  {streamingText}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Thinking timeline */}
-          {toolCalls.length > 0 && (
-            <ThinkingTimeline toolCalls={toolCalls} isStreaming={isStreaming} />
-          )}
-
-          {/* Scroll to bottom button */}
-          {showScrollBtn && (
-            <button
-              onClick={scrollToBottom}
-              className="mx-auto mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
-            >
-              ⬇ Cuộn xuống
-            </button>
-          )}
-
-          <div ref={messagesEndRef} />
+      <div className="shrink-0 pt-4">
+        {error && (
+          <div className="mb-3 rounded-xl border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
+            {error}
           </div>
+        )}
 
-         
-        </div>
-      </div>
-
-      {/* Input area */}
-      <div className="border-t border-gray-200 bg-white px-4 md:px-6 py-4 shadow-md">
-        <div className="max-w-4xl mx-auto">
-          {/* Error display */}
-          {error && (
-            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
-              <span>⚠️</span>
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Input form */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
+        <form onSubmit={handleSubmit} className="relative">
+          <textarea
+            ref={inputRef}
+            className="input pr-20 resize-none min-h-[52px] max-h-[200px] text-sm"
+            placeholder="Mô tả mục tiêu đầu tư, mã cổ phiếu hoặc danh mục bạn muốn phân tích..."
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onInput={(event) => {
+              const element = event.currentTarget;
+              element.style.height = 'auto';
+              element.style.height = `${element.scrollHeight}px`;
             }}
-            className="flex gap-2"
-          >
-            <input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              disabled={!sessionId || isStreaming}
-              placeholder={
-                isStreaming
-                  ? 'Đang xử lý...'
-                  : 'Hỏi AI về cổ phiếu, portfolio...'
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                runPrompt(input);
               }
-              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-            />
-
-            {isStreaming ? (
+            }}
+            disabled={status === 'streaming'}
+            rows={1}
+          />
+          <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
+            {status === 'streaming' || isStreaming ? (
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-4 py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors flex items-center gap-2"
+                className="w-9 h-9 rounded-xl bg-danger/10 text-danger flex items-center justify-center hover:bg-danger/20 transition-colors"
+                title="Dừng"
               >
                 <Square className="w-4 h-4" />
-                <span className="hidden md:inline">Dừng</span>
               </button>
             ) : (
-              <button
-                type="submit"
-                disabled={!inputValue.trim() || !sessionId}
-                className="px-4 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
+              <button type="submit" disabled={!input.trim()} className="btn-primary w-9 h-9 !p-0" title="Gửi">
                 <Send className="w-4 h-4" />
-                <span className="hidden md:inline">Gửi</span>
               </button>
             )}
-          </form>
-
-          {/* Status info */}
-          {(isStreaming || status !== 'idle') && (
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              {isStreaming && '🔄 Đang xử lý...'}
-              {status === 'error' && 'Có lỗi xảy ra'}
-              {status === 'idle' && 'Sẵn sàng'}
-            </p>
-          )}
-        </div>
+          </div>
+        </form>
+        <p className="text-[10px] text-muted-foreground/70 text-center mt-2">
+          Enter để gửi, Shift+Enter để xuống dòng
+        </p>
       </div>
 
-      <ChatSettings open={showSettings} onClose={() => setShowSettings(false)} />
+      {sessionsOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setSessionsOpen(false)} />
+          <aside className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-card border-l border-border shadow-2xl flex flex-col">
+            <div className="h-16 px-4 border-b border-border flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-foreground">Phiên chat</h2>
+                <p className="text-xs text-muted-foreground">Chọn một phiên để khôi phục hội thoại</p>
+              </div>
+              <button type="button" className="btn-ghost !p-2" onClick={() => setSessionsOpen(false)} title="Đóng">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 border-b border-border flex items-center justify-between">
+              <button type="button" onClick={loadChatSessions} className="btn-secondary text-xs" disabled={sessionsLoading}>
+                <RefreshCw className={`w-3.5 h-3.5 ${sessionsLoading ? 'animate-spin' : ''}`} />
+                Làm mới
+              </button>
+              <button type="button" onClick={startNewChat} className="btn-primary text-xs">
+                <Plus className="w-3.5 h-3.5" />
+                Phiên mới
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {sessionsLoading && (
+                <div className="flex items-center justify-center py-10 text-muted-foreground text-sm gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang tải...
+                </div>
+              )}
+
+              {!sessionsLoading && sessionsError && (
+                <div className="p-4 text-sm text-danger">{sessionsError}</div>
+              )}
+
+              {!sessionsLoading && !sessionsError && sessions.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-sm gap-2">
+                  <History className="w-8 h-8 opacity-50" />
+                  Chưa có phiên chat nào
+                </div>
+              )}
+
+              {!sessionsLoading && !sessionsError && sessions.length > 0 && (
+                <ul className="divide-y divide-border">
+                  {sessions.map((item) => (
+                    <li key={item.session_id}>
+                      <button
+                        type="button"
+                        onClick={() => selectSession(item.session_id)}
+                        className="w-full text-left px-4 py-3 hover:bg-muted transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                          <span className="text-xs font-mono text-foreground truncate">{item.session_id}</span>
+                          <span className="badge badge-neutral shrink-0">{item.message_count ?? 0} tin</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{item.is_active === 1 ? 'Đang hoạt động' : 'Đã đóng'}</span>
+                          <span>
+                            {new Date(item.updated_at || item.created_at).toLocaleString('vi-VN', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
     </div>
   );
 }

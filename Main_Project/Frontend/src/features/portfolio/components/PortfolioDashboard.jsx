@@ -129,7 +129,7 @@ function TopCards({ tongGiaTri, bienDongVnd, bienDongPct, duLieuSparkline }) {
         </div>
 
         <div className="h-20 w-full md:w-56">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
             <AreaChart data={duLieuSparkline} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -154,7 +154,7 @@ function AllocationChart({ pieData, tongGiaTri }) {
 
       <div className="mt-5 flex flex-col md:flex-row gap-6 md:items-center">
         <div className="h-56 w-full md:w-72">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
             <PieChart>
               <Tooltip content={<TooltipPie />} />
               <Pie

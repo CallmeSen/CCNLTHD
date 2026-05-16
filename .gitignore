@@ -15,3 +15,4 @@ Main_Project/.vscode/PythonImportHelper-v2-Completion.json
 .cursorrules
 **/dist
 /.vscode
+/Main_Project/Frontend/.vite

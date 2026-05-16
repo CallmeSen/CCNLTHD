@@ -250,16 +250,59 @@ class AuditLog(Base):
 class GeneratedReport(Base):
     """Generated advisory reports"""
     __tablename__ = "generated_reports"
-    
+
     report_id = Column(Integer, primary_key=True, autoincrement=True)
     request_id = Column(String(50), ForeignKey("advisory_requests.request_id"), nullable=True)
     report_text = Column(Text, nullable=False)
     report_json = Column(JSON)
     file_path = Column(String(500))
     created_at = Column(TIMESTAMP, server_default=func.now())
-    
+
     # Relationships
     request = relationship("AdvisoryRequest", back_populates="reports")
-    
+
     def __repr__(self):
         return f"<GeneratedReport(report_id={self.report_id}, request={self.request_id})>"
+
+
+class ChatSession(Base):
+    """Chat session metadata stored in fin_postgres"""
+    __tablename__ = "chat_sessions"
+
+    session_id = Column(String(36), primary_key=True)
+    user_id = Column(String(50), nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    is_active = Column(Integer, default=1)
+
+    messages = relationship("ChatMessage", back_populates="session", order_by="ChatMessage.created_at")
+
+    __table_args__ = (
+        Index("idx_chat_sessions_user", "user_id"),
+        Index("idx_chat_sessions_active", "is_active"),
+    )
+
+    def __repr__(self):
+        return f"<ChatSession(session_id={self.session_id}, user_id={self.user_id}, active={self.is_active})>"
+
+
+class ChatMessage(Base):
+    """Individual chat messages within a session"""
+    __tablename__ = "chat_messages"
+
+    message_id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(String(36), ForeignKey("chat_sessions.session_id"), nullable=False)
+    role = Column(String(20), nullable=False)
+    content = Column(Text, nullable=False)
+    lang = Column(String(5))
+    metadata_json = Column(JSON)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    session = relationship("ChatSession", back_populates="messages")
+
+    __table_args__ = (
+        Index("idx_chat_messages_session", "session_id"),
+    )
+
+    def __repr__(self):
+        return f"<ChatMessage(id={self.message_id}, session={self.session_id}, role={self.role})>"

@@ -7,4 +7,4 @@ spring:
           predicates:
             - Path=/api/ai/**
           filters:
-            - StripPrefix=2
+            - RewritePath=/api/ai/?(?<remaining>.*), /$\{remaining}

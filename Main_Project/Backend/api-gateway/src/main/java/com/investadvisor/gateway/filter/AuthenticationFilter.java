@@ -47,12 +47,11 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 return chain.filter(exchange);
             }
 
-            String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            String token = resolveToken(exchange);
+            if (token == null || token.isBlank()) {
                 return onError(exchange, "Missing or invalid Authorization header", HttpStatus.UNAUTHORIZED);
             }
 
-            String token = authHeader.substring(7);
             try {
                 Claims claims = parseToken(token);
                 // Forward user identity to downstream services as headers
@@ -70,6 +69,19 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         };
     }
 
+    private String resolveToken(ServerWebExchange exchange) {
+        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        if (isAiSessionEventPath(exchange)) {
+            return exchange.getRequest().getQueryParams().getFirst("token");
+        }
+
+        return null;
+    }
+
     private Claims parseToken(String token) {
         SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
         return Jwts.parser()
@@ -82,6 +94,14 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     private boolean isOpenPath(ServerWebExchange exchange) {
         String path = exchange.getRequest().getURI().getPath();
         return OPEN_API_PATHS.stream().anyMatch(path::startsWith);
+    }
+
+    private boolean isAiSessionEventPath(ServerWebExchange exchange) {
+        String path = exchange.getRequest().getURI().getPath();
+        return (path.startsWith("/api/ai/sessions/")
+                || path.startsWith("/ai/sessions/")
+                || path.startsWith("/sessions/"))
+                && path.endsWith("/events");
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String message, HttpStatus status) {

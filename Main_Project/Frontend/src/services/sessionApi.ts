@@ -1,201 +1,256 @@
-/**
- * Session API Service
- * Các endpoint liên quan đến chatbot sessions và messages
- */
-
-import { apiClient } from './apiClient';
+import { apiClient, TOKEN_KEY } from './apiClient';
 import { saveReportHistory } from './reportHistory';
 import type {
-  SessionResponse,
-  SendMessageRequest,
-  SendMessageResponse,
+  AgentMessage,
   AnalyzeRequest,
   AnalyzeResponse,
+  ChatMessageItem,
+  ChatSession,
+  ChatSessionListItem,
+  HistoryItem,
+  SendMessageRequest,
+  SendMessageResponse,
+  SessionResponse,
 } from '../types/agent';
-import type { ChatSession } from '../types/agent';
 
 const BASE_URL = '/ai';
+const VIETNAMESE_CHAR_PATTERN = /[\u00C0-\u024F\u1EA0-\u1EF9]/;
+
+function detectMessageLanguage(message: string): 'en' | 'vi' {
+  if (VIETNAMESE_CHAR_PATTERN.test(message)) return 'vi';
+
+  const normalized = message
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd');
+
+  const viKeywords = [
+    'toi',
+    'minh',
+    'cho toi',
+    'phan tich',
+    'co phieu',
+    'danh muc',
+    'dau tu',
+    'thi truong',
+    'chung khoan',
+    'rui ro',
+    'loi nhuan',
+    'bao cao',
+    'tu van',
+  ];
+  const enKeywords = ['analyze', 'stock', 'portfolio', 'invest', 'market', 'risk', 'return', 'report', 'please'];
+
+  const viScore = viKeywords.reduce((score, keyword) => score + (normalized.includes(keyword) ? 1 : 0), 0);
+  const enScore = enKeywords.reduce((score, keyword) => score + (normalized.includes(keyword) ? 1 : 0), 0);
+
+  return viScore > enScore ? 'vi' : 'en';
+}
+
+function isMockSession(sessionId?: string | null) {
+  return (
+    import.meta.env.VITE_MOCK_API === 'true' ||
+    localStorage.getItem('mockBackend') === '1' ||
+    Boolean(sessionId?.startsWith('mock-'))
+  );
+}
+
+function toAgentMessage(message: ChatMessageItem | any, index: number): AgentMessage {
+  const role = message.role || message.type;
+  const type = role === 'user' ? 'user' : role === 'assistant' ? 'answer' : role || 'answer';
+
+  return {
+    id: String(message.id || message.message_id || `db-msg-${index}`),
+    type,
+    content: String(message.content || ''),
+    timestamp: message.created_at ? new Date(message.created_at).getTime() : Number(message.timestamp || Date.now()),
+    runId: message.run_id || message.runId || message.metadata?.run_id,
+    metrics: message.metrics || message.metadata?.metrics,
+  };
+}
+
+export function getSessionEventUrl(sessionId: string) {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return token
+    ? `/api${BASE_URL}/sessions/${sessionId}/events?token=${encodeURIComponent(token)}`
+    : `/api${BASE_URL}/sessions/${sessionId}/events`;
+}
 
 export const sessionApi = {
-  /**
-   * Tạo session mới
-   */
-  create: async (prompt?: string): Promise<SessionResponse> => {
-    const mockFlag = import.meta.env.VITE_MOCK_API === 'true' || localStorage.getItem('mockBackend') === '1';
-    if (mockFlag) {
-      return Promise.resolve({ session_id: `mock-${Date.now()}` });
+  create: async (prompt = 'Phiên chat mới'): Promise<SessionResponse> => {
+    if (isMockSession()) {
+      return { session_id: `mock-${Date.now()}`, status: 'created' };
     }
 
-    try {
-      const response = await apiClient.post<SessionResponse>(`${BASE_URL}/sessions`, {
-        prompt: prompt || 'New chat session',
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Failed to create session:', error);
-      // Fallback to mock session so UI remains testable
-      const fallbackId = `mock-${Date.now()}`;
-      console.warn('Falling back to mock session id:', fallbackId);
-      return { session_id: fallbackId };
-    }
+    const response = await apiClient.post<SessionResponse>(`${BASE_URL}/sessions`, { prompt });
+    return response.data;
   },
 
-  /**
-   * Gửi message vào session
-   */
-  send: async (sessionId: string, message: string): Promise<SendMessageResponse> => {
-    const mockFlag =
-      import.meta.env.VITE_MOCK_API === 'true' ||
-      localStorage.getItem('mockBackend') === '1' ||
-      sessionId.startsWith('mock-');
-    if (mockFlag) {
-      // Simulate accepted send
-      // Emit mock events via mockEventBus asynchronously
+  send: async (
+    sessionId: string,
+    message: string,
+    lang?: 'en' | 'vi',
+    signal?: AbortSignal,
+  ): Promise<SendMessageResponse> => {
+    if (isMockSession(sessionId)) {
       try {
         const { sendMockEvent } = await import('./mockEventBus');
-        // small streaming of text deltas
-        setTimeout(() => sendMockEvent(sessionId, { type: 'text_delta', data: { text: 'Đang phân tích yêu cầu...' } }), 200);
-        setTimeout(() => sendMockEvent(sessionId, { type: 'tool_call', data: { id: 't1', tool: 'market_lookup', arguments: { q: message } } }), 600);
-        setTimeout(() => sendMockEvent(sessionId, { type: 'tool_result', data: { id: 't1', result: 'Found market data', preview: 'Price went up', elapsed_ms: 120 } }), 1500);
-        setTimeout(() => sendMockEvent(sessionId, { type: 'text_delta', data: { text: '\nĐề xuất: giữ 50% cổ phiếu, 50% trái phiếu.' } }), 1800);
-        setTimeout(() => sendMockEvent(sessionId, { type: 'attempt.completed', data: { summary: 'Kết luận mẫu: Cân nhắc giữ tỷ lệ cân bằng.', run_id: `mock-run-${Date.now()}` } }), 2300);
+        setTimeout(
+          () => sendMockEvent(sessionId, { type: 'text_delta', data: { text: 'Đang phân tích yêu cầu...' } }),
+          180,
+        );
+        setTimeout(
+          () =>
+            sendMockEvent(sessionId, {
+              type: 'tool_call',
+              data: { id: 'mock-tool-1', tool: 'market_lookup', arguments: { query: message } },
+            }),
+          550,
+        );
+        setTimeout(
+          () =>
+            sendMockEvent(sessionId, {
+              type: 'tool_result',
+              data: {
+                id: 'mock-tool-1',
+                tool: 'market_lookup',
+                result: 'Đã tìm dữ liệu thị trường',
+                preview: 'Dữ liệu giá và tin tức mới nhất đã sẵn sàng.',
+                elapsed_ms: 620,
+              },
+            }),
+          1200,
+        );
+        setTimeout(
+          () =>
+            sendMockEvent(sessionId, {
+              type: 'text_delta',
+              data: { text: '\nGợi ý mẫu: cân bằng danh mục, kiểm soát rủi ro và theo dõi biến động trong tuần tới.' },
+            }),
+          1550,
+        );
+        setTimeout(
+          () =>
+            sendMockEvent(sessionId, {
+              type: 'attempt.completed',
+              data: {
+                summary:
+                  'Báo cáo mẫu: danh mục nên ưu tiên đa dạng hóa, giữ tỷ trọng tiền mặt hợp lý và theo dõi các mã có động lượng tốt.',
+                run_id: `mock-run-${Date.now()}`,
+                status: 'completed',
+              },
+            }),
+          2200,
+        );
       } catch (err) {
-        console.error('Failed to send mock events:', err);
+        console.error('Failed to emit mock events:', err);
       }
-      return Promise.resolve({ session_id: sessionId, status: 'running' });
+      return { session_id: sessionId, status: 'running' };
     }
 
-    try {
-      const response = await apiClient.post<SendMessageResponse>(
-        `${BASE_URL}/sessions/${sessionId}/messages`,
-        { message } as SendMessageRequest
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      throw error;
-    }
+    const payload: SendMessageRequest = { message, lang: lang || detectMessageLanguage(message) };
+    const response = await apiClient.post<SendMessageResponse>(`${BASE_URL}/sessions/${sessionId}/messages`, payload, {
+      signal,
+    });
+    return response.data;
   },
 
-  /**
-   * Lấy SSE stream từ session
-   * Trả về EventSource object để client có thể lắng nghe events
-   */
-  getEventStream: (sessionId: string): EventSource => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    const url = token
-      ? `/api/ai/sessions/${sessionId}/events?token=${encodeURIComponent(token)}`
-      : `/api/ai/sessions/${sessionId}/events`;
-    return new EventSource(url);
-  },
+  getEventStream: (sessionId: string): EventSource => new EventSource(getSessionEventUrl(sessionId)),
 
-  /**
-   * Hủy session
-   */
   cancel: async (sessionId: string): Promise<void> => {
-    try {
-      await apiClient.delete(`${BASE_URL}/sessions/${sessionId}`);
-    } catch (error) {
-      console.error('Failed to cancel session:', error);
-      throw error;
-    }
+    await apiClient.delete(`${BASE_URL}/sessions/${sessionId}`);
   },
 
-  /**
-   * Lấy messages/history của session
-   */
   getMessages: async (sessionId: string): Promise<ChatSession> => {
-    try {
-      const response = await apiClient.get<ChatSession>(`${BASE_URL}/sessions/${sessionId}/messages`);
-      return response.data;
-    } catch (error) {
-      console.error('Failed to get session messages:', error);
-      throw error;
+    if (isMockSession(sessionId)) {
+      return {
+        session_id: sessionId,
+        messages: [],
+        status: 'mock',
+      };
     }
+
+    const response = await apiClient.get<ChatSession | ChatMessageItem[]>(`${BASE_URL}/sessions/${sessionId}/messages`);
+    const raw = response.data;
+    const messagesRaw = Array.isArray(raw) ? raw : raw.messages || [];
+    const messages = messagesRaw.map(toAgentMessage);
+
+    return {
+      ...(Array.isArray(raw) ? {} : raw),
+      session_id: Array.isArray(raw) ? sessionId : raw.session_id || sessionId,
+      messages,
+    };
   },
 
-  /**
-   * Phân tích portfolio (endpoint riêng cho analysis screen)
-   */
+  getSessions: async (userId?: string): Promise<ChatSessionListItem[]> => {
+    if (isMockSession()) {
+      return [
+        {
+          session_id: 'mock-session-demo',
+          created_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+          updated_at: new Date().toISOString(),
+          is_active: 1,
+          message_count: 3,
+        },
+      ];
+    }
+
+    const url = userId ? `${BASE_URL}/sessions?user_id=${encodeURIComponent(userId)}` : `${BASE_URL}/sessions`;
+    const response = await apiClient.get<ChatSessionListItem[]>(url);
+    return response.data;
+  },
+
   analyze: async (request: AnalyzeRequest): Promise<AnalyzeResponse> => {
-    try {
-      const response = await apiClient.post<AnalyzeResponse>(
-        `${BASE_URL}/portfolio/analyze`,
-        request
-      );
-      const result = response.data;
-      if (result?.run_id) {
-        saveReportHistory({
-          run_id: result.run_id,
-          timestamp: Date.now(),
-          status: result.status,
-          request: request.request,
-          report: result.report || result.final_report || result.llm_commentary || '',
-          final_report: result.final_report,
-          summary: result.llm_commentary || undefined,
-          metrics: (result.metrics as Record<string, any>) || null,
-          user_profile: (result.user_profile as Record<string, any>) || null,
-          proposed_portfolio: (result.proposed_portfolio as Record<string, number>) || null,
-          validation_result: (result.validation_result as Record<string, any>) || null,
-          llm_commentary: result.llm_commentary || null,
-          market_news: result.market_news || null,
-          visualization_url: result.visualization_url || null,
-          source: 'analysis',
-        });
-      }
-      return result;
-    } catch (error) {
-      console.error('Failed to analyze portfolio:', error);
-      throw error;
+    const response = await apiClient.post<AnalyzeResponse>(`${BASE_URL}/portfolio/analyze`, request);
+    const result = response.data;
+
+    if (result?.run_id) {
+      saveReportHistory({
+        run_id: result.run_id,
+        timestamp: Date.now(),
+        status: result.status,
+        request: request.request,
+        report: result.report || result.final_report || result.llm_commentary || '',
+        final_report: result.final_report,
+        summary: result.llm_commentary || undefined,
+        metrics: result.metrics || null,
+        user_profile: result.user_profile || null,
+        proposed_portfolio: result.proposed_portfolio || null,
+        validation_result: (result.validation_result as Record<string, unknown>) || null,
+        llm_commentary: result.llm_commentary || null,
+        market_news: result.market_news || null,
+        visualization_url: result.visualization_url || null,
+        source: 'analysis',
+      });
     }
+
+    return result;
   },
 
-  /**
-   * Lấy lịch sử phân tích
-   */
-  getHistory: async (): Promise<any[]> => {
-    const mockFlag = import.meta.env.VITE_MOCK_API === 'true' || localStorage.getItem('mockBackend') === '1';
-    if (mockFlag) {
-      return Promise.resolve([
-        { run_id: `mock-run-1`, status: 'completed', timestamp: Date.now() - 1000 * 60 * 60 },
-        { run_id: `mock-run-2`, status: 'failed', timestamp: Date.now() - 1000 * 60 * 60 * 24 },
-      ]);
+  getHistory: async (): Promise<HistoryItem[]> => {
+    if (isMockSession()) {
+      return [
+        {
+          run_id: 'mock-run-1',
+          status: 'completed',
+          timestamp: Date.now() - 1000 * 60 * 60,
+          request: 'Phân tích danh mục mẫu',
+        },
+      ];
     }
 
-    try {
-      const response = await apiClient.get(`${BASE_URL}/portfolio/history`);
-      return response.data;
-    } catch (error) {
-      console.error('Failed to get history:', error);
-      return [];
-    }
+    const response = await apiClient.get<HistoryItem[]>(`${BASE_URL}/portfolio/history`);
+    return response.data;
   },
 
-  /**
-   * Lấy chi tiết report
-   */
   getReport: async (runId: string): Promise<AnalyzeResponse> => {
-    try {
-      const response = await apiClient.get<AnalyzeResponse>(
-        `${BASE_URL}/portfolio/report/${runId}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Failed to get report:', error);
-      throw error;
-    }
+    const response = await apiClient.get<AnalyzeResponse>(`${BASE_URL}/portfolio/report/${runId}`);
+    return response.data;
   },
 
-  /**
-   * Kiểm tra health của AI service
-   */
-  health: async (): Promise<any> => {
-    try {
-      const response = await apiClient.get(`${BASE_URL}/health`);
-      return response.data;
-    } catch (error) {
-      console.error('Failed to check health:', error);
-      throw error;
-    }
+  health: async (): Promise<unknown> => {
+    const response = await apiClient.get(`${BASE_URL}/health`);
+    return response.data;
   },
 };

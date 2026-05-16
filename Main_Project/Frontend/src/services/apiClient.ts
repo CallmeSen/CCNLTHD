@@ -1,6 +1,8 @@
 import axios from 'axios'
 
 export const TOKEN_KEY = 'invest_token'
+export const AUTH_STORAGE_KEY = 'app_auth'
+export const AUTH_UNAUTHORIZED_EVENT = 'invest-auth-unauthorized'
 
 export const apiClient = axios.create({
   baseURL: '/api',
@@ -20,6 +22,10 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT))
+      }
     }
     return Promise.reject(error)
   },

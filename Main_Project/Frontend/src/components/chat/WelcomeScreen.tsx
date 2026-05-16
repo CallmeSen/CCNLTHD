@@ -1,71 +1,91 @@
-/**
- * WelcomeScreen Component
- * Hiển thị giao diện chào mừng khi chưa có hội thoại
- */
+import { BarChart3, Bot, Shield, Zap } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
-import { MessageCircle, Zap, History } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+const SAMPLE_PROMPTS = [
+  'Phân tích danh mục hiện tại của tôi với mức rủi ro vừa phải',
+  'Tôi có 100 triệu VNĐ nên phân bổ vào các nhóm tài sản nào?',
+  'Nghiên cứu xu hướng NVDA và rủi ro trong quý tới',
+  'Chạy thử chiến lược momentum kết hợp value cho nhóm cổ phiếu lớn',
+];
 
 interface WelcomeScreenProps {
-  onPromptSelect: (prompt: string) => void;
+  onPromptSelect?: (prompt: string) => void;
+  onSelectPrompt?: (prompt: string) => void;
 }
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSelect }) => {
-  const navigate = useNavigate();
-
-  const suggestedPrompts = [
-    'Phân tích portfolio hiện tại của tôi',
-    'Tôi có $10,000 nên đầu tư vào đâu?',
-    'Chiến lược đầu tư cho 5 năm tiếp theo',
-    'So sánh cổ phiếu technology hiện nay',
-  ];
+export function WelcomeScreen({ onPromptSelect, onSelectPrompt }: WelcomeScreenProps) {
+  const handleSelect = (prompt: string) => {
+    onPromptSelect?.(prompt);
+    onSelectPrompt?.(prompt);
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4">
-      {/* Logo/Icon */}
-      <div className="mb-8 flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full shadow-lg">
-        <MessageCircle className="w-10 h-10 text-white" />
+    <div className="flex flex-col items-center justify-center min-h-[58vh] max-w-2xl mx-auto text-center px-4">
+      <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-6 glow-primary">
+        <Bot className="w-8 h-8 text-white" />
       </div>
 
-      {/* Title */}
-      <h1 className="text-4xl font-bold !text-gray-900 mb-3 text-center">
-        AI Investment Advisor
+      <h1 className="text-3xl font-bold text-foreground tracking-tight mb-2">
+        Trợ lý đầu tư AI
       </h1>
-
-      {/* Subtitle */}
-      <p className="text-xl text-gray-600 mb-12 text-center max-w-2xl">
-        Hỏi về chiến lược đầu tư, phân tích cổ phiếu, hoặc quản lý portfolio của bạn
+      <p className="text-muted-foreground text-sm mb-8 max-w-md">
+        Mô tả mục tiêu đầu tư, danh mục hoặc mã cổ phiếu bạn quan tâm. Hệ thống multi-agent sẽ phân tích và tạo báo cáo theo thời gian thực.
       </p>
 
-      {/* Suggested Prompts */}
-      <div className="w-full max-w-2xl mb-12">
-        <p className="text-sm font-semibold text-gray-500 mb-4 px-4">Gợi ý:</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 px-4">
-          {suggestedPrompts.map((prompt, idx) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mb-8">
+        {[
+          {
+            icon: Zap,
+            title: 'Nghiên cứu sâu',
+            desc: 'Kết hợp dữ liệu thị trường, tin tức và ngữ cảnh danh mục',
+            color: 'bg-primary/10 text-primary',
+          },
+          {
+            icon: BarChart3,
+            title: 'Phân tích realtime',
+            desc: 'Theo dõi từng bước tool execution ngay trong chat',
+            color: 'bg-info/10 text-info',
+          },
+          {
+            icon: Shield,
+            title: 'Kiểm soát rủi ro',
+            desc: 'Tóm tắt điểm mạnh, điểm yếu và cảnh báo quan trọng',
+            color: 'bg-success/10 text-success',
+          },
+          {
+            icon: Bot,
+            title: 'Multi-agent',
+            desc: 'Luồng phân tích nhiều tác nhân cho báo cáo có cấu trúc',
+            color: 'bg-warning/10 text-warning',
+          },
+        ].map(({ icon: Icon, title, desc, color }) => (
+          <div key={title} className="card p-4 text-left card-hover">
+            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center mb-2', color)}>
+              <Icon className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-bold text-foreground mb-0.5">{title}</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="w-full text-left">
+        <p className="text-xs font-semibold text-muted-foreground uppercase mb-3">
+          Gợi ý nhanh
+        </p>
+        <div className="space-y-2">
+          {SAMPLE_PROMPTS.map((prompt) => (
             <button
-              key={idx}
-              onClick={() => onPromptSelect(prompt)}
-              className="p-4 text-left bg-white border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all duration-200 group"
+              key={prompt}
+              type="button"
+              onClick={() => handleSelect(prompt)}
+              className="w-full text-left px-4 py-3 rounded-xl bg-muted/50 hover:bg-muted border border-border hover:border-muted-foreground/30 transition-all duration-200 text-sm text-muted-foreground hover:text-foreground"
             >
-              <div className="flex items-start gap-3">
-                <Zap className="w-5 h-5 text-blue-500 flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <p className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
-                  {prompt}
-                </p>
-              </div>
+              {prompt}
             </button>
           ))}
         </div>
       </div>
-
-      {/* Quick Links */}
-      <div className="flex gap-4 flex-wrap justify-center">
-       
-        
-      </div>
-
-      {/* Footer */}
-      
     </div>
   );
-};
+}

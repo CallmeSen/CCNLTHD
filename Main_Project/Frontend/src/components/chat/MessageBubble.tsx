@@ -1,231 +1,159 @@
-/**
- * MessageBubble Component
- * Hiển thị một message trong hội thoại
- */
-
-import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Link } from 'react-router-dom';
-import { PortfolioReport } from './PortfolioReport';
-import type { AgentMessage, ToolCallEntry } from '../../types/agent';
+import {
+  AlertCircle,
+  ArrowRight,
+  Bot,
+  CheckCircle2,
+  Loader2,
+  Terminal,
+  User,
+} from 'lucide-react';
+import { cn } from '../../lib/utils';
+import type { AgentMessage } from '../../types/agent';
 
 interface MessageBubbleProps {
   message: AgentMessage;
+  isStreaming?: boolean;
+  onRetry?: (message: AgentMessage) => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
-  const formatTime = (ms: number | undefined) => {
-    if (!ms) return '';
-    if (ms < 1000) return `${Math.round(ms)}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-  };
+export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+  const isUser = message.type === 'user';
 
-  // User message
-  if (message.type === 'user') {
+  if (message.type === 'tool_call') {
     return (
-      <div className="flex justify-end mb-4">
-        <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-blue-500 text-white rounded-lg rounded-br-none shadow">
-          <p className="text-sm md:text-base break-words">{message.content}</p>
-          <p className="text-xs text-blue-100 mt-1 opacity-70">
-            {new Date(message.timestamp).toLocaleTimeString('vi-VN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
+      <div className="flex items-start gap-2 animate-slide-up">
+        <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+          <Terminal className="w-3.5 h-3.5" />
         </div>
-      </div>
-    );
-  }
-
-  // Error message
-  if (message.type === 'error') {
-    return (
-      <div className="flex justify-start mb-4">
-        <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-red-50 border border-red-200 rounded-lg shadow">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-semibold text-red-700 text-sm md:text-base">Lỗi</p>
-              <p className="text-red-600 text-sm mt-1 break-words">{message.content}</p>
-            </div>
+        <div className="flex-1 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-semibold text-foreground">{message.tool}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+              đang chạy
+            </span>
           </div>
         </div>
       </div>
     );
   }
 
-  // Thinking message
-  if (message.type === 'thinking') {
-    return (
-      <div className="flex justify-start mb-4">
-        <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-gray-100 rounded-lg shadow">
-          <div className="flex items-start gap-2">
-            <div className="flex gap-1 mt-1">
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            </div>
-            <div className="flex-1">
-              <p className="text-gray-600 text-sm italic">{message.content}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Compact message
-  if (message.type === 'compact') {
-    return (
-      <div className="flex justify-start mb-4">
-        <div className="max-w-xs md:max-w-md lg:max-w-lg px-3 py-2 bg-amber-50 border border-amber-200 rounded text-amber-700 text-xs">
-          {message.content}
-        </div>
-      </div>
-    );
-  }
-
-  // Tool call message
-  if (message.type === 'tool_call' && message.toolCalls) {
-    return (
-      <div className="flex justify-start mb-4 space-y-2">
-        {message.toolCalls.map((tool) => (
-          <div
-            key={tool.id}
-            className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg shadow"
-          >
-            <div className="flex items-start gap-2">
-              <div
-                className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                  tool.status === 'done'
-                    ? 'bg-green-500'
-                    : tool.status === 'error'
-                      ? 'bg-red-500'
-                      : 'bg-blue-500'
-                }`}
-              >
-                {tool.status === 'done' && <CheckCircle className="w-4 h-4 text-white" />}
-                {tool.status === 'error' && <AlertCircle className="w-4 h-4 text-white" />}
-                {tool.status === 'running' && (
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                )}
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-800 text-sm">{tool.tool}</p>
-                {tool.preview && (
-                  <p className="text-xs text-gray-600 mt-1 break-words">{tool.preview}</p>
-                )}
-                {tool.elapsed_ms && (
-                  <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-                    <Clock className="w-3 h-3" />
-                    <span>{formatTime(tool.elapsed_ms)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Tool result message
   if (message.type === 'tool_result') {
     return (
-      <div className="flex justify-start mb-4">
-        <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow">
-          <p className="font-semibold text-gray-800 text-sm mb-2">
-            Kết quả: {message.tool}
+      <div className="flex items-start gap-2 ml-9 animate-slide-up">
+        <div
+          className={cn(
+            'w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5',
+            message.status === 'error' ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success',
+          )}
+        >
+          {message.status === 'error' ? <AlertCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+        </div>
+        <div className="flex-1">
+          <p className="text-xs text-muted-foreground font-mono line-clamp-2">
+            {message.content}
           </p>
-          {message.preview && (
-            <p className="text-sm text-gray-700 mb-2 break-words">{message.preview}</p>
-          )}
-          {message.error && (
-            <p className="text-sm text-red-600 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {message.error}
-            </p>
-          )}
-          {message.elapsed_ms && (
-            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {formatTime(message.elapsed_ms)}
-            </p>
+          {message.elapsed_ms != null && (
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5">{message.elapsed_ms}ms</p>
           )}
         </div>
       </div>
     );
   }
 
-  // Answer/Assistant message
-  if (message.type === 'answer' || message.type === 'run_complete') {
-    // Check if content is a portfolio report
-    const isPortfolioReport = 
-      message.content && 
-      (message.content.includes('Financial Portfolio Report') || 
-       message.content.includes('Portfolio Performance Metrics') ||
-       message.content.includes('Portfolio Allocation'));
-
-    if (isPortfolioReport) {
-        // If backend didn't provide a runId, persist a local copy so user can open full report
-        let effectiveRunId = message.runId;
-        try {
-          if (!effectiveRunId || effectiveRunId === '') {
-            // derive from message id or timestamp
-            const localId = `local-${message.id || message.timestamp || Date.now()}`;
-            const storageKey = `agent-report-${localId}`;
-            // only write if not already present
-            if (!localStorage.getItem(storageKey)) {
-              localStorage.setItem(storageKey, JSON.stringify({ report: message.content, timestamp: message.timestamp }));
-            }
-            effectiveRunId = localId;
-          }
-        } catch (e) {
-          // ignore storage errors
-        }
-
-        return (
-          <div className="flex justify-start mb-4 w-full">
-            <div className="w-full">
-              <PortfolioReport content={message.content || ''} compact />
-              <div className="flex justify-between items-center mt-2">
-                <p className="text-xs text-gray-400">
-                  {new Date(message.timestamp).toLocaleTimeString('vi-VN', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
-                <a href={`/analysis?runId=${effectiveRunId}`} className="text-sm text-blue-600 hover:underline">Xem chi tiết báo cáo</a>
-              </div>
-            </div>
-          </div>
-        );
-    }
-
+  if (message.type === 'error') {
     return (
-      <div className="flex justify-start mb-4">
-        <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 bg-white border border-gray-200 rounded-lg shadow">
-          <p className="text-sm md:text-base text-gray-800 break-words">{message.content}</p>
-          {message.runId && (
-            <>
-              <p className="text-xs text-gray-500 mt-2">Run ID: {message.runId}</p>
-              <Link
-                to={`/analysis?runId=${message.runId}`}
-                className="text-sm text-blue-600 hover:underline mt-1 inline-block"
-              >
-                Xem chi tiết báo cáo
-              </Link>
-            </>
-          )}
-          <p className="text-xs text-gray-400 mt-2">
-            {new Date(message.timestamp).toLocaleTimeString('vi-VN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+      <div className="flex gap-3 animate-slide-up">
+        <div className="w-8 h-8 rounded-xl bg-danger/10 text-danger flex items-center justify-center shrink-0">
+          <AlertCircle className="w-4 h-4" />
+        </div>
+        <div className="flex-1 max-w-[80%] rounded-2xl px-4 py-3 bg-danger/5 border border-danger/20 rounded-tl-sm">
+          <p className="text-sm leading-relaxed text-danger">{message.content}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === 'compact') {
+    return (
+      <div className="flex items-center justify-center py-2 animate-slide-up">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          <span>{message.content || 'Đang nén ngữ cảnh...'}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === 'thinking') {
+    return (
+      <div className="flex gap-3 animate-slide-up">
+        <div className="w-8 h-8 rounded-xl bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+          <Loader2 className="w-4 h-4 animate-spin" />
+        </div>
+        <div className="flex-1 max-w-[80%] rounded-2xl px-4 py-3 bg-card border border-border rounded-tl-sm">
+          <p className="text-sm text-muted-foreground italic">{message.content}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isUser) {
+    return (
+      <div className="flex gap-3 flex-row-reverse animate-slide-up">
+        <div className="w-8 h-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+          <User className="w-4 h-4" />
+        </div>
+        <div className="flex-1 max-w-[80%] rounded-2xl px-4 py-3 bg-primary text-primary-foreground rounded-tr-sm">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="text-[10px] mt-1.5 text-primary-foreground/70">
+            {new Date(message.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
       </div>
     );
   }
 
-  return null;
-};
+  return (
+    <div className="flex gap-3 animate-slide-up">
+      <div className="w-8 h-8 rounded-xl bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+        <Bot className="w-4 h-4" />
+      </div>
+      <div className="flex-1 max-w-[80%] rounded-2xl px-4 py-3 bg-card border border-border shadow-sm rounded-tl-sm">
+        <div className="prose prose-sm max-w-none">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              pre: ({ children }) => <pre className="bg-muted rounded-xl p-3 overflow-x-auto my-2">{children}</pre>,
+              code: ({ children, className }) => {
+                const isInline = !className;
+                if (isInline) {
+                  return <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>;
+                }
+                return <code className={className}>{children}</code>;
+              },
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
+          {isStreaming && <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse rounded" />}
+        </div>
+
+        <p className="text-[10px] mt-1.5 text-muted-foreground/60">
+          {new Date(message.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+
+        {message.runId && (
+          <Link
+            to={`/report/${encodeURIComponent(message.runId)}`}
+            className="inline-flex items-center gap-1 mt-2 text-xs text-primary hover:underline"
+          >
+            Xem báo cáo đầy đủ <ArrowRight className="w-3 h-3" />
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}

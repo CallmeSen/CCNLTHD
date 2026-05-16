@@ -1,5 +1,10 @@
 import { create } from 'zustand'
-import { apiClient, TOKEN_KEY } from '../services/apiClient'
+import {
+  apiClient,
+  AUTH_STORAGE_KEY,
+  AUTH_UNAUTHORIZED_EVENT,
+  TOKEN_KEY,
+} from '../services/apiClient'
 
 type User = {
   id?: string
@@ -21,12 +26,10 @@ type AuthState = {
   logout: () => void
 }
 
-const STORAGE_KEY = 'app_auth'
-
 const readInitial = (): { user: User | null; isAuthenticated: boolean } => {
   try {
     if (typeof window === 'undefined') return { user: null, isAuthenticated: false }
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
     const token = localStorage.getItem(TOKEN_KEY)
     if (!raw || !token) return { user: null, isAuthenticated: false }
     const parsed = JSON.parse(raw)
@@ -51,7 +54,7 @@ const useAuthStore = create<AuthState>((set) => ({
       role: data.user.role,
     }
     localStorage.setItem(TOKEN_KEY, data.accessToken)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, isAuthenticated: true }))
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user, isAuthenticated: true }))
     set({ user, isAuthenticated: true })
   },
 
@@ -65,16 +68,26 @@ const useAuthStore = create<AuthState>((set) => ({
       role: data.user.role,
     }
     localStorage.setItem(TOKEN_KEY, data.accessToken)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, isAuthenticated: true }))
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user, isAuthenticated: true }))
     set({ user, isAuthenticated: true })
   },
 
   logout: () => {
     localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(AUTH_STORAGE_KEY)
     set({ user: null, isAuthenticated: false })
   },
 }))
+
+if (typeof window !== 'undefined') {
+  const authWindow = window as typeof window & { __investAuthUnauthorizedListener?: boolean }
+  if (!authWindow.__investAuthUnauthorizedListener) {
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, () => {
+      useAuthStore.getState().logout()
+    })
+    authWindow.__investAuthUnauthorizedListener = true
+  }
+}
 
 export default useAuthStore
 

@@ -39,10 +39,6 @@ function formatCurrencyVnd(value) {
   }).format(value ?? 0);
 }
 
-function formatShortDate(value) {
-  return value;
-}
-
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
 
@@ -218,7 +214,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset }) {
               ) : priceHistory.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-sm text-gray-400">Chưa có dữ liệu giá</div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
                   <LineChart data={priceHistory} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                     <CartesianGrid stroke="#E5E7EB" strokeDasharray="3 3" vertical={false} />
                     <XAxis

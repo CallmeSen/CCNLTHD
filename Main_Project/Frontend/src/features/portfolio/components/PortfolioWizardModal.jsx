@@ -134,7 +134,7 @@ function formatBudgetVnd(value) {
 }
 
 export default function PortfolioWizardModal({ open, onClose }) {
-  const { addPortfolio, createPortfolioOnServer, setActivePortfolio } = usePortfolio();
+  const { createPortfolioOnServer } = usePortfolio();
   const [step, setStep] = useState(0);
   const [budget, setBudget] = useState('50000000');
   const [riskLevel, setRiskLevel] = useState(1);
@@ -616,7 +616,7 @@ export default function PortfolioWizardModal({ open, onClose }) {
                     {proposedStocks.length === 0 ? (
                       <div className="h-36 w-36 rounded-full border-8 border-gray-200" />
                     ) : (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
                         <PieChart>
                           <Tooltip content={<TooltipAllocation />} />
                           <Pie

@@ -32,7 +32,7 @@ class ErrorAgent:
         self._config = config or {}
 
     def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
-        error = state.get("error_message", "An unspecified error occurred.")
+        error = state.get("error_message") or state.get("error") or "An unspecified error occurred."
         error_report = (
             f"# Portfolio Generation Failed\n\nAn error occurred:\n\n```\n{error}\n```\n\n"
             "Please review the input or contact support."

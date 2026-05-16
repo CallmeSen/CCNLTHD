@@ -32,6 +32,13 @@ STORAGE_PORTFOLIOS = os.path.join(STORAGE_BASE, "portfolios")
 STORAGE_VISUALIZATIONS = os.path.join(STORAGE_BASE, "visualizations")
 
 
+def _normalize_lang(lang: Optional[str]) -> Optional[str]:
+    if not lang:
+        return None
+    normalized = lang.strip().lower()
+    return normalized if normalized in {"en", "vi"} else None
+
+
 # --------------------------------------------------------------------------- #
 # Endpoints
 # --------------------------------------------------------------------------- #
@@ -48,7 +55,7 @@ async def analyze_portfolio(
     orchestrator = OrchestratorService(db)
     result = orchestrator.run_stock_workflow(
         initial_request=request.request,
-        lang=request.lang or "en",
+        lang=_normalize_lang(request.lang),
     )
 
     return StockAnalyzeResponse(
@@ -63,6 +70,7 @@ async def analyze_portfolio(
         market_news=result.get("market_news"),
         lang=result.get("lang"),
         error=result.get("error"),
+        error_message=result.get("error_message"),
     )
 
 

@@ -25,7 +25,7 @@ class HealthCheck(BaseModel):
 class MessageCreate(BaseModel):
     """Request body for sending a message to a chat session."""
     message: str = Field(..., description="User message content")
-    lang: Optional[str] = Field("en", description="Response language code (en/vi)")
+    lang: Optional[str] = Field(None, description="Response language code (en/vi)")
 
 
 # ============================================================================
@@ -160,7 +160,7 @@ class HistoryItem(BaseModel):
 class StockAnalyzeRequest(BaseModel):
     """Request body for the stock portfolio generation endpoint."""
     request: str = Field(..., description="Natural-language investment request")
-    lang: Optional[str] = Field("en", description="Response language code (en/vi)")
+    lang: Optional[str] = Field(None, description="Response language code (en/vi)")
 
 
 class StockAnalyzeResponse(BaseModel):
@@ -176,3 +176,47 @@ class StockAnalyzeResponse(BaseModel):
     market_news: Optional[str] = None
     lang: Optional[str] = None
     error: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+# ============================================================================
+# Chat Session Schemas
+# ============================================================================
+
+class ChatMessageResponse(BaseModel):
+    """Response schema for a chat message."""
+    message_id: int
+    session_id: str
+    role: str
+    content: str
+    lang: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ChatSessionResponse(BaseModel):
+    """Response schema for a chat session."""
+    session_id: str
+    user_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    is_active: int
+    messages: List[ChatMessageResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class ChatSessionListItem(BaseModel):
+    """Summary item for listing sessions."""
+    session_id: str
+    user_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    is_active: int
+    message_count: int = 0
+
+    class Config:
+        from_attributes = True

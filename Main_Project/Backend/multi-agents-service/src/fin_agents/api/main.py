@@ -33,6 +33,12 @@ app = FastAPI(
 app.include_router(portfolio_router)
 app.include_router(sessions_router)
 
+# Backward-compatible chat routes for dev/proxy/gateway variants.
+# Canonical internal path is /sessions; frontend/gateway paths may arrive as
+# /ai/sessions or /api/ai/sessions depending on which process was restarted.
+app.include_router(sessions_router, prefix="/ai", include_in_schema=False)
+app.include_router(sessions_router, prefix="/api/ai", include_in_schema=False)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,

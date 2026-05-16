@@ -14,10 +14,20 @@ import logging
 import os
 import re
 import time
+import unicodedata
 from datetime import datetime
 from typing import Any, Callable, Dict, Optional
 
 VIETNAMESE_CHARS = re.compile(r'[\u00C0-\u024F\u1EA0-\u1EF9]')
+
+
+def _normalize_for_lang_detection(text: str) -> str:
+    normalized = unicodedata.normalize("NFD", text.lower())
+    without_marks = "".join(
+        char for char in normalized
+        if unicodedata.category(char) != "Mn"
+    )
+    return without_marks.replace("\u0111", "d")
 
 
 def _detect_lang(text: str) -> str:
@@ -25,6 +35,7 @@ def _detect_lang(text: str) -> str:
     if VIETNAMESE_CHARS.search(text):
         return "vi"
     words_lower = text.lower()
+    normalized_words = _normalize_for_lang_detection(text)
     vi_keywords = [
         "phân tích", "cổ phiếu", "đầu tư", "danh mục", "rủi ro", "lợi nhuận",
         "thị trường", "chứng khoán", "tài chính", "vốn", "ngân hàng",
@@ -32,6 +43,12 @@ def _detect_lang(text: str) -> str:
         "tạo", "tổng hợp", "báo cáo", "xem", "biết", "nào", "các", "những",
         "và", "của", "là", "có", "không", "với", "để", "cho", "năm",
         "tháng", "ngày", "tuổi", "sinh", "năm", "trong", "ra", "vào",
+    ]
+    vi_ascii_keywords = [
+        "phan tich", "co phieu", "dau tu", "danh muc", "rui ro", "loi nhuan",
+        "thi truong", "chung khoan", "tai chinh", "ngan hang", "co tuc",
+        "lai suat", "cho toi", "toi muon", "tao", "tong hop", "bao cao",
+        "tu van", "giup toi", "nen mua", "nen ban",
     ]
     en_keywords = [
         "analyze", "stock", "invest", "portfolio", "risk", "return",
@@ -41,6 +58,7 @@ def _detect_lang(text: str) -> str:
         "with", "want", "need", "help", "please", "can", "you", "i",
     ]
     vi_count = sum(1 for kw in vi_keywords if kw in words_lower)
+    vi_count += sum(1 for kw in vi_ascii_keywords if kw in normalized_words)
     en_count = sum(1 for kw in en_keywords if kw in words_lower)
     if vi_count > en_count:
         return "vi"
@@ -93,7 +111,7 @@ class OrchestratorService:
     def run_stock_workflow(
         self,
         initial_request: str,
-        lang: str = "en",
+        lang: Optional[str] = None,
         request_id: Optional[str] = None,
         event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
@@ -203,14 +221,22 @@ class OrchestratorService:
             _log_audit(self.db, request_id, "orchestrator", "WORKFLOW_FAILED", {
                 "error": str(e),
             })
+            err_msg = str(e)
+            error_report = (
+                f"# Portfolio Generation Failed\n\n"
+                f"An error occurred:\n\n"
+                f"```\n{err_msg}\n```\n\n"
+                "Please review the input or contact support if the problem persists."
+            )
             return {
                 "run_id": request_id,
                 "status": "failed",
-                "final_report": None,
+                "final_report": error_report,
+                "error_message": err_msg,
                 "llm_commentary": None,
                 "market_news": None,
                 "lang": lang,
-                "error": str(e),
+                "error": err_msg,
             }
 
     def _persist_stock_result(self, request_id: str, result: Dict[str, Any]):

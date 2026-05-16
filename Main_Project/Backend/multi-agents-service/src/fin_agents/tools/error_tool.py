@@ -14,7 +14,7 @@ def handle_error_tool(state: Dict) -> Dict:
     Centralized error handling. Generates a standardized error report
     and logs the error for audit purposes.
     """
-    error = state.get("error_message", "An unspecified error occurred.")
+    error = state.get("error_message") or state.get("error") or "An unspecified error occurred."
     node = state.get("step", "unknown")
     logger.error(f"Error at node '{node}': {error}")
     error_report = (

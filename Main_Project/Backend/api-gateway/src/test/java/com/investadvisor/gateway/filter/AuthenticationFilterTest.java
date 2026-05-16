@@ -142,6 +142,25 @@ class AuthenticationFilterTest {
     }
 
     @Test
+    @DisplayName("AI session SSE accepts token query param because EventSource cannot send Authorization")
+    void aiSessionEvent_acceptsTokenQueryParam() {
+        UUID userId = UUID.fromString("bbbbbbbb-cccc-dddd-eeee-ffffffffffff");
+        String token = buildToken(userId.toString(), "user@test.com", "USER", 86400_000);
+
+        var request = MockServerHttpRequest
+                .get("/api/ai/sessions/session-1/events?token=" + token)
+                .build();
+        var exchange = MockServerWebExchange.from(request);
+
+        applyFilter(exchange);
+
+        verify(mockChain).filter(argThat(ex -> {
+            String injectedUserId = ex.getRequest().getHeaders().getFirst("X-User-Id");
+            return userId.toString().equals(injectedUserId);
+        }));
+    }
+
+    @Test
     @DisplayName("Token hết hạn → 401 Unauthorized")
     void expiredToken_returns401() {
         String token = buildToken(UUID.randomUUID().toString(), "user@test.com", "USER", -1000);
