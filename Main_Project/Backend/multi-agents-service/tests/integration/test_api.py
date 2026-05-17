@@ -120,7 +120,7 @@ class TestChatSessions:
 
     def test_list_sessions(self, client):
         mock_repo = MagicMock()
-        mock_repo.return_value.list_active.return_value = []
+        mock_repo.list_active.return_value = []
 
         with patch("fin_agents.api.sessions.ChatSessionRepository", mock_repo):
             resp = client.get("/sessions")
@@ -129,7 +129,7 @@ class TestChatSessions:
 
     def test_get_nonexistent_session_returns_404(self, client):
         mock_repo = MagicMock()
-        mock_repo.return_value.get_by_id.return_value = None
+        mock_repo.get_by_id.return_value = None
 
         with patch("fin_agents.api.sessions.ChatSessionRepository", mock_repo):
             resp = client.get("/sessions/nonexistent-session-id")

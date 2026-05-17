@@ -56,8 +56,6 @@ class TestFullWorkflow:
         """Helper: compile and invoke the full graph with all externals mocked."""
         from fin_agents.graphs.workflow.stock_advisory.builder import compile_stock_advisory_graph
 
-        graph = compile_stock_advisory_graph()
-
         tavily_mock = MagicMock()
         tavily_mock.return_value.invoke.return_value = [
             {"content": "Market update: Tech stocks rally.", "url": "https://example.com"}
@@ -70,6 +68,7 @@ class TestFullWorkflow:
             patch(_TAVILY, tavily_mock),
             patch(_DATA_FETCHER, return_value=sample_financial_data),
         ):
+            graph = compile_stock_advisory_graph()
             final_state = graph.invoke({"initial_request": request, "lang": lang})
 
         return final_state
@@ -107,8 +106,6 @@ class TestFullWorkflow:
     def test_empty_request_produces_error_report(self, sample_financial_data):
         from fin_agents.graphs.workflow.stock_advisory.builder import compile_stock_advisory_graph
 
-        graph = compile_stock_advisory_graph()
-
         with (
             patch(_PARSE_LLM, return_value=_json_llm({})),
             patch(_PORTFOLIO_LLM, return_value=_json_llm(_PORTFOLIO_RESPONSE)),
@@ -116,6 +113,7 @@ class TestFullWorkflow:
             patch(_TAVILY, MagicMock()),
             patch(_DATA_FETCHER, return_value=sample_financial_data),
         ):
+            graph = compile_stock_advisory_graph()
             state = graph.invoke({"initial_request": "", "lang": "en"})
 
         assert state.get("final_report") is not None
