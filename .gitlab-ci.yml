@@ -728,13 +728,14 @@ deploy:oracle:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
     - apk add --no-cache openssh-client
-    - chmod 600 "$ORACLE_SSH_KEY"
+    - echo "$ORACLE_SSH_KEY_B64" | base64 -d > /tmp/oracle_key
+    - chmod 600 /tmp/oracle_key
   script:
     - |
       ssh -o StrictHostKeyChecking=no \
           -o ConnectTimeout=30 \
           -o ServerAliveInterval=60 \
-          -i "$ORACLE_SSH_KEY" \
+          -i /tmp/oracle_key \
           "${ORACLE_USER}@${ORACLE_HOST}" << 'ENDSSH'
         set -e
 

@@ -175,8 +175,7 @@ def test_evaluate_advisory_workflow():
         data=dataset,
         evaluators=ALL_EVALUATORS,
         experiment_prefix="invest-advisor",
-        project_name=LANGSMITH_PROJECT,
-        max_concurrency=1,  # Sequential to avoid rate limits
+        max_concurrency=1,
     )
 
     # Aggregate scores
