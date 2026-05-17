@@ -728,7 +728,7 @@ deploy:oracle:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
     - apk add --no-cache openssh-client
-    - echo "$ORACLE_SSH_KEY_B64" | base64 -d > /tmp/oracle_key
+    - echo "$ORACLE_SSH_KEY_B64" | base64 -d | tr -d '\r' > /tmp/oracle_key
     - chmod 600 /tmp/oracle_key
   script:
     - |

@@ -109,20 +109,16 @@ def _get_or_create_dataset(client, name: str):
 
 def _run_advisory(inputs: dict) -> dict:
     """Target function: runs the real workflow and returns the result dict."""
-    import asyncio
     from fin_agents.core.orchestrator import OrchestratorService
     from fin_agents.db.database import SessionLocal
 
     db = SessionLocal()
     try:
         orchestrator = OrchestratorService(db)
-        result = asyncio.get_event_loop().run_until_complete(
-            orchestrator.run_stock_workflow(
-                request=inputs["request"],
-                lang=inputs.get("lang", "en"),
-            )
+        return orchestrator.run_stock_workflow(
+            initial_request=inputs["request"],
+            lang=inputs.get("lang", "en"),
         )
-        return result
     finally:
         db.close()
 
@@ -181,10 +177,11 @@ def test_evaluate_advisory_workflow():
     # Aggregate scores
     all_scores = []
     for result in results:
-        for eval_result in result.get("evaluation_results", {}).get("results", []):
-            score = eval_result.get("score")
-            if score is not None:
-                all_scores.append(float(score))
+        eval_results = result.get("evaluation_results")
+        if eval_results and hasattr(eval_results, "results"):
+            for eval_result in eval_results.results:
+                if eval_result.score is not None:
+                    all_scores.append(float(eval_result.score))
 
     if not all_scores:
         pytest.skip("No evaluation scores returned — check LangSmith results manually")
