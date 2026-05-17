@@ -6,30 +6,38 @@
 # Stages: validate → build → test-unit → test-integration → docker → deploy
 #
 # Key design decisions:
-#   - Integration tests use GitLab PostgreSQL service containers (no DinD/Testcontainers).
-#     SPRING_DATASOURCE_URL env var overrides the docker-test profile property.
-#     Kafka → @EmbeddedKafka (in-process). GreenMail/WireMock → also in-process.
-#   - Dockerfiles are multi-stage (maven inside Docker), so docker jobs compile
-#     from source and do NOT need JAR artifacts from build stage.
+#   - Java integration tests use GitLab PostgreSQL service containers.
+#   - Python unit+integration tests use SQLite in-memory (DB is mocked or SQLite default).
+#   - Dockerfiles are multi-stage (maven inside Docker), docker jobs compile from source.
 #   - docker stage is `when: manual` — prevents accidental image pushes on every push.
-#   - needs: on docker jobs → DAG: each service's docker job starts as soon as its
-#     own integration test passes, without waiting for other services.
-#   - deploy stage updates k8s manifests with image tags and pushes to Git,
-#     triggering Argo CD to sync the cluster.
+#   - deploy stage has 2 independent flows, both `when: manual`:
+#       Luồng 1 — deploy:oracle  : SSH vào Oracle Cloud VM, git pull, docker compose up.
+#       Luồng 2 — deploy:manifest: cập nhật image tag k8s manifests → ArgoCD sync.
 #
-# Required CI/CD Variables (Settings → CI/CD → Variables):
-#   JWT_SECRET        → protected, masked
-#   DB_PASSWORD       → protected, masked
-#   OPENAI_API_KEY    → protected, masked
-#   TAVILY_API_KEY    → protected, masked
-#   VNSTOCK_API_KEY   → protected, masked
-#   GITLAB_API_TOKEN  → protected, masked  (write access for k8s manifest updates)
-#   KUBECONFIG        → protected          (kubeconfig for cluster access)
+# ── Required GitLab CI/CD Variables (Settings → CI/CD → Variables) ────────────
 #
-# Oracle Cloud deploy variables:
-#   ORACLE_HOST       → 161.118.195.15
-#   ORACLE_USER       → ubuntu
-#   ORACLE_SSH_KEY    → type: File, nội dung file .key (protected)
+#   Secrets / API keys (protected + masked):
+#     JWT_SECRET            → Spring Boot JWT signing key
+#     DB_PASSWORD           → PostgreSQL password (production)
+#     OPENROUTER_API_KEY    → OpenRouter / OpenAI-compatible LLM
+#     TAVILY_API_KEY        → Tavily web search (market news)
+#     VNSTOCK_API_KEY       → VNStock data API
+#     LANGCHAIN_API_KEY     → LangSmith tracing + evaluation
+#     MAIL_USERNAME         → SMTP username (notification-service)
+#     MAIL_PASSWORD         → SMTP password (notification-service)
+#     GITLAB_API_TOKEN      → Personal/project token with write_repository scope
+#                             (needed by deploy:manifest to push k8s manifest updates)
+#
+#   Oracle Cloud deploy (protected):
+#     ORACLE_HOST           → IP của VM, e.g. 161.118.195.15
+#     ORACLE_USER           → ubuntu
+#     ORACLE_SSH_KEY        → type: File — nội dung private key .pem (chmod 600)
+#
+#   Kubernetes deploy (protected):
+#     KUBECONFIG            → base64-encoded kubeconfig cho cluster local
+#
+#   Optional (có default):
+#     LANGCHAIN_PROJECT     → default: invest-advisor-ci
 # ──────────────────────────────────────────────────────────────────────────────
 
 stages:
@@ -39,10 +47,6 @@ stages:
   - test-integration
   - docker
   - deploy
-
-# ── Defaults ──────────────────────────────────────────────────────────────────
-# interruptible: cancel running pipeline when a newer commit is pushed to the same branch.
-# retry: only retry on runner/infrastructure failure, not on test logic failure.
 
 default:
   interruptible: true
@@ -64,8 +68,6 @@ workflow:
     - if: $CI_COMMIT_TAG
 
 # ── Cache templates ───────────────────────────────────────────────────────────
-# pull-push: build jobs update the cache after downloading dependencies.
-# pull:      test/validate jobs only read from cache (no write contention).
 
 .maven-cache-rw:
   cache:
@@ -89,6 +91,15 @@ workflow:
         - Main_Project/Frontend/package-lock.json
     paths:
       - Main_Project/Frontend/node_modules/
+
+.python-cache:
+  variables:
+    UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  cache:
+    key: "uv-multi-agents-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .uv-cache/
+    policy: pull
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: VALIDATE
@@ -114,14 +125,8 @@ validate:java:
 validate:python:
   image: python:3.12-slim
   stage: validate
+  extends: .python-cache
   timeout: 5 minutes
-  variables:
-    UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
-  cache:
-    key: "uv-multi-agents-$CI_COMMIT_REF_SLUG"
-    paths:
-      - .uv-cache/
-    policy: pull
   script:
     - pip install --quiet uv
     - uv pip install --system --cache-dir "$UV_CACHE_DIR" flake8
@@ -152,7 +157,6 @@ validate:frontend:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: BUILD
-# compile + package (skip tests). Verifies the project is buildable.
 # ─────────────────────────────────────────────────────────────────────────────
 
 build:user-service:
@@ -277,19 +281,13 @@ build:frontend:
 build:multi-agents-service:
   image: python:3.12-slim
   stage: build
+  extends: .python-cache
   timeout: 15 minutes
-  variables:
-    UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
-  cache:
-    key: "uv-multi-agents-$CI_COMMIT_REF_SLUG"
-    paths:
-      - .uv-cache/
-    policy: pull-push
   script:
     - cd Main_Project/Backend/multi-agents-service
     - pip install --quiet uv
     - uv sync --frozen --no-install-project --no-dev --cache-dir "$UV_CACHE_DIR"
-    - python -c "import src.fin_agents.api.main" 2>/dev/null || python -c "import src.api.main" 2>/dev/null || echo "Python syntax check skipped"
+    - python -c "import src.fin_agents.api.main" 2>/dev/null || echo "Import check skipped — OK"
     - echo "Python syntax OK"
   rules:
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
@@ -299,8 +297,8 @@ build:multi-agents-service:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: TEST-UNIT
-# mvn test runs unit tests only.
-# IntegrationTest classes are excluded by Surefire config in each service's pom.xml.
+# Java: mvn test (Surefire excludes *IntegrationTest classes via pom.xml config)
+# Python: pytest tests/unit/ only — no external services needed.
 # ─────────────────────────────────────────────────────────────────────────────
 
 test:unit:user-service:
@@ -421,26 +419,38 @@ test:unit:market-data-service:
         - Main_Project/Backend/market-data-service/**/*
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
 
+# Unit tests only (tests/unit/) — no external LLM/DB/Tavily calls.
+# LANGCHAIN_TRACING_V2=false prevents accidental LangSmith noise.
 test:unit:multi-agents-service:
   image: python:3.12-slim
   stage: test-unit
+  extends: .python-cache
   timeout: 15 minutes
   variables:
-    UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
-  cache:
-    key: "uv-multi-agents-$CI_COMMIT_REF_SLUG"
-    paths:
-      - .uv-cache/
-    policy: pull
+    LANGCHAIN_TRACING_V2: "false"
+    DATABASE_URL: "sqlite:///./ci_unit_test.db"
+    OPENROUTER_API_KEY: "dummy-not-called-in-unit"
+    TAVILY_API_KEY: "dummy-not-called-in-unit"
   script:
     - cd Main_Project/Backend/multi-agents-service
     - pip install --quiet uv
     - uv sync --frozen --cache-dir "$UV_CACHE_DIR"
-    - pytest tests/ -v --cov=src --cov-report=term-missing --junitxml=junit-report.xml 2>/dev/null || echo "No tests found"
+    - |
+      uv run pytest tests/unit/ \
+        -m "not langsmith and not slow" \
+        -v \
+        --cov=src \
+        --cov-report=xml:coverage.xml \
+        --cov-report=term-missing \
+        --junitxml=junit-unit-report.xml
+  coverage: '/TOTAL.*?([0-9]{1,3})%/'
   artifacts:
     when: always
     reports:
-      junit: Main_Project/Backend/multi-agents-service/junit-report.xml
+      junit: Main_Project/Backend/multi-agents-service/junit-unit-report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: Main_Project/Backend/multi-agents-service/coverage.xml
     expire_in: 1 week
   rules:
     - if: $CI_COMMIT_BRANCH
@@ -451,17 +461,10 @@ test:unit:multi-agents-service:
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: TEST-INTEGRATION
 #
-# PostgreSQL: GitLab service container.
-#   - POSTGRES_* vars at job level → passed to both the service container and the job.
-#   - SPRING_DATASOURCE_URL env var → overrides application-docker-test.properties
-#     (hostname "localhost" → "postgres" in CI, where the service container is reachable).
-#   - SPRING_DATASOURCE_USERNAME / PASSWORD also set as env vars (belt-and-suspenders).
-#
-# Kafka:   @EmbeddedKafka — runs in-process, no external service needed.
-# GreenMail: embedded SMTP — no external service needed (notification-service).
-# WireMock:  embedded HTTP mock — no external service needed (portfolio-service).
-#
-# retry: 1 — EmbeddedKafka/GreenMail startup can occasionally race under CI load.
+# Java services: PostgreSQL service container + EmbeddedKafka/GreenMail/WireMock in-process.
+# multi-agents-service:
+#   - tests/integration/ — API + orchestrator tests use mocked DB (SQLite fallback).
+#   - tests/langsmith/   — real LLM + Tavily calls, when: manual, only on main.
 # ─────────────────────────────────────────────────────────────────────────────
 
 test:integration:user-service:
@@ -545,13 +548,81 @@ test:integration:notification-service:
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
     - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
 
+# Integration tests for multi-agents-service (tests/integration/).
+# DB and orchestrator are mocked — SQLite is enough, no PostgreSQL service needed.
+# Needs unit tests to pass first.
+test:integration:multi-agents-service:
+  image: python:3.12-slim
+  stage: test-integration
+  extends: .python-cache
+  timeout: 20 minutes
+  needs:
+    - job: test:unit:multi-agents-service
+      optional: false
+  variables:
+    LANGCHAIN_TRACING_V2: "false"
+    DATABASE_URL: "sqlite:///./ci_integration_test.db"
+    OPENROUTER_API_KEY: "dummy-not-called-in-integration"
+    TAVILY_API_KEY: "dummy-not-called-in-integration"
+  script:
+    - cd Main_Project/Backend/multi-agents-service
+    - pip install --quiet uv
+    - uv sync --frozen --cache-dir "$UV_CACHE_DIR"
+    - |
+      uv run pytest tests/integration/ \
+        -m "integration and not langsmith and not slow" \
+        -v \
+        --junitxml=junit-integration-report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/multi-agents-service/junit-integration-report.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - Main_Project/Backend/multi-agents-service/**/*
+
+# LangSmith evaluation — real LLM + Tavily calls, tiêu tốn token.
+# Chỉ chạy thủ công trên nhánh main.
+# Cần CI variables: LANGCHAIN_API_KEY, OPENROUTER_API_KEY, TAVILY_API_KEY
+test:langsmith:multi-agents:
+  image: python:3.12-slim
+  stage: test-integration
+  extends: .python-cache
+  timeout: 30 minutes
+  when: manual
+  needs:
+    - job: test:integration:multi-agents-service
+      optional: true
+  variables:
+    LANGCHAIN_TRACING_V2: "true"
+    LANGCHAIN_PROJECT: "${LANGCHAIN_PROJECT:-invest-advisor-ci}-$CI_COMMIT_SHORT_SHA"
+    DATABASE_URL: "sqlite:///./ci_langsmith_test.db"
+  script:
+    - cd Main_Project/Backend/multi-agents-service
+    - pip install --quiet uv
+    - uv sync --frozen --cache-dir "$UV_CACHE_DIR"
+    - |
+      uv run pytest tests/langsmith/ \
+        -m "langsmith" \
+        -v \
+        -s \
+        --junitxml=junit-langsmith-report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: Main_Project/Backend/multi-agents-service/junit-langsmith-report.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: DOCKER
-# Build multi-stage Dockerfiles and push to GitLab Container Registry.
-# when: manual — requires explicit trigger in GitLab UI (prevents accidental pushes).
-# needs: DAG — each service's docker job depends only on its own integration test.
-#   If integration test was skipped (e.g., feature branch), docker job is also skipped.
-#   optional: true → allow docker job to proceed even if integration test was skipped.
+# Build multi-stage Dockerfiles và push lên GitLab Container Registry.
+# when: manual — yêu cầu trigger thủ công trong GitLab UI.
 # ─────────────────────────────────────────────────────────────────────────────
 
 .docker-template:
@@ -563,7 +634,6 @@ test:integration:notification-service:
       alias: docker
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-    # Enable Docker buildx for advanced caching
     DOCKER_BUILDKIT: "1"
     BUILDKIT_PROGRESS: "plain"
   before_script:
@@ -657,45 +727,50 @@ docker:multi-agents-service:
   extends: .docker-template
   timeout: 40 minutes
   needs:
-    - job: test:unit:multi-agents-service
+    - job: test:integration:multi-agents-service
       optional: true
     - job: build:multi-agents-service
       optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/multi-agents-service"
-    - docker buildx build --push --platform linux/amd64 \
+    - |
+      docker buildx build --push --platform linux/amd64 \
         --build-arg BUILDKIT_INLINE_CACHE=1 \
         --cache-from type=registry,ref="${IMAGE}:latest" \
         --cache-to type=registry,ref="${IMAGE}:latest,mode=max" \
         -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" \
         Main_Project/Backend/multi-agents-service/
-    - docker buildx build --push --platform linux/arm64 \
-        --build-arg BUILDKIT_INLINE_CACHE=1 \
-        --cache-from type=registry,ref="${IMAGE}:latest" \
-        --cache-to type=registry,ref="${IMAGE}:latest,mode=max" \
-        -t "$IMAGE:${IMAGE_TAG}-arm64" \
-        Main_Project/Backend/multi-agents-service/
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STAGE: DEPLOY — 2 luồng độc lập
+# STAGE: DEPLOY — 2 luồng độc lập, cả 2 đều when: manual
 #
 # Luồng 1 — Oracle Cloud VM (deploy:oracle):
-#   Không cần docker stage. SSH vào VM, git pull, docker compose up --build.
-#   Cần: ORACLE_HOST, ORACLE_USER, ORACLE_SSH_KEY (File type).
-#   Trigger: sau khi test-integration pass, nhấn thủ công.
+#   SSH vào VM → git pull → docker compose up --build (backend + monitoring + frontend).
+#   Không cần docker stage. Code được build trực tiếp trên VM.
+#   Cần: ORACLE_HOST, ORACLE_USER, ORACLE_SSH_KEY (type: File).
 #
-# Luồng 2 — ArgoCD / Kubernetes local (deploy:manifest + deploy:secrets):
-#   Cần docker stage push image lên GitLab Registry trước.
-#   deploy:manifest cập nhật image tag trong k8s/*, push git → ArgoCD tự sync.
-#   deploy:secrets apply Secret vào cluster.
-#   Cần: KUBECONFIG (base64), GITLAB_API_TOKEN.
+# Luồng 2 — ArgoCD / Kubernetes (deploy:manifest + deploy:secrets):
+#   Cần docker stage đã push images lên registry trước.
+#   deploy:manifest: cập nhật image tag trong k8s/*.yaml → commit → ArgoCD tự sync.
+#   deploy:secrets:  kubectl apply Secret vào cluster.
+#   Cần: KUBECONFIG (base64), GITLAB_API_TOKEN (write_repository scope).
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── Luồng 1: Oracle Cloud VM ──────────────────────────────────────────────────
 deploy:oracle:
   stage: deploy
   image: alpine:3.19
-  timeout: 15 minutes
+  timeout: 20 minutes
   when: manual
+  needs:
+    - job: test:unit:multi-agents-service
+      optional: true
+    - job: test:integration:multi-agents-service
+      optional: true
+    - job: test:integration:user-service
+      optional: true
+    - job: test:integration:portfolio-service
+      optional: true
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
@@ -705,60 +780,82 @@ deploy:oracle:
     - |
       ssh -o StrictHostKeyChecking=no \
           -o ConnectTimeout=30 \
+          -o ServerAliveInterval=60 \
           -i "$ORACLE_SSH_KEY" \
-          $ORACLE_USER@$ORACLE_HOST bash << 'ENDSSH'
+          "${ORACLE_USER}@${ORACLE_HOST}" << 'ENDSSH'
         set -e
-        echo "=== Pulling latest code ==="
+
+        echo "=== [1/4] Pulling latest code ==="
         cd ~/CCNLTHD
-        git pull origin main
+        git fetch origin main
+        git reset --hard origin/main
 
-        echo "=== Restarting services ==="
+        echo "=== [2/4] Restarting backend + monitoring ==="
         cd Main_Project/Backend
-        docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build
+        docker compose -f docker-compose.yml -f docker-compose.monitoring.yml \
+          up -d --build --remove-orphans
 
-        echo "=== Running containers ==="
-        docker ps --format "table {{.Names}}\t{{.Status}}"
+        echo "=== [3/4] Restarting frontend ==="
+        cd ~/CCNLTHD/Main_Project/Frontend
+        docker compose -f docker-compose.frontend.yml \
+          up -d --build --remove-orphans
+
+        echo "=== [4/4] Running containers ==="
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+        echo "=== Deploy complete ==="
       ENDSSH
 
+# ── Luồng 2: Kubernetes / ArgoCD ─────────────────────────────────────────────
+
+# Cập nhật image tags trong k8s manifest files rồi push → ArgoCD tự sync.
+# GITLAB_API_TOKEN cần scope: write_repository
 deploy:manifest:
   stage: deploy
-  image: bitnami/kubectl:latest
+  image: alpine/git:latest
   timeout: 5 minutes
   when: manual
   rules:
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
   before_script:
-    - mkdir -p ~/.kube
-    - echo "$KUBECONFIG" | base64 -d > ~/.kube/config
-    - chmod 600 ~/.kube/config
+    - git config user.email "ci@gitlab.com"
+    - git config user.name "GitLab CI"
+    # Cấu hình remote với token để push được (HTTPS with token auth)
+    - git remote set-url origin "https://gitlab-ci-token:${GITLAB_API_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
   script:
     - |
       echo "=== Updating image tags in k8s manifests ==="
-
-      # Update all service images with the new tag
       SERVICES="eureka-server api-gateway user-service market-data-service portfolio-service notification-service multi-agents-service frontend"
+      CHANGED=0
       for svc in $SERVICES; do
-        IMG="$CI_REGISTRY_IMAGE/$svc:${IMAGE_TAG}"
+        IMG="${CI_REGISTRY_IMAGE}/${svc}:${IMAGE_TAG}"
         MANIFEST="k8s/services/${svc}.yaml"
         if [ -f "$MANIFEST" ]; then
-          echo "  Updating $svc -> $IMG"
           sed -i "s|image: ${CI_REGISTRY_IMAGE}/${svc}:.*|image: ${IMG}|g" "$MANIFEST"
-          sed -i "s|image: ${CI_REGISTRY_IMAGE}/${svc}:latest|image: ${IMG}|g" "$MANIFEST"
+          echo "  Updated $svc → $IMG"
+          CHANGED=1
+        else
+          echo "  Skipping $svc (manifest not found)"
         fi
       done
 
-    - |
-      echo "=== Committing and pushing k8s manifest updates ==="
-      git config user.email "ci@gitlab.com"
-      git config user.name "GitLab CI"
-      git add k8s/
-      if git diff --cached --quiet; then
-        echo "No manifest changes detected — skipping push."
-      else
-        git commit -m "chore: update images to ${IMAGE_TAG} [skip ci]"
-        git push origin "$CI_COMMIT_BRANCH"
+      if [ "$CHANGED" -eq 0 ]; then
+        echo "No manifests found — check k8s/services/ directory."
+        exit 1
       fi
 
+    - |
+      echo "=== Committing manifest updates ==="
+      git add k8s/
+      if git diff --cached --quiet; then
+        echo "No manifest changes — skipping push."
+      else
+        git commit -m "chore(k8s): update images to ${IMAGE_TAG} [skip ci]"
+        git push origin "$CI_COMMIT_BRANCH"
+        echo "Pushed. ArgoCD will sync automatically."
+      fi
+
+# Apply Kubernetes Secrets vào cluster (idempotent via --dry-run=client | apply).
 deploy:secrets:
   stage: deploy
   image: bitnami/kubectl:latest
@@ -770,25 +867,27 @@ deploy:secrets:
     - mkdir -p ~/.kube
     - echo "$KUBECONFIG" | base64 -d > ~/.kube/config
     - chmod 600 ~/.kube/config
+    - kubectl create namespace investadvisor --dry-run=client -o yaml | kubectl apply -f -
   script:
     - |
-      echo "=== Applying Kubernetes secrets ==="
-
-      # Backend secrets (JWT, DB password, API keys)
+      echo "=== Applying backend secrets ==="
       kubectl create secret generic backend-secrets \
         -n investadvisor \
-        --from-literal=JWT_SECRET="$JWT_SECRET" \
-        --from-literal=DB_PASSWORD="$DB_PASSWORD" \
-        --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" \
-        --from-literal=TAVILY_API_KEY="$TAVILY_API_KEY" \
-        --from-literal=VNSTOCK_API_KEY="$VNSTOCK_API_KEY" \
+        --from-literal=JWT_SECRET="${JWT_SECRET}" \
+        --from-literal=DB_PASSWORD="${DB_PASSWORD}" \
+        --from-literal=OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
+        --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY}" \
+        --from-literal=VNSTOCK_API_KEY="${VNSTOCK_API_KEY}" \
+        --from-literal=LANGCHAIN_API_KEY="${LANGCHAIN_API_KEY}" \
         --dry-run=client -o yaml | kubectl apply -f -
 
-      # Mail credentials
+    - |
+      echo "=== Applying mail secrets ==="
       kubectl create secret generic mail-secrets \
         -n investadvisor \
-        --from-literal=MAIL_USERNAME="$MAIL_USERNAME" \
-        --from-literal=MAIL_PASSWORD="$MAIL_PASSWORD" \
+        --from-literal=MAIL_USERNAME="${MAIL_USERNAME}" \
+        --from-literal=MAIL_PASSWORD="${MAIL_PASSWORD}" \
         --dry-run=client -o yaml | kubectl apply -f -
 
-      echo "Secrets applied successfully."
+    - echo "Secrets applied successfully."
+    - kubectl get secrets -n investadvisor

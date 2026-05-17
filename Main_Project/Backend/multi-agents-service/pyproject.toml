@@ -30,6 +30,7 @@ dependencies = [
     "langchain-tavily>=0.2.18",
     "vnstock>=4.0.2",
     "vnstock3>=3.2.1",
+    "langsmith>=0.2.0",
 ]
 
 [dependency-groups]
@@ -50,6 +51,17 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests — no external calls",
+    "integration: Integration tests — mocked externals",
+    "langsmith: LangSmith evaluation tests — requires LANGCHAIN_API_KEY",
+    "slow: Slow tests (network/LLM calls)",
+]
 
 [tool.uv]
 package = true
