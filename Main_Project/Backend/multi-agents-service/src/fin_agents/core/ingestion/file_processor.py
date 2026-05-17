@@ -86,7 +86,8 @@ def _process_image(storage_path: str, original_name: str) -> Dict[str, Any]:
         )
         response = llm.invoke([message])
         content = getattr(response, "content", str(response))
-        import json, re
+        import json
+        import re
         fences = re.findall(r"```(?:json)?\\s*(.*?)```", content, re.DOTALL)
         if fences:
             parsed = json.loads(fences[0].strip())

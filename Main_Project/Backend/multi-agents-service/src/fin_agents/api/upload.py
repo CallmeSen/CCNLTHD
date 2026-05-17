@@ -125,7 +125,7 @@ async def list_session_files(
         raise HTTPException(status_code=404, detail="Session not found")
 
     files = FileStoreRepository.get_by_session(db, session_id)
-    files = files[skip : skip + limit]
+    files = files[skip: skip + limit]
     return [
         {
             "file_id": f.file_id,
