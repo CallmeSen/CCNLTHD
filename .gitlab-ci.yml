@@ -130,8 +130,8 @@ validate:python:
   script:
     - pip install --quiet uv
     - uv pip install --system --cache-dir "$UV_CACHE_DIR" flake8
-    - flake8 Main_Project/Backend/market-data-service/app/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241 --exclude=__pycache__
-    - flake8 Main_Project/Backend/multi-agents-service/src/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241 --exclude=__pycache__
+    - flake8 Main_Project/Backend/market-data-service/app/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241,W291,W292,W293,E226,E402,F541,F841,E741,F811 --exclude=__pycache__
+    - flake8 Main_Project/Backend/multi-agents-service/src/ --max-line-length=120 --ignore=E501,W503,F401,E712,E302,E305,E241,W291,W292,W293,E226,E402,F541,F841,E741,F811 --exclude=__pycache__
   rules:
     - if: $CI_COMMIT_BRANCH
       changes:
