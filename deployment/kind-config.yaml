@@ -1,45 +1,115 @@
+# three node (two workers) cluster config
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
-  image: kindest/node:v1.30.0
+  image: kindest/node:v1.34.3
   extraPortMappings:
-  - containerPort: 30000
-    hostPort: 30000
-    protocol: TCP
-  - containerPort: 30055
-    hostPort: 30055
-    protocol: TCP
-  - containerPort: 30056
-    hostPort: 30056
-    protocol: TCP
-  - containerPort: 30100
-    hostPort: 30100
-    protocol: TCP
-  - containerPort: 30200
-    hostPort: 30200
-    protocol: TCP
-  - containerPort: 30300
-    hostPort: 30300
-    protocol: TCP
-  - containerPort: 30400
-    hostPort: 30400
-    protocol: TCP
-  - containerPort: 30500
-    hostPort: 30500
-    protocol: TCP
-  - containerPort: 30600
-    hostPort: 30600
-    protocol: TCP
-  - containerPort: 30700
-    hostPort: 30700
-    protocol: TCP
-  - containerPort: 30800
-    hostPort: 30800
-    protocol: TCP
   - containerPort: 32000
     hostPort: 32000
-    protocol: TCP
+    listenAddress: "0.0.0.0"
+    protocol: tcp
   - containerPort: 32100
     hostPort: 32100
-    protocol: TCP
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30000
+    hostPort: 30000
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30055
+    hostPort: 30055
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30056
+    hostPort: 30056
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30100
+    hostPort: 30100
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30200
+    hostPort: 30200
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30300
+    hostPort: 30300
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30400
+    hostPort: 30400
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30500
+    hostPort: 30500
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30600
+    hostPort: 30600
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30700
+    hostPort: 30700
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30800
+    hostPort: 30800
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30094
+    hostPort: 30094
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 30543
+    hostPort: 30543
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 31543
+    hostPort: 31543
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  # Control-plane port mappings (NodePort range: 30000-32767):
+  #   30000 - API Gateway service NodePort
+  #   30055 - Reserved / custom service NodePort
+  #   30056 - Reserved / custom service NodePort
+  #   30100 - User Service NodePort (svc:8081)
+  #   30200 - Market Data Service NodePort (svc:8082)
+  #   30300 - Portfolio Service NodePort (svc:8083)
+  #   30400 - Notification Service NodePort (svc:8084)
+  #   30500 - Reserved / custom service NodePort
+  #   30600 - Reserved / custom service NodePort
+  #   30700 - Reserved / custom service NodePort
+  #   30800 - Multi-Agents Service NodePort (svc:8086)
+  #   30094 - Kafka NodePort (svc:9092, PLAINTEXT_HOST listener)
+  #   30543 - PostgreSQL primary NodePort (svc:5432)
+  #   31543 - PostgreSQL multi-agents NodePort (svc:5432)
+  #   32000 - Kubernetes cluster metrics / scaling (kube-state-metrics, metrics-server)
+  #   32100 - ArgoCD server
+  # Service ports: Eureka=8761, API-Gateway=8080, User=8081, MarketData=8082, Portfolio=8083, Notification=8084, MultiAgents=8086, Kafka=9092, Zookeeper=2181, PostgreSQL=5432
+- role: worker
+  image: kindest/node:v1.34.3
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 81
+    hostPort: 81
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 8000
+    hostPort: 8000
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 8080
+    hostPort: 8001
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  # Worker-1 port mappings (app workloads):
+  #   80    - Frontend (nginx/Vite app, ClusterIP svc:80)
+  #   81    - Frontend Kafka consumer(ClusterIP svc:81) 
+  #   8000  - API Gateway alternate access
+  #   8080  - API Gateway NodePort (host:8001 -> container:8080 -> svc:8080)
+- role: worker
+  image: kindest/node:v1.34.3

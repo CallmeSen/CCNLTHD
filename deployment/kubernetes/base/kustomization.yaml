@@ -47,21 +47,21 @@ commonLabels:
   app.kubernetes.io/part-of: investadvisor
 
 images:
-  - name: docker.io/callmesen/investadvisor-api-gateway
+  - name: registry.gitlab.com/callmesen-group/ccnlthd/api-gateway
     newTag: latest
-  - name: docker.io/callmesen/investadvisor-user-service
+  - name: registry.gitlab.com/callmesen-group/ccnlthd/user-service
     newTag: latest
-  - name: docker.io/callmesen/investadvisor-market-data-service
+  - name: registry.gitlab.com/callmesen-group/ccnlthd/market-data-service
     newTag: latest
-  - name: docker.io/callmesen/investadvisor-portfolio-service
+  - name: registry.gitlab.com/callmesen-group/ccnlthd/portfolio-service
     newTag: latest
-  - name: docker.io/callmesen/investadvisor-notification-service
+  - name: registry.gitlab.com/callmesen-group/ccnlthd/notification-service
     newTag: latest
-  - name: docker.io/callmesen/investadvisor-multi-agents-service
+  - name: registry.gitlab.com/callmesen-group/ccnlthd/multi-agents-service
     newTag: latest
-  - name: docker.io/callmesen/investadvisor-eureka-server
+  - name: registry.gitlab.com/callmesen-group/ccnlthd/eureka-server
     newTag: latest
-  - name: docker.io/callmesen/investadvisor-frontend
+  - name: registry.gitlab.com/callmesen-group/ccnlthd/frontend
     newTag: latest
 
 replicas:

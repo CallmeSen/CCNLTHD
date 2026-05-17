@@ -312,3 +312,145 @@ class OrchestratorService:
             compile_stock_advisory_graph,
         )
         return compile_stock_advisory_graph()
+
+    def run_chat_workflow(
+        self,
+        session_id: str,
+        message: str,
+        lang: Optional[str] = None,
+        event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Route a chat message to the appropriate workflow based on intent classification.
+
+        Flow:
+        1. Detect language
+        2. Classify intent (general_chat | stock_analysis | portfolio)
+        3. Build personalization context from uploaded files
+        4. Load and run the appropriate workflow
+        5. Return result dict with response text and metadata
+        """
+        lang = lang or _detect_lang(message)
+
+        def emit(event_type: str, data: Dict[str, Any]) -> None:
+            if event_callback:
+                try:
+                    event_callback(event_type, data)
+                except Exception:
+                    pass
+
+        try:
+            from src.fin_agents.graphs.workflow.intent_router import classify_intent
+            from src.fin_agents.core.ingestion.context_builder import (
+                build_personalization_context,
+                build_conversation_context,
+            )
+
+            history = build_conversation_context(self.db, session_id)
+            personalization = build_personalization_context(self.db, session_id)
+            intent = classify_intent(message, history, lang)
+
+            emit("intent", {"intent": intent, "lang": lang})
+            logger.info(f"Chat workflow: intent={intent}, session={session_id}")
+
+            if intent == "general_chat":
+                return self._run_general_chat(
+                    message, lang, history, personalization, emit,
+                )
+            elif intent == "stock_analysis":
+                return self._run_stock_analysis(
+                    message, lang, personalization, emit,
+                )
+            else:
+                return self.run_stock_workflow(initial_request=message, lang=lang, event_callback=emit)
+
+        except Exception as e:
+            logger.exception(f"Chat workflow failed: {e}")
+            return {
+                "status": "failed",
+                "response": (
+                    "I'm sorry, I encountered an error processing your message. "
+                    "Please try again."
+                ),
+                "error": str(e),
+                "lang": lang,
+            }
+
+    def _run_general_chat(
+        self,
+        message: str,
+        lang: str,
+        history: list,
+        personalization: Dict[str, Any],
+        emit: Callable,
+    ) -> Dict[str, Any]:
+        """Run the general chat workflow."""
+        from src.fin_agents.graphs.workflow.general_chat.builder import (
+            compile_general_chat_graph,
+        )
+
+        graph = compile_general_chat_graph()
+        initial_state = {
+            "message": message,
+            "lang": lang,
+            "conversation_history": history,
+            "personalization_context": personalization,
+        }
+
+        result = graph.invoke(initial_state)
+        response = result.get("response", "")
+
+        emit("tool_result", {
+            "tool": "general_chat",
+            "status": "ok",
+            "preview": response[:200] if response else "",
+        })
+
+        return {
+            "status": "completed",
+            "response": response,
+            "intent": "general_chat",
+            "lang": lang,
+        }
+
+    def _run_stock_analysis(
+        self,
+        message: str,
+        lang: str,
+        personalization: Dict[str, Any],
+        emit: Callable,
+    ) -> Dict[str, Any]:
+        """Run the stock analysis workflow."""
+        from src.fin_agents.graphs.workflow.stock_analysis.builder import (
+            compile_stock_analysis_graph,
+        )
+
+        graph = compile_stock_analysis_graph()
+        initial_state = {
+            "message": message,
+            "lang": lang,
+            "personalization_context": personalization,
+        }
+
+        result = {}
+        for step in graph.stream(initial_state, stream_mode="updates"):
+            for node_name, node_output in step.items():
+                emit("tool_call", {"tool": node_name, "lang": lang})
+                emit("tool_result", {
+                    "tool": node_name,
+                    "status": "ok",
+                    "preview": self._summarize_node_output(node_name, node_output),
+                })
+                if isinstance(node_output, dict):
+                    result.update(node_output)
+
+        report = result.get("report", "")
+        status = "completed" if report else "failed"
+
+        return {
+            "status": status,
+            "response": report,
+            "intent": "stock_analysis",
+            "lang": lang,
+            "error_message": result.get("error_message"),
+        }

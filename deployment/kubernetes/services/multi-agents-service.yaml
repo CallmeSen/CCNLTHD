@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: multi-agents-service
-          image: docker.io/callmesen/investadvisor-multi-agents-service:latest
+          image: registry.gitlab.com/callmesen-group/ccnlthd/multi-agents-service:latest
           ports:
             - containerPort: 8086
               name: http

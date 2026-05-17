@@ -12,6 +12,10 @@ data:
   # Kafka
   KAFKA_BROKERS: "kafka.investadvisor.svc.cluster.local:9092"
 
+  # Email (SMTP)
+  MAIL_HOST: "smtp.gmail.com"
+  MAIL_PORT: "587"
+
   # Service Discovery
   EUREKA_HOST: "eureka-server.investadvisor.svc.cluster.local"
   EUREKA_PORT: "8761"

@@ -9,7 +9,7 @@
 #   - Java integration tests use GitLab PostgreSQL service containers.
 #   - Python unit+integration tests use SQLite in-memory (DB is mocked or SQLite default).
 #   - Dockerfiles are multi-stage (maven inside Docker), docker jobs compile from source.
-#   - docker stage is `when: manual` — prevents accidental image pushes on every push.
+#   - docker stage runs automatically when its rules match — images are pushed to the registry.
 #   - deploy stage has 2 independent flows, both `when: manual`:
 #       Luồng 1 — deploy:oracle  : SSH vào Oracle Cloud VM, git pull, docker compose up.
 #       Luồng 2 — deploy:manifest: cập nhật image tag k8s manifests → ArgoCD sync.
@@ -267,7 +267,7 @@ build:frontend:
   script:
     - cd Main_Project/Frontend
     - npm ci
-    - npm run build
+    - VITE_API_URL=/api npm run build
   artifacts:
     paths:
       - Main_Project/Frontend/dist/
@@ -586,14 +586,14 @@ test:integration:multi-agents-service:
         - Main_Project/Backend/multi-agents-service/**/*
 
 # LangSmith evaluation — real LLM + Tavily calls, tiêu tốn token.
-# Chỉ chạy thủ công trên nhánh main.
+# Chạy tự động trên nhánh main; allow_failure để không chặn pipeline nếu thất bại.
 # Cần CI variables: LANGCHAIN_API_KEY, OPENROUTER_API_KEY, TAVILY_API_KEY
 test:langsmith:multi-agents:
   image: python:3.12-slim
   stage: test-integration
   extends: .python-cache
   timeout: 30 minutes
-  when: manual
+  allow_failure: true
   needs:
     - job: test:integration:multi-agents-service
       optional: true
@@ -622,7 +622,7 @@ test:langsmith:multi-agents:
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: DOCKER
 # Build multi-stage Dockerfiles và push lên GitLab Container Registry.
-# when: manual — yêu cầu trigger thủ công trong GitLab UI.
+# Chạy tự động khi rules match (main/develop/tag).
 # ─────────────────────────────────────────────────────────────────────────────
 
 .docker-template:
@@ -640,7 +640,6 @@ test:langsmith:multi-agents:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
     - docker buildx install --default 2>/dev/null || true
     - docker buildx create --use --name multi-builder 2>/dev/null || docker buildx use multi-builder
-  when: manual
   rules:
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
     - if: $CI_COMMIT_TAG =~ /^v.*/
@@ -875,6 +874,7 @@ deploy:secrets:
         -n investadvisor \
         --from-literal=JWT_SECRET="${JWT_SECRET}" \
         --from-literal=DB_PASSWORD="${DB_PASSWORD}" \
+        --from-literal=DATABASE_URL="postgresql://user:${DB_PASSWORD}@postgres-ma.investadvisor.svc.cluster.local:5432/financial_advisor" \
         --from-literal=OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
         --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY}" \
         --from-literal=VNSTOCK_API_KEY="${VNSTOCK_API_KEY}" \

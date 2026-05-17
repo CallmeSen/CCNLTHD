@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: docker.io/callmesen/investadvisor-api-gateway:latest
+          image: registry.gitlab.com/callmesen-group/ccnlthd/api-gateway:latest
           ports:
             - containerPort: 8080
               name: gateway

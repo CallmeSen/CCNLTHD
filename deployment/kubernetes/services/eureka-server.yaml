@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: eureka-server
-          image: docker.io/callmesen/investadvisor-eureka-server:latest
+          image: registry.gitlab.com/callmesen-group/ccnlthd/eureka-server:latest
           ports:
             - containerPort: 8761
               name: eureka

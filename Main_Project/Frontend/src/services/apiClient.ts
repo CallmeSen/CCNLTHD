@@ -4,8 +4,10 @@ export const TOKEN_KEY = 'invest_token'
 export const AUTH_STORAGE_KEY = 'app_auth'
 export const AUTH_UNAUTHORIZED_EVENT = 'invest-auth-unauthorized'
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+
 export const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 })
 

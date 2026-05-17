@@ -7,7 +7,7 @@ from datetime import date, datetime
 from src.fin_agents.db.models import (
     Client, MutualFund, Portfolio, Holding, NAVHistory,
     AdvisoryRequest, RiskAssessment, Decision, AuditLog, GeneratedReport,
-    ChatSession, ChatMessage
+    ChatSession, ChatMessage, FileStore
 )
 
 
@@ -419,3 +419,38 @@ class ChatMessageRepository:
             }
             for m in messages
         ]
+
+
+class FileStoreRepository:
+    """Uploaded file data access layer."""
+
+    @staticmethod
+    def create(db: Session, file_data: Dict[str, Any]) -> FileStore:
+        """Create a new file store entry."""
+        file_store = FileStore(**file_data)
+        db.add(file_store)
+        db.commit()
+        db.refresh(file_store)
+        return file_store
+
+    @staticmethod
+    def get_by_id(db: Session, file_id: str) -> Optional[FileStore]:
+        """Get file store entry by ID."""
+        return db.query(FileStore).filter(FileStore.file_id == file_id).first()
+
+    @staticmethod
+    def get_by_session(db: Session, session_id: str) -> List[FileStore]:
+        """Get all files for a session, most recent first."""
+        return db.query(FileStore).filter(
+            FileStore.session_id == session_id
+        ).order_by(desc(FileStore.created_at)).all()
+
+    @staticmethod
+    def delete(db: Session, file_id: str) -> bool:
+        """Delete a file store entry. Returns True if deleted."""
+        file_store = FileStoreRepository.get_by_id(db, file_id)
+        if not file_store:
+            return False
+        db.delete(file_store)
+        db.commit()
+        return True

@@ -20,7 +20,7 @@ BENCHMARK_TICKER = os.getenv("BENCHMARK_TICKER", "^GSPC")
 DEFAULT_PERIOD = os.getenv("DEFAULT_PERIOD", "5y")
 
 # --- Storage ---
-STORAGE_BASE = os.getenv("STORAGE_BASE", "./storage")
+STORAGE_BASE = os.getenv("STORAGE_BASE", os.getenv("STORAGE_PATH", "./storage"))
 STORAGE_PORTFOLIOS = os.path.join(STORAGE_BASE, "portfolios")
 STORAGE_REPORTS = os.path.join(STORAGE_BASE, "reports")
 STORAGE_VISUALIZATIONS = os.path.join(STORAGE_BASE, "visualizations")

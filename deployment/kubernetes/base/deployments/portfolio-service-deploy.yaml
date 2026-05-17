@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: portfolio-service
-          image: docker.io/callmesen/investadvisor-portfolio-service:latest
+          image: registry.gitlab.com/callmesen-group/ccnlthd/portfolio-service:latest
           ports:
             - containerPort: 8083
               name: http

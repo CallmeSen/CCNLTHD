@@ -18,18 +18,26 @@ spec:
     spec:
       containers:
         - name: multi-agents-service
-          image: docker.io/callmesen/investadvisor-multi-agents-service:latest
+          image: registry.gitlab.com/callmesen-group/ccnlthd/multi-agents-service:latest
           ports:
             - containerPort: 8086
               name: http
           env:
             - name: DATABASE_URL
-              value: "postgresql://user:REPLACE_DB_PASSWORD@postgres-ma.investadvisor.svc.cluster.local:5432/financial_advisor"
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: DATABASE_URL
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: OPENROUTER_API_KEY
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: backend-secrets
-                  key: OPENAI_API_KEY
+                  key: OPENROUTER_API_KEY
             - name: TAVILY_API_KEY
               valueFrom:
                 secretKeyRef:

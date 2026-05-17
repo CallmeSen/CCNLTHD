@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: notification-service
-          image: docker.io/callmesen/investadvisor-notification-service:latest
+          image: registry.gitlab.com/callmesen-group/ccnlthd/notification-service:latest
           ports:
             - containerPort: 8084
               name: http
@@ -49,9 +49,15 @@ spec:
                   name: backend-config
                   key: KAFKA_BROKERS
             - name: MAIL_HOST
-              value: "smtp.gmail.com"
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: MAIL_HOST
             - name: MAIL_PORT
-              value: "587"
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: MAIL_PORT
             - name: MAIL_USERNAME
               valueFrom:
                 secretKeyRef:

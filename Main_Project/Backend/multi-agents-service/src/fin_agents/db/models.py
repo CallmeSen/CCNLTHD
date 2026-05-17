@@ -306,3 +306,24 @@ class ChatMessage(Base):
 
     def __repr__(self):
         return f"<ChatMessage(id={self.message_id}, session={self.session_id}, role={self.role})>"
+
+
+class FileStore(Base):
+    """Uploaded files associated with a chat session for personalization."""
+    __tablename__ = "file_store"
+
+    file_id = Column(String(36), primary_key=True)
+    session_id = Column(String(36), ForeignKey("chat_sessions.session_id"), nullable=False)
+    file_name = Column(String(255), nullable=False)
+    mime_type = Column(String(100), nullable=False)
+    storage_path = Column(String(500), nullable=False)
+    file_size = Column(Integer, nullable=True)
+    extracted_context_json = Column(JSON, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_file_store_session", "session_id"),
+    )
+
+    def __repr__(self):
+        return f"<FileStore(file_id={self.file_id}, name={self.file_name}, session={self.session_id})>"

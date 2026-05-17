@@ -330,13 +330,14 @@ async def send_message(
                 EventBus.emit(session_id, event_type, data)
 
             result = await asyncio.to_thread(
-                orchestrator.run_stock_workflow,
-                initial_request=message,
+                orchestrator.run_chat_workflow,
+                session_id=session_id,
+                message=message,
                 lang=lang,
                 event_callback=event_callback,
             )
 
-            assistant_content = result.get("final_report") or result.get("report") or ""
+            assistant_content = result.get("response") or result.get("final_report") or ""
             ChatMessageRepository.create(db, {
                 "session_id": session_id,
                 "role": "assistant",
@@ -351,9 +352,9 @@ async def send_message(
                 })
             else:
                 EventBus.emit(session_id, "attempt.completed", {
-                    "run_id": result.get("run_id"),
-                    "run_dir": result.get("run_id"),
-                    "summary": assistant_content,
+                    "run_id": result.get("run_id", session_id),
+                    "intent": result.get("intent", "unknown"),
+                    "summary": assistant_content[:200] if assistant_content else "",
                 })
 
         except Exception as exc:
