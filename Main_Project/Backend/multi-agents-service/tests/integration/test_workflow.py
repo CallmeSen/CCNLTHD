@@ -11,8 +11,8 @@ from langchain_core.runnables import RunnableLambda
 _PARSE_LLM     = "fin_agents.graphs.workflow.stock_advisory.agents.parse_agent.get_shared_llm"
 _PORTFOLIO_LLM = "fin_agents.graphs.workflow.stock_advisory.agents.portfolio_agent.get_shared_llm"
 _COMMENTARY_LLM = "fin_agents.graphs.workflow.stock_advisory.agents.commentary_agent.get_shared_llm"
-_TAVILY        = "fin_agents.graphs.workflow.stock_advisory.agents.news_agent.TavilySearch"
-_DATA_FETCHER  = "fin_agents.core.finance.data_fetcher.fetch_stock_data"
+_TAVILY        = "langchain_tavily.TavilySearch"
+_DATA_FETCHER  = "src.fin_agents.core.finance.data_fetcher.fetch_financial_data"
 
 
 def _json_llm(data: dict) -> RunnableLambda:

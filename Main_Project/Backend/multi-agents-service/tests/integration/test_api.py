@@ -3,7 +3,7 @@ Integration tests for FastAPI endpoints.
 DB and orchestrator are mocked — no real PostgreSQL or LLM needed.
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 _ORCHESTRATOR = "fin_agents.api.routes.OrchestratorService"
@@ -65,7 +65,7 @@ class TestPortfolioAnalyze:
 
     def test_analyze_success(self, client):
         mock_orch = MagicMock()
-        mock_orch.return_value.run_stock_workflow = AsyncMock(return_value=self._SUCCESS_RESULT)
+        mock_orch.return_value.run_stock_workflow = MagicMock(return_value=self._SUCCESS_RESULT)
 
         with patch(_ORCHESTRATOR, mock_orch):
             resp = client.post(
@@ -84,7 +84,7 @@ class TestPortfolioAnalyze:
 
     def test_analyze_service_failure_returns_error(self, client):
         mock_orch = MagicMock()
-        mock_orch.return_value.run_stock_workflow = AsyncMock(
+        mock_orch.return_value.run_stock_workflow = MagicMock(
             return_value={**self._SUCCESS_RESULT, "status": "failed", "error": "LLM timeout"}
         )
 
