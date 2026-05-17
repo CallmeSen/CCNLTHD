@@ -1,0 +1,67 @@
+// ── Prometheus remote write ───────────────────────────────────────────────────
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_PROM_URL")
+    basic_auth {
+      username = env("GRAFANA_PROM_USER")
+      password = env("GRAFANA_PROM_TOKEN")
+    }
+  }
+}
+
+// ── Node Exporter metrics ─────────────────────────────────────────────────────
+prometheus.scrape "node_exporter" {
+  targets = [{ __address__ = "node-exporter:9100" }]
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// ── Spring Boot services ──────────────────────────────────────────────────────
+prometheus.scrape "spring_services" {
+  targets = [
+    { __address__ = "api-gateway:8080",         __metrics_path__ = "/actuator/prometheus", service = "api-gateway" },
+    { __address__ = "eureka-server:8761",        __metrics_path__ = "/actuator/prometheus", service = "eureka-server" },
+    { __address__ = "user-service:8081",         __metrics_path__ = "/actuator/prometheus", service = "user-service" },
+    { __address__ = "portfolio-service:8083",    __metrics_path__ = "/actuator/prometheus", service = "portfolio-service" },
+    { __address__ = "notification-service:8084", __metrics_path__ = "/actuator/prometheus", service = "notification-service" },
+  ]
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// ── Docker container discovery ────────────────────────────────────────────────
+discovery.docker "all_containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.relabel "docker_labels" {
+  forward_to = [loki.write.grafana_cloud.receiver]
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+    regex         = "/?(.*)"
+    replacement   = "$1"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "container_logs" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.all_containers.targets
+  forward_to = [loki.relabel.docker_labels.receiver]
+}
+
+// ── Loki remote write ─────────────────────────────────────────────────────────
+loki.write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_LOKI_URL")
+    basic_auth {
+      username = env("GRAFANA_LOKI_USER")
+      password = env("GRAFANA_LOKI_TOKEN")
+    }
+  }
+}

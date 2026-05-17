@@ -48,7 +48,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,routes,metrics
+        include: health,info,routes,metrics,prometheus
   endpoint:
     health:
       show-details: always

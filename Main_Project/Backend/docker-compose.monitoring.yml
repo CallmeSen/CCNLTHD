@@ -1,0 +1,38 @@
+services:
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: invest_node_exporter
+    restart: unless-stopped
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    expose:
+      - "9100"
+
+  grafana-alloy:
+    image: grafana/alloy:v1.4.0
+    container_name: invest_grafana_alloy
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      GRAFANA_PROM_URL:   ${GRAFANA_PROM_URL}
+      GRAFANA_PROM_USER:  ${GRAFANA_PROM_USER}
+      GRAFANA_PROM_TOKEN: ${GRAFANA_PROM_TOKEN}
+      GRAFANA_LOKI_URL:   ${GRAFANA_LOKI_URL}
+      GRAFANA_LOKI_USER:  ${GRAFANA_LOKI_USER}
+      GRAFANA_LOKI_TOKEN: ${GRAFANA_LOKI_TOKEN}
+    command:
+      - run
+      - /etc/alloy/config.alloy
+    depends_on:
+      - node-exporter
