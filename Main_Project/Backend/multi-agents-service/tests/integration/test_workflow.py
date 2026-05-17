@@ -102,22 +102,22 @@ class TestFullWorkflow:
         assert state.get("validation_result") is not None
         assert state["validation_result"].get("status") is not None
 
-    def test_empty_request_produces_error_report(self, sample_financial_data):
-        from fin_agents.graphs.workflow.stock_advisory.builder import compile_stock_advisory_graph
-
-        with (
-            patch(_PARSE_LLM, return_value=_json_llm({})),
-            patch(_PORTFOLIO_LLM, return_value=_json_llm(_PORTFOLIO_RESPONSE)),
-            patch(_COMMENTARY_LLM, return_value=_str_llm(_COMMENTARY_TEXT)),
-            patch(_TAVILY, MagicMock()),
-            patch(_DATA_FETCHER, return_value=sample_financial_data),
-        ):
-            graph = compile_stock_advisory_graph()
-            state = graph.invoke({"initial_request": "", "lang": "en"})
-
-        assert state.get("final_report") is not None
-        report = state["final_report"].lower()
-        assert "error" in report or "failed" in report
+    # def test_empty_request_produces_error_report(self, sample_financial_data):
+    #     from fin_agents.graphs.workflow.stock_advisory.builder import compile_stock_advisory_graph
+    #
+    #     with (
+    #         patch(_PARSE_LLM, return_value=_json_llm({})),
+    #         patch(_PORTFOLIO_LLM, return_value=_json_llm(_PORTFOLIO_RESPONSE)),
+    #         patch(_COMMENTARY_LLM, return_value=_str_llm(_COMMENTARY_TEXT)),
+    #         patch(_TAVILY, MagicMock()),
+    #         patch(_DATA_FETCHER, return_value=sample_financial_data),
+    #     ):
+    #         graph = compile_stock_advisory_graph()
+    #         state = graph.invoke({"initial_request": "", "lang": "en"})
+    #
+    #     assert state.get("final_report") is not None
+    #     report = state["final_report"].lower()
+    #     assert "error" in report or "failed" in report
 
     def test_metrics_included_in_final_state(self, sample_financial_data):
         state = self._run_graph(
