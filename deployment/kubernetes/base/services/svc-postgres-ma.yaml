@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-ma
+  namespace: investadvisor
+  labels:
+    app: postgres-ma
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-ma
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+      protocol: TCP

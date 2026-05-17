@@ -22,3 +22,5 @@ target/
 *.class
 *.jar
 *.war
+deployment/kubernetes/base/secrets/backend-secrets.yaml
+/deployment/kubernetes/base/secrets

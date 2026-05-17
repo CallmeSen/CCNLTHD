@@ -22,8 +22,8 @@ spec:
       interval: 30s
       scrapeTimeout: 15s
       honorLabels: true
-  metricRelabelings:
-    - sourceLabels:
-        - __name__
-      regex: "^(nginx_.*|http_requests_total|http_request_duration_seconds)$"
-      action: keep
+      metricRelabelings:
+        - sourceLabels:
+            - __name__
+          regex: "^(nginx_.*|http_requests_total|http_request_duration_seconds)$"
+          action: keep

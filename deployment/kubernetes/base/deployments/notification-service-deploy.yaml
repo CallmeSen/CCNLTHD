@@ -68,6 +68,8 @@ spec:
                 secretKeyRef:
                   name: mail-secrets
                   key: MAIL_PASSWORD
+            - name: MANAGEMENT_HEALTH_MAIL_ENABLED
+              value: "false"
           resources:
             requests:
               cpu: 200m
@@ -79,13 +81,15 @@ spec:
             httpGet:
               path: /actuator/health
               port: 8084
-            initialDelaySeconds: 60
+            initialDelaySeconds: 180
+            timeoutSeconds: 10
             periodSeconds: 10
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /actuator/health
               port: 8084
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
+            timeoutSeconds: 10
             periodSeconds: 5
             failureThreshold: 3

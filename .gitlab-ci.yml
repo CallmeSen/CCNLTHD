@@ -693,15 +693,8 @@ docker:multi-agents-service:
   timeout: 40 minutes
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/multi-agents-service"
-    - docker buildx create --use --name multi-builder || docker buildx use multi-builder
-    - docker buildx inspect --bootstrap
-    - |
-      docker buildx build --push --platform linux/amd64 \
-        --build-arg BUILDKIT_INLINE_CACHE=1 \
-        --cache-from type=registry,ref="${IMAGE}:latest" \
-        --cache-to type=registry,ref="${IMAGE}:latest,mode=max" \
-        -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" \
-        Main_Project/Backend/multi-agents-service/
+    - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/multi-agents-service/
+    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: DEPLOY — 2 luồng độc lập, cả 2 đều when: manual
@@ -762,7 +755,7 @@ deploy:oracle:
 
 # ── Luồng 2: Kubernetes / ArgoCD ─────────────────────────────────────────────
 
-# Cập nhật image tags trong k8s manifest files rồi push → ArgoCD tự sync.
+# Cập nhật image tags trong Kubernetes overlay rồi push → ArgoCD tự sync.
 # GITLAB_API_TOKEN cần scope: write_repository
 deploy:manifest:
   stage: deploy
@@ -778,33 +771,32 @@ deploy:manifest:
     - git remote set-url origin "https://gitlab-ci-token:${GITLAB_API_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
   script:
     - |
-      echo "=== Updating image tags in k8s manifests ==="
+      echo "=== Updating image tags in Kubernetes prod overlay ==="
       SERVICES="eureka-server api-gateway user-service market-data-service portfolio-service notification-service multi-agents-service frontend"
+      MANIFEST="deployment/kubernetes/overlays/prod/kustomization.yaml"
       CHANGED=0
       for svc in $SERVICES; do
-        IMG="${CI_REGISTRY_IMAGE}/${svc}:${IMAGE_TAG}"
-        MANIFEST="k8s/services/${svc}.yaml"
-        if [ -f "$MANIFEST" ]; then
-          sed -i "s|image: ${CI_REGISTRY_IMAGE}/${svc}:.*|image: ${IMG}|g" "$MANIFEST"
-          echo "  Updated $svc → $IMG"
+        if grep -q "/${svc}$" "$MANIFEST"; then
+          sed -i "/name: .*\/${svc}$/,/newTag:/ s|newTag: .*|newTag: ${IMAGE_TAG}|g" "$MANIFEST"
+          echo "  Updated $svc -> ${IMAGE_TAG}"
           CHANGED=1
         else
-          echo "  Skipping $svc (manifest not found)"
+          echo "  Skipping $svc (image entry not found)"
         fi
       done
 
       if [ "$CHANGED" -eq 0 ]; then
-        echo "No manifests found — check k8s/services/ directory."
+        echo "No image entries found — check $MANIFEST."
         exit 1
       fi
 
     - |
       echo "=== Committing manifest updates ==="
-      git add k8s/
+      git add deployment/kubernetes/
       if git diff --cached --quiet; then
         echo "No manifest changes — skipping push."
       else
-        git commit -m "chore(k8s): update images to ${IMAGE_TAG} [skip ci]"
+        git commit -m "chore(kubernetes): update images to ${IMAGE_TAG} [skip ci]"
         git push origin "$CI_COMMIT_BRANCH"
         echo "Pushed. ArgoCD will sync automatically."
       fi
@@ -824,16 +816,41 @@ deploy:secrets:
     - kubectl create namespace investadvisor --dry-run=client -o yaml | kubectl apply -f -
   script:
     - |
+      POSTGRES_MA_PASSWORD_VALUE="${POSTGRES_MA_PASSWORD:-$DB_PASSWORD}"
+
       echo "=== Applying backend secrets ==="
       kubectl create secret generic backend-secrets \
         -n investadvisor \
         --from-literal=JWT_SECRET="${JWT_SECRET}" \
         --from-literal=DB_PASSWORD="${DB_PASSWORD}" \
-        --from-literal=DATABASE_URL="postgresql://user:${DB_PASSWORD}@postgres-ma.investadvisor.svc.cluster.local:5432/financial_advisor" \
+        --from-literal=POSTGRES_MA_PASSWORD="${POSTGRES_MA_PASSWORD_VALUE}" \
+        --from-literal=DATABASE_URL="postgresql://user:${POSTGRES_MA_PASSWORD_VALUE}@postgres-ma.investadvisor.svc.cluster.local:5432/financial_advisor" \
         --from-literal=OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
+        --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY}" \
         --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY}" \
         --from-literal=VNSTOCK_API_KEY="${VNSTOCK_API_KEY}" \
         --from-literal=LANGCHAIN_API_KEY="${LANGCHAIN_API_KEY}" \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+    - |
+      POSTGRES_MA_PASSWORD_VALUE="${POSTGRES_MA_PASSWORD:-$DB_PASSWORD}"
+
+      echo "=== Applying multi-agents secrets ==="
+      kubectl create secret generic multi-agents-secrets \
+        -n investadvisor \
+        --from-literal=DATABASE_URL="postgresql://user:${POSTGRES_MA_PASSWORD_VALUE}@postgres-ma.investadvisor.svc.cluster.local:5432/financial_advisor" \
+        --from-literal=POSTGRES_PASSWORD="${POSTGRES_MA_PASSWORD_VALUE}" \
+        --from-literal=OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
+        --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY}" \
+        --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY}" \
+        --from-literal=SECRET_KEY="${JWT_SECRET}" \
+        --from-literal=LLM_MAX_TOKENS="${LLM_MAX_TOKENS:-4000}" \
+        --from-literal=ACCESS_TOKEN_EXPIRE_MINUTES="${ACCESS_TOKEN_EXPIRE_MINUTES:-30}" \
+        --from-literal=SERPER_API_KEY="${SERPER_API_KEY}" \
+        --from-literal=BROWSERLESS_API_KEY="${BROWSERLESS_API_KEY}" \
+        --from-literal=SEC_API_API_KEY="${SEC_API_API_KEY}" \
+        --from-literal=GROQ_API_KEY="${GROQ_API_KEY}" \
+        --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY}" \
         --dry-run=client -o yaml | kubectl apply -f -
 
     - |

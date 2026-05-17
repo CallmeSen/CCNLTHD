@@ -11,6 +11,7 @@ spec:
   ports:
     - port: 8086
       targetPort: 8086
+      nodePort: 30500
       name: http
       protocol: TCP
-  type: ClusterIP
+  type: NodePort

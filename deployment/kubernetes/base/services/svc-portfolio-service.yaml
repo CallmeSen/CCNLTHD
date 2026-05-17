@@ -11,6 +11,7 @@ spec:
   ports:
     - port: 8083
       targetPort: 8083
+      nodePort: 30300
       name: http
       protocol: TCP
-  type: ClusterIP
+  type: NodePort

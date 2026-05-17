@@ -5,19 +5,19 @@ metadata:
   labels:
     app.kubernetes.io/name: investadvisor
     app.kubernetes.io/part-of: investadvisor
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: investadvisor-staging
-  labels:
-    app.kubernetes.io/name: investadvisor-staging
-    app.kubernetes.io/part-of: investadvisor
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: investadvisor-prod
-  labels:
-    app.kubernetes.io/name: investadvisor-prod
-    app.kubernetes.io/part-of: investadvisor
+# ---
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: investadvisor-staging
+#   labels:
+#     app.kubernetes.io/name: investadvisor-staging
+#     app.kubernetes.io/part-of: investadvisor
+# ---
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: investadvisor-prod
+#   labels:
+#     app.kubernetes.io/name: investadvisor-prod
+#     app.kubernetes.io/part-of: investadvisor

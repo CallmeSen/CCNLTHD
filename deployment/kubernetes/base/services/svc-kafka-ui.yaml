@@ -1,17 +1,17 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: market-data-service
+  name: kafka-ui
   namespace: investadvisor
   labels:
-    app: market-data-service
+    app: kafka-ui
 spec:
   selector:
-    app: market-data-service
+    app: kafka-ui
   ports:
-    - port: 8082
-      targetPort: 8082
-      nodePort: 30200
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30700
       name: http
       protocol: TCP
   type: NodePort

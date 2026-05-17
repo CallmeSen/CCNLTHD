@@ -22,8 +22,8 @@ spec:
       interval: 30s
       scrapeTimeout: 15s
       honorLabels: true
-  metricRelabelings:
-    - sourceLabels:
-        - __name__
-      regex: "^(jvm_.*|process_.*|system_.*|up)$"
-      action: keep
+      metricRelabelings:
+        - sourceLabels:
+            - __name__
+          regex: "^(jvm_.*|process_.*|system_.*|up)$"
+          action: keep

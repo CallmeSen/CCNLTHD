@@ -27,18 +27,18 @@ replicas:
 
 images:
   - name: registry.gitlab.com/callmesen-group/ccnlthd/api-gateway
-    newTag: v1.0.0
+    newTag: latest
   - name: registry.gitlab.com/callmesen-group/ccnlthd/user-service
-    newTag: v1.0.0
+    newTag: latest
   - name: registry.gitlab.com/callmesen-group/ccnlthd/market-data-service
-    newTag: v1.0.0
+    newTag: latest
   - name: registry.gitlab.com/callmesen-group/ccnlthd/portfolio-service
-    newTag: v1.0.0
+    newTag: latest
   - name: registry.gitlab.com/callmesen-group/ccnlthd/notification-service
-    newTag: v1.0.0
+    newTag: latest
   - name: registry.gitlab.com/callmesen-group/ccnlthd/multi-agents-service
-    newTag: v1.0.0
+    newTag: latest
   - name: registry.gitlab.com/callmesen-group/ccnlthd/eureka-server
-    newTag: v1.0.0
+    newTag: latest
   - name: registry.gitlab.com/callmesen-group/ccnlthd/frontend
-    newTag: v1.0.0
+    newTag: latest

@@ -3,9 +3,24 @@ kind: Kustomization
 
 resources:
   - namespaces/namespace.yaml
+  - configmaps/postgres-initdb-config.yaml
   - configmaps/backend-config.yaml
   - configmaps/frontend-config.yaml
-  - secrets/backend-secrets.yaml
+  - configmaps/multi-agents-config.yaml
+  - services/svc-postgres.yaml
+  - services/svc-postgres-ma.yaml
+  - services/svc-zookeeper.yaml
+  - services/svc-kafka.yaml
+  - services/svc-postgres-nodeport.yaml
+  - services/svc-postgres-ma-nodeport.yaml
+  - services/svc-zookeeper-nodeport.yaml
+  - services/svc-kafka-nodeport.yaml
+  - services/svc-kafka-ui.yaml
+  - deployments/postgres-deploy.yaml
+  - deployments/postgres-ma-deploy.yaml
+  - deployments/zookeeper-deploy.yaml
+  - deployments/kafka-deploy.yaml
+  - deployments/kafka-ui-deploy.yaml
   - deployments/eureka-server-deploy.yaml
   - deployments/api-gateway-deploy.yaml
   - deployments/user-service-deploy.yaml
@@ -39,7 +54,6 @@ resources:
   - servicemonitors/servicemonitor-multi-agents-service.yaml
   - servicemonitors/servicemonitor-eureka-server.yaml
   - servicemonitors/servicemonitor-frontend.yaml
-  - keda/keda.yaml
   - keda/scaledobjects.yaml
 
 commonLabels:

@@ -25,6 +25,10 @@ nodes:
     hostPort: 30056
     listenAddress: "0.0.0.0"
     protocol: tcp
+  - containerPort: 30080
+    hostPort: 30080
+    listenAddress: "0.0.0.0"
+    protocol: tcp
   - containerPort: 30100
     hostPort: 30100
     listenAddress: "0.0.0.0"
@@ -57,6 +61,14 @@ nodes:
     hostPort: 30800
     listenAddress: "0.0.0.0"
     protocol: tcp
+  - containerPort: 31100
+    hostPort: 31100
+    listenAddress: "0.0.0.0"
+    protocol: tcp
+  - containerPort: 31200
+    hostPort: 31200
+    listenAddress: "0.0.0.0"
+    protocol: tcp
   - containerPort: 30094
     hostPort: 30094
     listenAddress: "0.0.0.0"
@@ -73,14 +85,17 @@ nodes:
   #   30000 - API Gateway service NodePort
   #   30055 - Reserved / custom service NodePort
   #   30056 - Reserved / custom service NodePort
+  #   30080 - Frontend NodePort (svc:80)
   #   30100 - User Service NodePort (svc:8081)
   #   30200 - Market Data Service NodePort (svc:8082)
   #   30300 - Portfolio Service NodePort (svc:8083)
   #   30400 - Notification Service NodePort (svc:8084)
-  #   30500 - Reserved / custom service NodePort
-  #   30600 - Reserved / custom service NodePort
-  #   30700 - Reserved / custom service NodePort
-  #   30800 - Multi-Agents Service NodePort (svc:8086)
+  #   30500 - Multi-Agents Service NodePort (svc:8086)
+  #   30600 - Eureka Server NodePort (svc:8761)
+  #   30700 - Kafka UI NodePort (svc:8080)
+  #   30800 - Zookeeper NodePort (svc:2181)
+  #   31100 - Grafana NodePort (svc:80)
+  #   31200 - Prometheus NodePort (svc:9090)
   #   30094 - Kafka NodePort (svc:9092, PLAINTEXT_HOST listener)
   #   30543 - PostgreSQL primary NodePort (svc:5432)
   #   31543 - PostgreSQL multi-agents NodePort (svc:5432)
@@ -98,18 +113,18 @@ nodes:
     hostPort: 81
     listenAddress: "0.0.0.0"
     protocol: tcp
-  - containerPort: 8000
+  - containerPort: 30000
     hostPort: 8000
     listenAddress: "0.0.0.0"
     protocol: tcp
-  - containerPort: 8080
+  - containerPort: 30000
     hostPort: 8001
     listenAddress: "0.0.0.0"
     protocol: tcp
   # Worker-1 port mappings (app workloads):
-  #   80    - Frontend (nginx/Vite app, ClusterIP svc:80)
-  #   81    - Frontend Kafka consumer(ClusterIP svc:81) 
-  #   8000  - API Gateway alternate access
-  #   8080  - API Gateway NodePort (host:8001 -> container:8080 -> svc:8080)
+  #   80    - Optional direct ingress/frontend local access
+  #   81    - Optional custom local access
+  #   8000  - API Gateway alternate access (host:8000 -> nodePort:30000 -> svc:8080)
+  #   8001  - API Gateway alternate access (host:8001 -> nodePort:30000 -> svc:8080)
 - role: worker
   image: kindest/node:v1.34.3

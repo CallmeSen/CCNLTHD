@@ -19,29 +19,42 @@ spec:
       containers:
         - name: multi-agents-service
           image: registry.gitlab.com/callmesen-group/ccnlthd/multi-agents-service:latest
+          command:
+            - /app/.venv/bin/uvicorn
+          args:
+            - src.fin_agents.api.main:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8086"
           ports:
             - containerPort: 8086
               name: http
+          envFrom:
+            - configMapRef:
+                name: multi-agents-config
+            - secretRef:
+                name: multi-agents-secrets
           env:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: backend-secrets
+                  name: multi-agents-secrets
                   key: DATABASE_URL
             - name: OPENROUTER_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: backend-secrets
+                  name: multi-agents-secrets
                   key: OPENROUTER_API_KEY
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: backend-secrets
-                  key: OPENROUTER_API_KEY
+                  name: multi-agents-secrets
+                  key: OPENAI_API_KEY
             - name: TAVILY_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: backend-secrets
+                  name: multi-agents-secrets
                   key: TAVILY_API_KEY
             - name: KAFKA_BROKERS
               valueFrom:

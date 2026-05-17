@@ -20,7 +20,7 @@ spec:
   pollingInterval: 30
   cooldownPeriod: 300
   minReplicaCount: 2
-  maxReplicaCount: 10
+  maxReplicaCount: 5
   fallback:
     failureThreshold: 3
     replicas: 2
@@ -47,7 +47,7 @@ spec:
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+        serverAddress: http://prom-kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
         metricName: http_requests_per_second
         threshold: "100"
         query: sum(rate(http_server_requests_seconds_count{job="api-gateway"}[2m]))
@@ -92,7 +92,7 @@ spec:
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+        serverAddress: http://prom-kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
         metricName: http_requests_per_second
         threshold: "50"
         query: sum(rate(http_server_requests_seconds_count{job="user-service"}[2m]))
@@ -137,7 +137,7 @@ spec:
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+        serverAddress: http://prom-kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
         metricName: http_requests_per_second
         threshold: "50"
         query: sum(rate(http_server_requests_seconds_count{job="market-data-service"}[2m]))
@@ -182,7 +182,7 @@ spec:
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+        serverAddress: http://prom-kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
         metricName: http_requests_per_second
         threshold: "50"
         query: sum(rate(http_server_requests_seconds_count{job="portfolio-service"}[2m]))
@@ -224,10 +224,10 @@ spec:
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+        serverAddress: http://prom-kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
         metricName: kafka_consumer_lag
         threshold: "100"
-        query: sum(kafka_consumer_group_lag{consumer_group="notification-consumer"}[2m])
+        query: sum(kafka_consumer_group_lag{consumer_group="notification-service-group"}) or vector(0)
 ---
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
@@ -269,11 +269,11 @@ spec:
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+        serverAddress: http://prom-kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
         metricName: active_sse_connections
         threshold: "10"
-        query: sum(sse_active_connections{service="multi-agents-service"}[2m])
+        query: sum(sse_active_connections{service="multi-agents-service"}) or vector(0)
     - type: cpu
+      metricType: Utilization
       metadata:
-        type: Utilization
         value: "70"

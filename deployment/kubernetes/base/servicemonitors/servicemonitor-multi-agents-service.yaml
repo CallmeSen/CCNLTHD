@@ -22,8 +22,8 @@ spec:
       interval: 15s
       scrapeTimeout: 10s
       honorLabels: true
-  metricRelabelings:
-    - sourceLabels:
-        - __name__
-      regex: "^(python_.*|process_.*|sse_.*|kafka_.*|agent_.*)$"
-      action: keep
+      metricRelabelings:
+        - sourceLabels:
+            - __name__
+          regex: "^(python_.*|process_.*|sse_.*|kafka_.*|agent_.*)$"
+          action: keep

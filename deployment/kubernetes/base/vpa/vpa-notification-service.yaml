@@ -14,7 +14,6 @@ spec:
   updatePolicy:
     updateMode: "Auto"
     minReplicas: 1
-    maxReplicas: 5
   resourcePolicy:
     containerPolicies:
       - containerName: notification-service
