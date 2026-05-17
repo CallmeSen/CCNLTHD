@@ -18,9 +18,9 @@ class TestOrchestratorServiceInit:
 class TestRunStockWorkflow:
     """Test the main stock workflow execution."""
 
-    @patch.object(
-        "src.fin_agents.core.orchestrator.OrchestratorService._load_stock_graph"
-    )
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._save_portfolio_file")
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._save_report_file")
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._load_stock_graph")
     @patch("src.fin_agents.core.orchestrator._ensure_storage")
     @patch("src.fin_agents.core.orchestrator.AdvisoryRequestRepository.create")
     @patch("src.fin_agents.core.orchestrator.AdvisoryRequestRepository.update_status")
@@ -36,6 +36,8 @@ class TestRunStockWorkflow:
         mock_create_req,
         mock_ensure,
         mock_load_graph,
+        mock_save_report,
+        mock_save_portfolio,
         mock_db,
         sample_state,
         sample_portfolio,
@@ -44,13 +46,15 @@ class TestRunStockWorkflow:
         from src.fin_agents.core.orchestrator import OrchestratorService
 
         mock_graph = MagicMock()
-        mock_graph.invoke.return_value = {
-            "final_report": "# Report\nPortfolio generated successfully.",
-            "user_profile": sample_state["user_profile"],
-            "proposed_portfolio": sample_portfolio,
-            "metrics": sample_metrics,
-            "validation_result": {"status": "pass"},
-        }
+        mock_graph.stream.return_value = [
+            {"structure_output": {
+                "final_report": "# Report\nPortfolio generated successfully.",
+                "user_profile": sample_state["user_profile"],
+                "proposed_portfolio": sample_portfolio,
+                "metrics": sample_metrics,
+                "validation_result": {"status": "pass"},
+            }}
+        ]
         mock_load_graph.return_value = mock_graph
 
         service = OrchestratorService(mock_db)
@@ -64,9 +68,9 @@ class TestRunStockWorkflow:
         assert result["final_report"] is not None
         assert "user_profile" in result
 
-    @patch.object(
-        "src.fin_agents.core.orchestrator.OrchestratorService._load_stock_graph"
-    )
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._save_portfolio_file")
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._save_report_file")
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._load_stock_graph")
     @patch("src.fin_agents.core.orchestrator._ensure_storage")
     @patch("src.fin_agents.core.orchestrator.AdvisoryRequestRepository.create")
     @patch("src.fin_agents.core.orchestrator._log_audit")
@@ -76,12 +80,14 @@ class TestRunStockWorkflow:
         mock_create_req,
         mock_ensure,
         mock_load_graph,
+        mock_save_report,
+        mock_save_portfolio,
         mock_db,
     ):
         from src.fin_agents.core.orchestrator import OrchestratorService
 
         mock_graph = MagicMock()
-        mock_graph.invoke.side_effect = Exception("Network timeout")
+        mock_graph.stream.side_effect = Exception("Network timeout")
         mock_load_graph.return_value = mock_graph
 
         service = OrchestratorService(mock_db)
@@ -94,9 +100,9 @@ class TestRunStockWorkflow:
         assert result["error"] is not None
         assert "Network timeout" in result["error"]
 
-    @patch.object(
-        "src.fin_agents.core.orchestrator.OrchestratorService._load_stock_graph"
-    )
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._save_portfolio_file")
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._save_report_file")
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._load_stock_graph")
     @patch("src.fin_agents.core.orchestrator._ensure_storage")
     @patch("src.fin_agents.core.orchestrator.AdvisoryRequestRepository.create")
     @patch("src.fin_agents.core.orchestrator._log_audit")
@@ -106,12 +112,16 @@ class TestRunStockWorkflow:
         mock_create_req,
         mock_ensure,
         mock_load_graph,
+        mock_save_report,
+        mock_save_portfolio,
         mock_db,
     ):
         from src.fin_agents.core.orchestrator import OrchestratorService
 
         mock_graph = MagicMock()
-        mock_graph.invoke.return_value = {"final_report": "# Report"}
+        mock_graph.stream.return_value = [
+            {"result": {"final_report": "# Report"}}
+        ]
         mock_load_graph.return_value = mock_graph
 
         service = OrchestratorService(mock_db)
@@ -121,9 +131,9 @@ class TestRunStockWorkflow:
         )
         assert result["run_id"] == "CUSTOM001"
 
-    @patch.object(
-        "src.fin_agents.core.orchestrator.OrchestratorService._load_stock_graph"
-    )
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._save_portfolio_file")
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._save_report_file")
+    @patch("src.fin_agents.core.orchestrator.OrchestratorService._load_stock_graph")
     @patch("src.fin_agents.core.orchestrator._ensure_storage")
     @patch("src.fin_agents.core.orchestrator.AdvisoryRequestRepository.create")
     @patch("src.fin_agents.core.orchestrator._log_audit")
@@ -133,12 +143,17 @@ class TestRunStockWorkflow:
         mock_create_req,
         mock_ensure,
         mock_load_graph,
+        mock_save_report,
+        mock_save_portfolio,
         mock_db,
     ):
         from src.fin_agents.core.orchestrator import OrchestratorService
 
         mock_graph = MagicMock()
-        mock_graph.invoke.return_value = {"final_report": None}
+        # Stream returns a node with final_report=None
+        mock_graph.stream.return_value = [
+            {"result": {"final_report": None}}
+        ]
         mock_load_graph.return_value = mock_graph
 
         service = OrchestratorService(mock_db)
@@ -192,7 +207,8 @@ class TestSaveFileHelpers:
     """Test file save helpers."""
 
     def test_save_report_file(self, mock_db, tmp_storage, monkeypatch):
-        monkeypatch.setenv("STORAGE_BASE", str(tmp_storage))
+        import src.fin_agents.core.orchestrator as orch_mod
+        monkeypatch.setattr(orch_mod, "STORAGE_REPORTS", str(tmp_storage / "reports"))
         from src.fin_agents.core.orchestrator import OrchestratorService
         service = OrchestratorService(mock_db)
         service._save_report_file("TEST001", "# Test Report\nContent here.")
@@ -202,7 +218,8 @@ class TestSaveFileHelpers:
         assert "# Test Report" in content
 
     def test_save_report_file_empty_content(self, mock_db, tmp_storage, monkeypatch):
-        monkeypatch.setenv("STORAGE_BASE", str(tmp_storage))
+        import src.fin_agents.core.orchestrator as orch_mod
+        monkeypatch.setattr(orch_mod, "STORAGE_REPORTS", str(tmp_storage / "reports"))
         from src.fin_agents.core.orchestrator import OrchestratorService
         service = OrchestratorService(mock_db)
         service._save_report_file("TEST002", "")
@@ -210,7 +227,8 @@ class TestSaveFileHelpers:
         assert report_path.exists()
 
     def test_save_portfolio_file(self, mock_db, tmp_storage, monkeypatch, sample_portfolio):
-        monkeypatch.setenv("STORAGE_BASE", str(tmp_storage))
+        import src.fin_agents.core.orchestrator as orch_mod
+        monkeypatch.setattr(orch_mod, "STORAGE_PORTFOLIOS", str(tmp_storage / "portfolios"))
         from src.fin_agents.core.orchestrator import OrchestratorService
         service = OrchestratorService(mock_db)
         service._save_portfolio_file("TEST003", sample_portfolio)
@@ -222,7 +240,8 @@ class TestSaveFileHelpers:
         assert data["AAPL"] == 0.4
 
     def test_save_portfolio_file_skipped_when_none(self, mock_db, tmp_storage, monkeypatch):
-        monkeypatch.setenv("STORAGE_BASE", str(tmp_storage))
+        import src.fin_agents.core.orchestrator as orch_mod
+        monkeypatch.setattr(orch_mod, "STORAGE_PORTFOLIOS", str(tmp_storage / "portfolios"))
         from src.fin_agents.core.orchestrator import OrchestratorService
         service = OrchestratorService(mock_db)
         service._save_portfolio_file("TEST004", None)
