@@ -1,4 +1,5 @@
 import { apiClient, TOKEN_KEY } from './apiClient';
+import { API_BASE_URL, isMockApiEnabled } from '../config/runtimeEnv';
 import { saveReportHistory } from './reportHistory';
 import type {
   AgentMessage,
@@ -50,7 +51,7 @@ function detectMessageLanguage(message: string): 'en' | 'vi' {
 
 function isMockSession(sessionId?: string | null) {
   return (
-    import.meta.env.VITE_MOCK_API === 'true' ||
+    isMockApiEnabled() ||
     localStorage.getItem('mockBackend') === '1' ||
     Boolean(sessionId?.startsWith('mock-'))
   );
@@ -72,9 +73,10 @@ function toAgentMessage(message: ChatMessageItem | any, index: number): AgentMes
 
 export function getSessionEventUrl(sessionId: string) {
   const token = localStorage.getItem(TOKEN_KEY);
+  const apiBaseUrl = API_BASE_URL.replace(/\/$/, '');
   return token
-    ? `/api${BASE_URL}/sessions/${sessionId}/events?token=${encodeURIComponent(token)}`
-    : `/api${BASE_URL}/sessions/${sessionId}/events`;
+    ? `${apiBaseUrl}${BASE_URL}/sessions/${sessionId}/events?token=${encodeURIComponent(token)}`
+    : `${apiBaseUrl}${BASE_URL}/sessions/${sessionId}/events`;
 }
 
 export const sessionApi = {

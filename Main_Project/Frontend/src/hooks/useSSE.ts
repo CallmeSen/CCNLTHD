@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAgentStore } from '../store/useAgentStore';
 import { getSessionEventUrl, sessionApi } from '../services/sessionApi';
 import { saveReportHistory } from '../services/reportHistory';
+import { isMockApiEnabled } from '../config/runtimeEnv';
 import type { ParsedSSEMessage, ToolCallEntry } from '../types/agent';
 
 interface UseSSEOptions {
@@ -250,7 +251,7 @@ export function useSSE(options: UseSSEOptions = {}) {
       store.setSseStatus('connecting');
 
       const useMock =
-        import.meta.env.VITE_MOCK_API === 'true' ||
+        isMockApiEnabled() ||
         localStorage.getItem('mockBackend') === '1' ||
         urlOrSessionId.startsWith('mock-');
 

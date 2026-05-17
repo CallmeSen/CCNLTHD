@@ -58,15 +58,23 @@ spec:
               mountPath: /var/lib/kafka/data
           livenessProbe:
             exec:
-              command: ["kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+              command: ["bash", "-c", "nc -z localhost 9092"]
             initialDelaySeconds: 60
-            timeoutSeconds: 15
+            timeoutSeconds: 5
             periodSeconds: 15
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command: ["bash", "-c", "nc -z localhost 9092"]
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+            periodSeconds: 10
+            failureThreshold: 6
           startupProbe:
             exec:
-              command: ["kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+              command: ["bash", "-c", "nc -z localhost 9092"]
             initialDelaySeconds: 30
-            timeoutSeconds: 15
+            timeoutSeconds: 5
             periodSeconds: 10
             failureThreshold: 30
   volumeClaimTemplates:

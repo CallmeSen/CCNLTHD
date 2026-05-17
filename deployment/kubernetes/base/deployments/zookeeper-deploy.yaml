@@ -41,8 +41,17 @@ spec:
           livenessProbe:
             exec:
               command: ["bash", "-c", "echo srvr | nc localhost 2181 | grep -q Mode"]
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
             periodSeconds: 10
+            failureThreshold: 6
+          startupProbe:
+            exec:
+              command: ["bash", "-c", "echo srvr | nc localhost 2181 | grep -q Mode"]
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+            periodSeconds: 10
+            failureThreshold: 30
   volumeClaimTemplates:
     - metadata:
         name: zookeeper-data
