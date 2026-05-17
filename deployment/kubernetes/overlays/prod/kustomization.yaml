@@ -9,21 +9,21 @@ commonLabels:
 
 replicas:
   - name: api-gateway
-    count: 5
-  - name: user-service
-    count: 5
-  - name: market-data-service
-    count: 5
-  - name: portfolio-service
-    count: 5
-  - name: notification-service
-    count: 3
-  - name: multi-agents-service
-    count: 5
-  - name: eureka-server
     count: 2
+  - name: user-service
+    count: 2
+  - name: market-data-service
+    count: 2
+  - name: portfolio-service
+    count: 2
+  - name: notification-service
+    count: 1
+  - name: multi-agents-service
+    count: 2
+  - name: eureka-server
+    count: 1
   - name: frontend
-    count: 5
+    count: 2
 
 images:
   - name: registry.gitlab.com/callmesen-group/ccnlthd/api-gateway
