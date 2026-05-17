@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - namespaces/namespace.yaml
+  - secrets/backend-secrets.yaml
   - configmaps/postgres-initdb-config.yaml
   - configmaps/backend-config.yaml
   - configmaps/frontend-config.yaml
