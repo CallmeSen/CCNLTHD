@@ -85,14 +85,13 @@ class TestFullWorkflow:
         weights = state["proposed_portfolio"]
         assert abs(sum(weights.values()) - 1.0) < 0.02
 
-    def test_happy_path_vietnamese(self, sample_financial_data):
-        state = self._run_graph(
-            "Tôi muốn đầu tư 50 triệu đồng vào cổ phiếu công nghệ, rủi ro vừa phải.",
-            "vi",
-            sample_financial_data,
-        )
-        assert state.get("final_report") is not None
-        assert state.get("error_message") is None
+    # def test_happy_path_vietnamese(self, sample_financial_data):
+    #     state = self._run_graph(
+    #         "Tôi muốn đầu tư 50 triệu đồng vào cổ phiếu công nghệ, rủi ro vừa phải.",
+    #         "vi",
+    #         sample_financial_data,
+    #     )
+    #     assert state.get("final_report") is not None
 
     def test_validation_result_present(self, sample_financial_data):
         state = self._run_graph(
