@@ -25,6 +25,11 @@
 #   VNSTOCK_API_KEY   → protected, masked
 #   GITLAB_API_TOKEN  → protected, masked  (write access for k8s manifest updates)
 #   KUBECONFIG        → protected          (kubeconfig for cluster access)
+#
+# Oracle Cloud deploy variables:
+#   ORACLE_HOST       → 161.118.195.15
+#   ORACLE_USER       → ubuntu
+#   ORACLE_SSH_KEY    → type: File, nội dung file .key (protected)
 # ──────────────────────────────────────────────────────────────────────────────
 
 stages:
@@ -672,10 +677,48 @@ docker:multi-agents-service:
         Main_Project/Backend/multi-agents-service/
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STAGE: DEPLOY
-# Update k8s manifests with image tags and push to Git, triggering Argo CD.
-# when: manual — requires explicit trigger after docker images are pushed.
+# STAGE: DEPLOY — 2 luồng độc lập
+#
+# Luồng 1 — Oracle Cloud VM (deploy:oracle):
+#   Không cần docker stage. SSH vào VM, git pull, docker compose up --build.
+#   Cần: ORACLE_HOST, ORACLE_USER, ORACLE_SSH_KEY (File type).
+#   Trigger: sau khi test-integration pass, nhấn thủ công.
+#
+# Luồng 2 — ArgoCD / Kubernetes local (deploy:manifest + deploy:secrets):
+#   Cần docker stage push image lên GitLab Registry trước.
+#   deploy:manifest cập nhật image tag trong k8s/*, push git → ArgoCD tự sync.
+#   deploy:secrets apply Secret vào cluster.
+#   Cần: KUBECONFIG (base64), GITLAB_API_TOKEN.
 # ─────────────────────────────────────────────────────────────────────────────
+
+deploy:oracle:
+  stage: deploy
+  image: alpine:3.19
+  timeout: 15 minutes
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    - apk add --no-cache openssh-client
+    - chmod 600 "$ORACLE_SSH_KEY"
+  script:
+    - |
+      ssh -o StrictHostKeyChecking=no \
+          -o ConnectTimeout=30 \
+          -i "$ORACLE_SSH_KEY" \
+          $ORACLE_USER@$ORACLE_HOST bash << 'ENDSSH'
+        set -e
+        echo "=== Pulling latest code ==="
+        cd ~/CCNLTHD
+        git pull origin main
+
+        echo "=== Restarting services ==="
+        cd Main_Project/Backend
+        docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build
+
+        echo "=== Running containers ==="
+        docker ps --format "table {{.Names}}\t{{.Status}}"
+      ENDSSH
 
 deploy:manifest:
   stage: deploy
