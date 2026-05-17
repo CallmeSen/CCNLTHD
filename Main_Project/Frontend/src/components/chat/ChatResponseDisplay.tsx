@@ -16,6 +16,7 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ChevronDown, CheckCircle, AlertCircle, XCircle, Loader } from "lucide-react";
+import { normalizeInlineMarkdownTables } from "../../lib/markdown";
 
 /**
  * Interface định nghĩa cấu trúc JSON output từ AI
@@ -146,7 +147,7 @@ function MarkdownContent({ content }: { content: string }) {
           ),
         }}
       >
-        {content}
+        {normalizeInlineMarkdownTables(content)}
       </ReactMarkdown>
     </div>
   );

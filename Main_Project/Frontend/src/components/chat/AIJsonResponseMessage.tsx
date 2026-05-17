@@ -23,6 +23,7 @@ import {
   AlertCircle,
   XCircle,
 } from 'lucide-react';
+import { normalizeInlineMarkdownTables } from '../../lib/markdown';
 
 /**
  * Interface cho AI JSON Response theo spec
@@ -191,7 +192,7 @@ function MarkdownContent({ content }: { content: string }) {
           ),
         }}
       >
-        {content}
+        {normalizeInlineMarkdownTables(content)}
       </ReactMarkdown>
     </div>
   );

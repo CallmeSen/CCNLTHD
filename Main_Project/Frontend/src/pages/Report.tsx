@@ -35,6 +35,10 @@ import {
 import { apiClient } from "../services/apiClient";
 import { sessionApi } from "../services/sessionApi";
 import { useAgentStore } from "../store/useAgentStore";
+import { normalizeInlineMarkdownTables } from "../lib/markdown";
+import { dedupeNewsItems, parseContentWithMarketNews, parseMarketNewsField } from "../lib/marketNews";
+import { LinkPreview } from "../components/chat/LinkPreview";
+import { MarketNewsLinks } from "../components/chat/MarketNewsLinks";
 import type { AnalyzeResponse, ValidationResult } from "../types/agent";
 
 type ReportResponse = AnalyzeResponse & {
@@ -252,7 +256,7 @@ function LLMChatMessage({ commentary }: { commentary: string | null | undefined 
           "prose-li:text-muted-foreground",
         )}
       >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{commentary}</ReactMarkdown>
+        <MarkdownWithNews content={commentary} />
       </div>
     </div>
   );
@@ -263,27 +267,34 @@ function NewsSection({ news }: { news: string | null | undefined }) {
     return null;
   }
 
+  const parsedNews = parseContentWithMarketNews(news);
+  const newsItems = dedupeNewsItems([...parsedNews.newsItems, ...parseMarketNewsField(news)]);
+
   return (
     <div className="card p-5">
       <div className="flex items-center gap-2 mb-4">
         <Newspaper className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-bold text-foreground">Market News</h3>
       </div>
-      <div className="space-y-3">
-        {news
-          .split("\n")
-          .filter(Boolean)
-          .map((item, i) => {
-            const clean = item.replace(/^[-*]\s*/, "").trim();
-            if (!clean) return null;
-            return (
-              <div key={i} className="flex gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/50 mt-2 flex-shrink-0" />
-                <p className="text-sm text-muted-foreground leading-relaxed">{clean}</p>
-              </div>
-            );
-          })}
-      </div>
+      {newsItems.length > 0 ? (
+        <MarketNewsLinks items={newsItems} />
+      ) : (
+        <div className="space-y-3">
+          {news
+            .split("\n")
+            .filter(Boolean)
+            .map((item, i) => {
+              const clean = item.replace(/^[-*]\s*/, "").trim();
+              if (!clean) return null;
+              return (
+                <div key={i} className="flex gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary/50 mt-2 flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground leading-relaxed">{clean}</p>
+                </div>
+              );
+            })}
+        </div>
+      )}
     </div>
   );
 }
@@ -338,6 +349,35 @@ function ValidationBadge({ result }: { result?: ValidationBadgeResult }) {
   );
 }
 
+function MarkdownWithNews({ content }: { content: string }) {
+  const parsedContent = parseContentWithMarketNews(content);
+  const marketNewsData = dedupeNewsItems([...parsedContent.newsItems, ...parseMarketNewsField(content)]);
+
+  return (
+    <>
+      {parsedContent.segments.map((segment, index) =>
+        segment.type === "market-news" ? (
+          <MarketNewsLinks key={`news-${index}`} items={segment.items} />
+        ) : (
+          <ReactMarkdown
+            key={`markdown-${index}`}
+            remarkPlugins={[remarkGfm]}
+            components={{
+              a: ({ href, children }) => (
+                <LinkPreview href={href ?? ""} newsData={marketNewsData}>
+                  {children}
+                </LinkPreview>
+              ),
+            }}
+          >
+            {normalizeInlineMarkdownTables(segment.content)}
+          </ReactMarkdown>
+        ),
+      )}
+    </>
+  );
+}
+
 function MarkdownContent({ content }: { content: string }) {
   return (
     <div
@@ -357,7 +397,7 @@ function MarkdownContent({ content }: { content: string }) {
         "prose-blockquote:border-l-primary/30 prose-blockquote:text-muted-foreground",
       )}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      <MarkdownWithNews content={content} />
     </div>
   );
 }

@@ -179,6 +179,22 @@ export const useAgentStore = create<AgentStoreState>()(
           const session = await sessionApi.getMessages(sessionId);
           const messages = session.messages || [];
           sessionCache.set(sessionId, messages);
+
+          const currentToolCalls = get().toolCalls;
+          const currentSessionId = get().sessionId;
+          const isSameSession = currentSessionId === sessionId && currentToolCalls.length > 0;
+
+          let persistedToolCalls: ToolCallEntry[] = [];
+          try {
+            const raw = localStorage.getItem('agent-store');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              persistedToolCalls = parsed.state?.toolCalls || [];
+            }
+          } catch {
+            // ignore parse errors
+          }
+
           set({
             sessionId: session.session_id || sessionId,
             messages,
@@ -186,7 +202,11 @@ export const useAgentStore = create<AgentStoreState>()(
             status: 'idle',
             error: null,
             streamingText: '',
-            toolCalls: [],
+            toolCalls: isSameSession
+              ? currentToolCalls
+              : persistedToolCalls.length > 0
+                ? persistedToolCalls
+                : [],
             isStreaming: false,
           });
         } catch (err) {
@@ -204,6 +224,7 @@ export const useAgentStore = create<AgentStoreState>()(
       partialize: (state) => ({
         messages: state.messages,
         sessionId: state.sessionId,
+        toolCalls: state.toolCalls,
       }),
     },
   ),

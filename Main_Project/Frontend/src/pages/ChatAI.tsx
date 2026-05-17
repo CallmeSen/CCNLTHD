@@ -56,6 +56,7 @@ export default function ChatAI() {
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const rafRef = useRef(0);
+  const ignoredUrlSessionRef = useRef<string | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionListItem[]>([]);
@@ -117,9 +118,14 @@ export default function ChatAI() {
   }, [isNearBottom]);
 
   useEffect(() => {
-    if (!urlSessionId || urlSessionId === sessionId) return;
+    if (!urlSessionId) {
+      ignoredUrlSessionRef.current = null;
+      return;
+    }
+    if (ignoredUrlSessionRef.current === urlSessionId) return;
+    if (urlSessionId === sessionId && (status === 'streaming' || toolCalls.length > 0)) return;
     useAgentStore.getState().loadSession(urlSessionId);
-  }, [sessionId, urlSessionId]);
+  }, [sessionId, status, urlSessionId, toolCalls.length]);
 
   useEffect(() => {
     scrollToBottom();
@@ -149,6 +155,7 @@ export default function ChatAI() {
   };
 
   const selectSession = async (id: string) => {
+    ignoredUrlSessionRef.current = null;
     disconnect();
     setSessionsOpen(false);
     setSearchParams({ session: id }, { replace: true });
@@ -156,9 +163,11 @@ export default function ChatAI() {
   };
 
   const startNewChat = () => {
+    ignoredUrlSessionRef.current = urlSessionId;
     disconnect();
     useAgentStore.getState().reset();
     setInput('');
+    setSessionsOpen(false);
     setSearchParams({}, { replace: true });
     inputRef.current?.focus();
   };

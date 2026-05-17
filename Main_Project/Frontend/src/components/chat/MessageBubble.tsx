@@ -11,7 +11,11 @@ import {
   User,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { normalizeInlineMarkdownTables } from '../../lib/markdown';
+import { dedupeNewsItems, parseContentWithMarketNews, parseMarketNewsField } from '../../lib/marketNews';
 import type { AgentMessage } from '../../types/agent';
+import { LinkPreview } from './LinkPreview';
+import { MarketNewsLinks } from './MarketNewsLinks';
 
 interface MessageBubbleProps {
   message: AgentMessage;
@@ -107,7 +111,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
           <User className="w-4 h-4" />
         </div>
         <div className="flex-1 max-w-[80%] rounded-2xl px-4 py-3 bg-primary text-primary-foreground rounded-tr-sm">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">{message.content}</p>
           <p className="text-[10px] mt-1.5 text-primary-foreground/70">
             {new Date(message.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
           </p>
@@ -116,6 +120,12 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
     );
   }
 
+  const parsedContent = parseContentWithMarketNews(message.content);
+  const marketNewsData = dedupeNewsItems([
+    ...parsedContent.newsItems,
+    ...parseMarketNewsField((message as AgentMessage & { market_news?: string | null }).market_news),
+  ]);
+
   return (
     <div className="flex gap-3 animate-slide-up">
       <div className="w-8 h-8 rounded-xl bg-muted text-muted-foreground flex items-center justify-center shrink-0">
@@ -123,21 +133,33 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
       </div>
       <div className="flex-1 max-w-[80%] rounded-2xl px-4 py-3 bg-card border border-border shadow-sm rounded-tl-sm">
         <div className="prose prose-sm max-w-none">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              pre: ({ children }) => <pre className="bg-muted rounded-xl p-3 overflow-x-auto my-2">{children}</pre>,
-              code: ({ children, className }) => {
-                const isInline = !className;
-                if (isInline) {
-                  return <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>;
-                }
-                return <code className={className}>{children}</code>;
-              },
-            }}
-          >
-            {message.content}
-          </ReactMarkdown>
+          {parsedContent.segments.map((segment, index) =>
+            segment.type === 'market-news' ? (
+              <MarketNewsLinks key={`news-${index}`} items={segment.items} />
+            ) : (
+              <ReactMarkdown
+                key={`markdown-${index}`}
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  pre: ({ children }) => <pre className="bg-muted rounded-xl p-3 overflow-x-auto my-2">{children}</pre>,
+                  code: ({ children, className }) => {
+                    const isInline = !className;
+                    if (isInline) {
+                      return <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>;
+                    }
+                    return <code className={className}>{children}</code>;
+                  },
+                  a: ({ href, children }) => (
+                    <LinkPreview href={href ?? ''} newsData={marketNewsData}>
+                      {children}
+                    </LinkPreview>
+                  ),
+                }}
+              >
+                {normalizeInlineMarkdownTables(segment.content)}
+              </ReactMarkdown>
+            ),
+          )}
           {isStreaming && <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse rounded" />}
         </div>
 

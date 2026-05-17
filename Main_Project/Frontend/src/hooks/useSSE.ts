@@ -47,15 +47,13 @@ export function useSSE(options: UseSSEOptions = {}) {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const doneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingToolUpdatesRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const maxReconnectAttempts = 5;
   const reconnectDelay = 3000;
 
   const disconnect = useCallback(() => {
-    if (doneTimerRef.current) {
-      clearTimeout(doneTimerRef.current);
-      doneTimerRef.current = null;
-    }
+    pendingToolUpdatesRef.current.forEach((timer) => clearTimeout(timer));
+    pendingToolUpdatesRef.current.clear();
 
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
@@ -137,21 +135,23 @@ export function useSSE(options: UseSSEOptions = {}) {
             const toolId = String(data.id || data.tool || data.name || '');
             if (!toolId) break;
 
-            if (doneTimerRef.current) {
-              clearTimeout(doneTimerRef.current);
-              doneTimerRef.current = null;
+            if (pendingToolUpdatesRef.current.has(toolId)) {
+              clearTimeout(pendingToolUpdatesRef.current.get(toolId)!);
             }
 
-            doneTimerRef.current = setTimeout(() => {
-              store.updateToolCall(toolId, {
-                status: data.error || data.status === 'error' ? 'error' : 'done',
-                result: data.result,
-                error: data.error ? String(data.error) : undefined,
-                preview: data.preview ? String(data.preview) : undefined,
-                elapsed_ms: data.elapsed_ms ? Number(data.elapsed_ms) : undefined,
-              });
-              doneTimerRef.current = null;
-            }, 250);
+            pendingToolUpdatesRef.current.set(
+              toolId,
+              setTimeout(() => {
+                store.updateToolCall(toolId, {
+                  status: data.error || data.status === 'error' ? 'error' : 'done',
+                  result: data.result,
+                  error: data.error ? String(data.error) : undefined,
+                  preview: data.preview ? String(data.preview) : undefined,
+                  elapsed_ms: data.elapsed_ms ? Number(data.elapsed_ms) : undefined,
+                });
+                pendingToolUpdatesRef.current.delete(toolId);
+              }, 250),
+            );
             break;
           }
 
