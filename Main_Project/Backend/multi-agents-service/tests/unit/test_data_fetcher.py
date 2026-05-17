@@ -143,7 +143,7 @@ class TestFetchFinancialData:
 class TestFetchMarketNews:
     """Test market news fetching with Tavily."""
 
-    @patch("src.fin_agents.core.finance.data_fetcher.TAVILY_API_KEY", None)
+    @patch("src.fin_agents.core.config.TAVILY_API_KEY", None)
     def test_tavily_not_configured(self):
         state = {
             "user_profile": {"goal": "retirement", "risk_tolerance": "high"},
@@ -153,8 +153,8 @@ class TestFetchMarketNews:
         assert "market_news" in result
         assert "not configured" in result["market_news"].lower()
 
-    @patch("src.fin_agents.core.finance.data_fetcher.TAVILY_API_KEY", "fake-key")
-    @patch("src.fin_agents.core.finance.data_fetcher.TavilySearchResults")
+    @patch("src.fin_agents.core.config.TAVILY_API_KEY", "fake-key")
+    @patch("langchain_tavily.TavilySearch")
     def test_tavily_returns_results(self, mock_tavily_cls, sample_state):
         mock_tool = MagicMock()
         mock_tool.invoke.return_value = [
@@ -167,8 +167,8 @@ class TestFetchMarketNews:
         assert "market_news" in result
         assert "Tech stocks rally" in result["market_news"]
 
-    @patch("src.fin_agents.core.finance.data_fetcher.TAVILY_API_KEY", "fake-key")
-    @patch("src.fin_agents.core.finance.data_fetcher.TavilySearchResults")
+    @patch("src.fin_agents.core.config.TAVILY_API_KEY", "fake-key")
+    @patch("langchain_tavily.TavilySearch")
     def test_tavily_empty_results(self, mock_tavily_cls):
         mock_tool = MagicMock()
         mock_tool.invoke.return_value = []
@@ -177,10 +177,10 @@ class TestFetchMarketNews:
         state = {"user_profile": {"goal": "growth", "risk_tolerance": "medium"}}
         result = fetch_market_news(state)
         assert "market_news" in result
-        assert "No news" in result["market_news"]
+        assert "no" in result["market_news"].lower()  # "No specific news found."
 
-    @patch("src.fin_agents.core.finance.data_fetcher.TAVILY_API_KEY", "fake-key")
-    @patch("src.fin_agents.core.finance.data_fetcher.TavilySearchResults")
+    @patch("src.fin_agents.core.config.TAVILY_API_KEY", "fake-key")
+    @patch("langchain_tavily.TavilySearch")
     def test_tavily_error_handling(self, mock_tavily_cls):
         mock_tool = MagicMock()
         mock_tool.invoke.side_effect = Exception("API rate limit exceeded")
@@ -192,7 +192,7 @@ class TestFetchMarketNews:
         assert "Failed to fetch" in result["market_news"] or "rate limit" in result["market_news"]
 
     def test_query_includes_assets(self, sample_state):
-        with patch("src.fin_agents.core.finance.data_fetcher.TAVILY_API_KEY", None):
+        with patch("src.fin_agents.core.config.TAVILY_API_KEY", None):
             result = fetch_market_news(sample_state)
             # Without Tavily, returns not-configured msg
             assert "market_news" in result

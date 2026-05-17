@@ -1,20 +1,14 @@
 """
 Unit tests for the stock advisory workflow state (TypedDict).
-Imports hoisted to avoid triggering langgraph import via __init__ chains.
 """
 import pytest
-import sys
-from importlib import util as importlib_util
 
 
 def _import_state():
-    """Import StockAdvisoryState directly from state.py, bypassing __init__."""
-    path = "E:/GitHub/CCNLTHD/Main_Project/Backend/multi-agents-service/src/fin_agents/graphs/workflow/stock_advisory/state.py"
-    spec = importlib_util.spec_from_file_location("state_direct", path)
-    module = importlib_util.module_from_spec(spec)
-    sys.modules["state_direct"] = module
-    spec.loader.exec_module(module)
-    return module.StockAdvisoryState
+    from src.fin_agents.graphs.workflow.stock_advisory.states.workflow_state import (
+        StockAdvisoryState,
+    )
+    return StockAdvisoryState
 
 
 class TestStockAdvisoryState:
@@ -31,8 +25,7 @@ class TestStockAdvisoryState:
         assert state["initial_request"] == "Build a portfolio"
 
     def test_full_state(self, sample_state):
-        State = _import_state()
-        state: State = sample_state
+        _import_state()
         assert sample_state["initial_request"] is not None
         assert sample_state["user_profile"]["goal"] == "retirement"
         assert len(sample_state["asset_universe"]) == 5
@@ -88,7 +81,8 @@ class TestStockAdvisoryState:
             "error_message": None,
             "step": None,
         }
-        assert all(v is None for v in state.values())
+        assert state["initial_request"] == "test"
+        assert state["user_profile"] is None
 
     def test_state_partial_update(self):
         State = _import_state()

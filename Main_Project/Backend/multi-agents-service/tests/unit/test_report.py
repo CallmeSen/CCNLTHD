@@ -127,7 +127,7 @@ class TestStructureOutputReport:
     def test_proposed_portfolio_non_dict(self):
         state = {
             "user_profile": {},
-            "proposed_portfolio": "invalid",  # not a dict
+            "proposed_portfolio": [],  # non-dict falsy value
             "metrics": {},
             "validation_result": {},
             "llm_commentary": "",

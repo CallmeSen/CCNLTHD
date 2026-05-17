@@ -113,7 +113,8 @@ class TestCreatePortfolioMetricsBar:
 
     def test_bar_labels(self, sample_metrics):
         fig = create_portfolio_metrics_bar(sample_metrics)
-        labels = [l.text for l in fig.layout.xaxis.ticktext]
+        # Labels come from bar's x data, not from ticktext
+        labels = list(fig.data[0].x)
         assert len(labels) > 0
 
     def test_bar_text_formatted(self, sample_metrics):
