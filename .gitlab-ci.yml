@@ -550,15 +550,12 @@ test:integration:notification-service:
 
 # Integration tests for multi-agents-service (tests/integration/).
 # DB and orchestrator are mocked — SQLite is enough, no PostgreSQL service needed.
-# Needs unit tests to pass first.
+# Runs after the full test-unit stage passes.
 test:integration:multi-agents-service:
   image: python:3.12-slim
   stage: test-integration
   extends: .python-cache
   timeout: 20 minutes
-  needs:
-    - job: test:unit:multi-agents-service
-      optional: false
   variables:
     LANGCHAIN_TRACING_V2: "false"
     DATABASE_URL: "sqlite:///./ci_integration_test.db"
@@ -594,9 +591,6 @@ test:langsmith:multi-agents:
   extends: .python-cache
   timeout: 30 minutes
   allow_failure: true
-  needs:
-    - job: test:integration:multi-agents-service
-      optional: true
   variables:
     LANGCHAIN_TRACING_V2: "true"
     LANGCHAIN_PROJECT: "${LANGCHAIN_PROJECT:-invest-advisor-ci}-$CI_COMMIT_SHORT_SHA"
@@ -632,25 +626,21 @@ test:langsmith:multi-agents:
   services:
     - name: docker:24-dind
       alias: docker
+      command: ["--tls=false"]
   variables:
-    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
     DOCKER_BUILDKIT: "1"
     BUILDKIT_PROGRESS: "plain"
   before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-    - docker buildx install --default 2>/dev/null || true
-    - docker buildx create --use --name multi-builder 2>/dev/null || docker buildx use multi-builder
+    - docker info
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
   rules:
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
     - if: $CI_COMMIT_TAG =~ /^v.*/
 
 docker:user-service:
   extends: .docker-template
-  needs:
-    - job: test:integration:user-service
-      optional: true
-    - job: build:user-service
-      optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/user-service"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/user-service/
@@ -658,11 +648,6 @@ docker:user-service:
 
 docker:portfolio-service:
   extends: .docker-template
-  needs:
-    - job: test:integration:portfolio-service
-      optional: true
-    - job: build:portfolio-service
-      optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/portfolio-service"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/portfolio-service/
@@ -670,11 +655,6 @@ docker:portfolio-service:
 
 docker:notification-service:
   extends: .docker-template
-  needs:
-    - job: test:integration:notification-service
-      optional: true
-    - job: build:notification-service
-      optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/notification-service"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/notification-service/
@@ -682,9 +662,6 @@ docker:notification-service:
 
 docker:api-gateway:
   extends: .docker-template
-  needs:
-    - job: build:api-gateway
-      optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/api-gateway"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/api-gateway/
@@ -692,9 +669,6 @@ docker:api-gateway:
 
 docker:eureka-server:
   extends: .docker-template
-  needs:
-    - job: build:eureka-server
-      optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/eureka-server"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/eureka-server/
@@ -702,11 +676,6 @@ docker:eureka-server:
 
 docker:market-data-service:
   extends: .docker-template
-  needs:
-    - job: test:unit:market-data-service
-      optional: true
-    - job: build:market-data-service
-      optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/market-data-service"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/market-data-service/
@@ -714,9 +683,6 @@ docker:market-data-service:
 
 docker:frontend:
   extends: .docker-template
-  needs:
-    - job: build:frontend
-      optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/frontend"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Frontend/
@@ -725,13 +691,10 @@ docker:frontend:
 docker:multi-agents-service:
   extends: .docker-template
   timeout: 40 minutes
-  needs:
-    - job: test:integration:multi-agents-service
-      optional: true
-    - job: build:multi-agents-service
-      optional: true
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/multi-agents-service"
+    - docker buildx create --use --name multi-builder || docker buildx use multi-builder
+    - docker buildx inspect --bootstrap
     - |
       docker buildx build --push --platform linux/amd64 \
         --build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -761,15 +724,6 @@ deploy:oracle:
   image: alpine:3.19
   timeout: 20 minutes
   when: manual
-  needs:
-    - job: test:unit:multi-agents-service
-      optional: true
-    - job: test:integration:multi-agents-service
-      optional: true
-    - job: test:integration:user-service
-      optional: true
-    - job: test:integration:portfolio-service
-      optional: true
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
