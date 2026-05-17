@@ -6,6 +6,11 @@ BACKEND_ENV_PATH="${BACKEND_ENV_PATH:-Main_Project/Backend/.env}"
 MULTI_AGENTS_ENV_PATH="${MULTI_AGENTS_ENV_PATH:-Main_Project/Backend/multi-agents-service/.env}"
 FRONTEND_ENV_PATH="${FRONTEND_ENV_PATH:-Main_Project/Frontend/.env}"
 RESTART="${RESTART:-false}"
+INGRESS_NAME="${INGRESS_NAME:-investadvisor-ingress}"
+LOCAL_INGRESS_ADDRESS="${LOCAL_INGRESS_ADDRESS:-127.0.0.1}"
+PATCH_LOCAL_INGRESS_STATUS="${PATCH_LOCAL_INGRESS_STATUS:-auto}"
+ARGO_APPLICATION_NAME="${ARGO_APPLICATION_NAME:-investadvisor}"
+ARGO_NAMESPACE="${ARGO_NAMESPACE:-argocd}"
 
 dotenv_get() {
   file="$1"
@@ -82,6 +87,44 @@ annotate_env_resource() {
     argocd.argoproj.io/compare-options=IgnoreExtraneous \
     --overwrite >/dev/null
   kubectl annotate "$kind" "$name" -n "$NAMESPACE" argocd.argoproj.io/tracking-id- --overwrite >/dev/null 2>&1 || true
+}
+
+patch_local_ingress_status() {
+  case "$PATCH_LOCAL_INGRESS_STATUS" in
+    false|0|no) return 0 ;;
+  esac
+
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  if [ "$PATCH_LOCAL_INGRESS_STATUS" = "auto" ]; then
+    case "$context" in
+      kind-*) ;;
+      *)
+        echo "Skipping local Ingress status patch: context '$context' is not a kind context."
+        return 0
+        ;;
+    esac
+  fi
+
+  if ! kubectl get ingress "$INGRESS_NAME" -n "$NAMESPACE" >/dev/null 2>&1; then
+    echo "Skipping local Ingress status patch: ingress '$INGRESS_NAME' was not found in namespace '$NAMESPACE'."
+    return 0
+  fi
+
+  existing_address="$(kubectl get ingress "$INGRESS_NAME" -n "$NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)"
+  if [ -n "$existing_address" ]; then
+    echo "Ingress '$INGRESS_NAME' already has address '$existing_address'."
+    return 0
+  fi
+
+  patch_file="$(mktemp)"
+  printf '%s\n' "{\"status\":{\"loadBalancer\":{\"ingress\":[{\"ip\":\"$LOCAL_INGRESS_ADDRESS\"}]}}}" > "$patch_file"
+  kubectl patch ingress "$INGRESS_NAME" -n "$NAMESPACE" --subresource=status --type=merge --patch-file "$patch_file" >/dev/null
+  rm -f "$patch_file"
+  echo "Patched local kind Ingress '$INGRESS_NAME' status address to $LOCAL_INGRESS_ADDRESS."
+
+  if kubectl get application "$ARGO_APPLICATION_NAME" -n "$ARGO_NAMESPACE" >/dev/null 2>&1; then
+    kubectl annotate application "$ARGO_APPLICATION_NAME" -n "$ARGO_NAMESPACE" argocd.argoproj.io/refresh=hard --overwrite >/dev/null
+  fi
 }
 
 DB_PASSWORD_VALUE="$(pick_value DB_PASSWORD "$BACKEND_ENV_PATH")"
@@ -205,6 +248,7 @@ kubectl create configmap frontend-env \
   --from-env-file "$frontend_env_file" \
   --dry-run=client -o yaml | kubectl apply -f -
 annotate_env_resource configmap frontend-env
+patch_local_ingress_status
 
 echo "Applied Kubernetes env resources from environment/.env files. Values hidden."
 kubectl get secret backend-secrets multi-agents-secrets mail-secrets -n "$NAMESPACE"

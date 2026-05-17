@@ -3,6 +3,11 @@ param(
   [string]$BackendEnvPath = "Main_Project/Backend/.env",
   [string]$MultiAgentsEnvPath = "Main_Project/Backend/multi-agents-service/.env",
   [string]$FrontendEnvPath = "Main_Project/Frontend/.env",
+  [string]$IngressName = "investadvisor-ingress",
+  [string]$LocalIngressAddress = "127.0.0.1",
+  [string]$ArgoApplicationName = "investadvisor",
+  [string]$ArgoNamespace = "argocd",
+  [switch]$SkipLocalIngressStatusPatch,
   [switch]$Restart
 )
 
@@ -109,6 +114,74 @@ function Apply-FromEnvFile {
   kubectl annotate $Kind $Name -n $Namespace "argocd.argoproj.io/tracking-id-" --overwrite 2>$null | Out-Null
 }
 
+function Set-LocalIngressStatus {
+  param(
+    [string]$Name,
+    [string]$Address
+  )
+
+  $context = kubectl config current-context 2>$null
+  if ($LASTEXITCODE -ne 0 -or -not $context) {
+    Write-Host "Skipping local Ingress status patch: no current kubectl context."
+    return
+  }
+
+  if ($context -notlike "kind-*") {
+    Write-Host "Skipping local Ingress status patch: context '$context' is not a kind context."
+    return
+  }
+
+  $ingressJson = kubectl get ingress $Name -n $Namespace -o json 2>$null
+  if ($LASTEXITCODE -ne 0 -or -not $ingressJson) {
+    Write-Host "Skipping local Ingress status patch: ingress '$Name' was not found in namespace '$Namespace'."
+    return
+  }
+
+  $ingress = $ingressJson | ConvertFrom-Json
+  $existingAddress = $null
+  if ($ingress.status.loadBalancer.ingress) {
+    $firstIngress = $ingress.status.loadBalancer.ingress | Select-Object -First 1
+    $existingAddress = $firstIngress.ip
+    if (-not $existingAddress) {
+      $existingAddress = $firstIngress.hostname
+    }
+  }
+
+  if ($existingAddress) {
+    Write-Host "Ingress '$Name' already has address '$existingAddress'."
+    return
+  }
+
+  $patch = @{
+    status = @{
+      loadBalancer = @{
+        ingress = @(
+          @{
+            ip = $Address
+          }
+        )
+      }
+    }
+  } | ConvertTo-Json -Depth 10 -Compress
+
+  $temp = New-TemporaryFile
+  try {
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($temp.FullName, $patch, $utf8NoBom)
+    kubectl patch ingress $Name -n $Namespace --subresource=status --type=merge --patch-file $temp.FullName | Out-Null
+    Write-Host "Patched local kind Ingress '$Name' status address to $Address."
+  } finally {
+    Remove-Item -LiteralPath $temp.FullName -Force -ErrorAction SilentlyContinue
+  }
+
+  kubectl get application $ArgoApplicationName -n $ArgoNamespace 2>$null | Out-Null
+  if ($LASTEXITCODE -eq 0) {
+    kubectl annotate application $ArgoApplicationName -n $ArgoNamespace `
+      "argocd.argoproj.io/refresh=hard" `
+      --overwrite | Out-Null
+  }
+}
+
 $backend = Read-DotEnv -Path $BackendEnvPath
 $multi = Read-DotEnv -Path $MultiAgentsEnvPath
 $frontend = Read-DotEnv -Path $FrontendEnvPath
@@ -196,6 +269,10 @@ Apply-FromEnvFile -Kind "secret" -Name "backend-secrets" -Values $backendSecrets
 Apply-FromEnvFile -Kind "secret" -Name "multi-agents-secrets" -Values $multiSecrets
 Apply-FromEnvFile -Kind "secret" -Name "mail-secrets" -Values $mailSecrets
 Apply-FromEnvFile -Kind "configmap" -Name "frontend-env" -Values $frontendConfig
+
+if (-not $SkipLocalIngressStatusPatch) {
+  Set-LocalIngressStatus -Name $IngressName -Address $LocalIngressAddress
+}
 
 Write-Host "Applied Kubernetes env resources from .env files. Values hidden."
 Write-Host "backend-secrets keys: $($backendSecrets.Keys -join ', ')"
