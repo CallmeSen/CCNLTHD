@@ -1,0 +1,110 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: market-data-backfill
+  namespace: investadvisor
+  labels:
+    app: market-data-backfill
+    app.kubernetes.io/name: market-data-backfill
+spec:
+  schedule: "45 17 * * 1-5"
+  timeZone: "Asia/Ho_Chi_Minh"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: market-data-backfill
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backfill
+              image: python:3.12-slim
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MARKET_DATA_HOST
+                  value: http://market-data-service.investadvisor.svc.cluster.local:8082
+                - name: BACKFILL_DAYS
+                  value: "370"
+                - name: REQUEST_DELAY_SECONDS
+                  value: "1.5"
+                - name: REQUEST_TIMEOUT_SECONDS
+                  value: "90"
+                - name: TICKERS
+                  value: VNINDEX,VN30,VCB,FPT,VNM,VHM,HPG,MWG,TCB,VPB,SSI,MSN,GMD,VIC,PLX,REE
+              command:
+                - python
+                - -c
+                - |
+                  import datetime as dt
+                  import os
+                  import sys
+                  import time
+                  import urllib.error
+                  import urllib.parse
+                  import urllib.request
+
+                  host = os.environ["MARKET_DATA_HOST"].rstrip("/")
+                  days = int(os.environ.get("BACKFILL_DAYS", "370"))
+                  delay = float(os.environ.get("REQUEST_DELAY_SECONDS", "1.5"))
+                  timeout = int(os.environ.get("REQUEST_TIMEOUT_SECONDS", "90"))
+                  tickers = [
+                      item.strip().upper()
+                      for item in os.environ.get("TICKERS", "").split(",")
+                      if item.strip()
+                  ]
+
+                  today = dt.date.today()
+                  from_date = today - dt.timedelta(days=days)
+                  index_tickers = {"VNINDEX", "VN30"}
+                  required_failures = []
+                  optional_failures = []
+
+                  def post(path, params):
+                      query = urllib.parse.urlencode(params)
+                      url = f"{host}{path}?{query}"
+                      request = urllib.request.Request(url, method="POST")
+                      with urllib.request.urlopen(request, timeout=timeout) as response:
+                          return response.read().decode("utf-8")
+
+                  print(f"Backfilling {len(tickers)} tickers from {from_date} to {today}", flush=True)
+                  for ticker in tickers:
+                      try:
+                          if ticker in index_tickers:
+                              body = post(
+                                  "/api/market/indices/fetch",
+                                  {
+                                      "indexId": ticker,
+                                      "interval": "1D",
+                                      "from": from_date.isoformat(),
+                                      "to": today.isoformat(),
+                                  },
+                              )
+                          else:
+                              body = post(
+                                  f"/api/market/stocks/{ticker}/fetch",
+                                  {
+                                      "interval": "1D",
+                                      "from": from_date.isoformat(),
+                                      "to": today.isoformat(),
+                                  },
+                              )
+                          print(f"{ticker}: {body}", flush=True)
+                      except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
+                          print(f"{ticker}: failed: {exc}", flush=True)
+                          if ticker in index_tickers:
+                              required_failures.append(ticker)
+                          else:
+                              optional_failures.append(ticker)
+                      time.sleep(delay)
+
+                  if optional_failures:
+                      print(f"Optional stock tickers failed: {optional_failures}", flush=True)
+
+                  if required_failures:
+                      print(f"Required index tickers failed: {required_failures}", file=sys.stderr, flush=True)
+                      sys.exit(1)

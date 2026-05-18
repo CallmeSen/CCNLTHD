@@ -30,6 +30,7 @@ resources:
   - deployments/notification-service-deploy.yaml
   - deployments/multi-agents-service-deploy.yaml
   - deployments/frontend-deploy.yaml
+  - jobs/market-data-backfill-cronjob.yaml
   - services/svc-eureka-server.yaml
   - services/svc-api-gateway.yaml
   - services/svc-user-service.yaml
