@@ -361,8 +361,12 @@ class OrchestratorService:
                 return self._run_stock_analysis(
                     message, lang, personalization, emit,
                 )
-            else:
+            elif intent == "portfolio":
                 return self.run_stock_workflow(initial_request=message, lang=lang, event_callback=emit)
+            else:
+                return self._run_general_chat(
+                    message, lang, history, personalization, emit,
+                )
 
         except Exception as e:
             logger.exception(f"Chat workflow failed: {e}")

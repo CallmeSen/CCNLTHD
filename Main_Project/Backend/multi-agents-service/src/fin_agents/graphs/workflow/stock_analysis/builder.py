@@ -25,6 +25,7 @@ from src.fin_agents.graphs.workflow.stock_analysis.prompts import (
     STOCK_ANALYSIS_SYSTEM_VI,
 )
 from src.fin_agents.graphs.workflow.stock_advisory.agents.agent_loader import get_shared_llm
+from src.fin_agents.graphs.workflow.intent_router import _extract_ticker_candidates
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,9 @@ def parse_tickers(state: StockAnalysisState) -> Dict[str, Any]:
         chain = prompt | get_shared_llm() | parser
         result = chain.invoke({"message": msg})
         tickers = [t.upper().strip().replace(".VN", "") for t in result.get("tickers", []) if t]
+        for ticker in _extract_ticker_candidates(msg):
+            if ticker not in tickers:
+                tickers.append(ticker)
         company_names = [c.strip() for c in result.get("company_names", []) if c.strip()]
         goal = result.get("goal", "")
 
@@ -93,6 +97,13 @@ def parse_tickers(state: StockAnalysisState) -> Dict[str, Any]:
         return {"tickers": tickers, "company_names": company_names, "goal": goal}
     except Exception as e:
         logger.error(f"Ticker parsing failed: {e}")
+        tickers = _extract_ticker_candidates(msg)
+        if tickers:
+            return {
+                "tickers": tickers,
+                "company_names": [],
+                "goal": "stock analysis",
+            }
         return {"tickers": [], "company_names": [], "goal": "", "error_message": f"Failed to parse message: {e}"}
 
 

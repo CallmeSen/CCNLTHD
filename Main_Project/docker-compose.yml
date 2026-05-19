@@ -100,9 +100,9 @@ services:
     ports:
       - "29092:29092"
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      test: ["CMD-SHELL", "nc -z localhost 9092"]
       interval: 15s
-      timeout: 10s
+      timeout: 5s
       retries: 10
       start_period: 30s
 
@@ -283,8 +283,11 @@ services:
       dockerfile: Dockerfile
     container_name: invest_frontend
     restart: unless-stopped
+    depends_on:
+      api-gateway:
+        condition: service_started
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-8088}:80"
 
   # ── Monitoring ──────────────────────────────────────────────────────────────
 

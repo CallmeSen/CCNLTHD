@@ -13,10 +13,9 @@ import json
 import logging
 import threading
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
-import sse_starlette
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.orm import Session
 
@@ -27,7 +26,7 @@ from src.fin_agents.api.schemas import (
     ChatMessageResponse,
 )
 from src.fin_agents.core.orchestrator import OrchestratorService
-from src.fin_agents.db.database import get_db
+from src.fin_agents.db.database import get_db, SessionLocal
 from src.fin_agents.db.repositories import (
     ChatSessionRepository,
     ChatMessageRepository,
@@ -49,20 +48,10 @@ def _normalize_lang(lang: Optional[str]) -> Optional[str]:
 # Event Bus
 # ---------------------------------------------------------------------------
 
-_buffers: Dict[str, list] = {}
-_subscribers: Dict[str, list] = {}
+_buffers: Dict[str, List[dict]] = {}
+_subscribers: Dict[str, List[Dict[str, Any]]] = {}
+_event_ids: Dict[str, int] = {}
 _lock = threading.Lock()
-_loop: Optional[asyncio.AbstractEventLoop] = None
-
-
-def _get_loop() -> asyncio.AbstractEventLoop:
-    global _loop
-    if _loop is None:
-        try:
-            _loop = asyncio.get_running_loop()
-        except RuntimeError:
-            _loop = asyncio.new_event_loop()
-    return _loop
 
 
 class EventBus:
@@ -76,7 +65,7 @@ class EventBus:
             return _buffers[session_id]
 
     @staticmethod
-    def _get_queues(session_id: str) -> list:
+    def _get_subscribers(session_id: str) -> list:
         with _lock:
             if session_id not in _subscribers:
                 _subscribers[session_id] = []
@@ -84,68 +73,112 @@ class EventBus:
 
     @staticmethod
     def emit(session_id: str, event_type: str, data: Dict[str, Any]) -> None:
-        wrapped = {"event": event_type, **data}
-        event = {"event": "message", "data": json.dumps(wrapped)}
-        buffer = EventBus._get_buffer(session_id)
+        wrapped = dict(data)
+        wrapped["event"] = event_type
+        wrapped["type"] = event_type
+
         with _lock:
+            next_id = _event_ids.get(session_id, 0) + 1
+            _event_ids[session_id] = next_id
+            event = {
+                "id": str(next_id),
+                "event": "message",
+                "data": json.dumps(wrapped, default=str),
+            }
+            buffer = _buffers.setdefault(session_id, [])
             buffer.append(event)
             if len(buffer) > 500:
                 _buffers[session_id] = buffer[-500:]
-        queues = EventBus._get_queues(session_id)
-        loop = _get_loop()
-
-        def _enqueue(q: asyncio.Queue) -> None:
-            try:
-                if loop.is_running():
-                    loop.call_soon_threadsafe(lambda: _put(q, event))
-                else:
-                    q.put_nowait(event)
-            except RuntimeError:
-                pass
+            subscribers = list(_subscribers.get(session_id, []))
 
         def _put(q: asyncio.Queue, e: dict) -> None:
             try:
                 q.put_nowait(e)
+            except (asyncio.QueueFull, RuntimeError):
+                pass
+
+        for subscriber in subscribers:
+            queue = subscriber["queue"]
+            loop = subscriber["loop"]
+            try:
+                if loop.is_running() and not loop.is_closed():
+                    loop.call_soon_threadsafe(_put, queue, event)
             except RuntimeError:
                 pass
 
-        for queue in queues:
-            _enqueue(queue)
-
     @staticmethod
-    async def subscribe(session_id: str, last_event_id: Optional[str] = None) -> sse_starlette.sse.EventSourceResponse:
+    async def subscribe(
+        session_id: str,
+        last_event_id: Optional[str] = None,
+    ) -> AsyncGenerator[dict, None]:
         queue: asyncio.Queue = asyncio.Queue(maxsize=200)
-        buffer = EventBus._get_buffer(session_id)
+        loop = asyncio.get_running_loop()
+        subscriber = {"queue": queue, "loop": loop}
 
         with _lock:
-            _subscribers.setdefault(session_id, []).append(queue)
+            buffer = list(_buffers.setdefault(session_id, []))
+            _subscribers.setdefault(session_id, []).append(subscriber)
 
+        replay_after = None
         if last_event_id:
-            idx = int(last_event_id)
-            if idx < len(buffer):
-                for event in buffer[idx:]:
-                    yield event
-
-        while True:
             try:
-                event = await asyncio.wait_for(queue.get(), timeout=30.0)
-                if event is None:
-                    break
+                replay_after = int(last_event_id)
+            except ValueError:
+                replay_after = None
+
+        for event in buffer:
+            if replay_after is None or int(event.get("id", 0)) > replay_after:
                 yield event
-            except asyncio.TimeoutError:
-                yield {"event": "heartbeat", "data": "{}"}
+
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    if event is None:
+                        break
+                    yield event
+                except asyncio.TimeoutError:
+                    yield {"event": "heartbeat", "data": "{}"}
+        finally:
+            with _lock:
+                subscribers = _subscribers.get(session_id, [])
+                _subscribers[session_id] = [
+                    item for item in subscribers
+                    if item.get("queue") is not queue
+                ]
+
+    @staticmethod
+    def reset_session(session_id: str) -> None:
+        """Clear replay buffer for a new user message while keeping subscribers."""
+        with _lock:
+            _buffers[session_id] = []
+            _event_ids[session_id] = 0
+            _subscribers.setdefault(session_id, [])
 
     @staticmethod
     def close_session(session_id: str) -> None:
         with _lock:
-            if session_id in _subscribers:
-                for q in _subscribers[session_id]:
-                    try:
-                        q.put_nowait(None)
-                    except RuntimeError:
-                        pass
-                del _subscribers[session_id]
+            subscribers = list(_subscribers.get(session_id, []))
+            _subscribers.pop(session_id, None)
             _buffers.pop(session_id, None)
+            _event_ids.pop(session_id, None)
+
+        for subscriber in subscribers:
+            queue = subscriber["queue"]
+            loop = subscriber["loop"]
+            try:
+                if loop.is_running() and not loop.is_closed():
+                    loop.call_soon_threadsafe(queue.put_nowait, None)
+                else:
+                    queue.put_nowait(None)
+            except RuntimeError:
+                pass
+            except asyncio.QueueFull:
+                try:
+                    queue.get_nowait()
+                    queue.put_nowait(None)
+                except Exception:
+                    pass
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +204,7 @@ async def create_session(
 
     with _lock:
         _buffers[session_id] = []
+        _event_ids[session_id] = 0
         _subscribers.setdefault(session_id, [])
 
     return {"session_id": session_id}
@@ -268,6 +302,7 @@ async def get_session_messages(
 @router.get("/{session_id}/events")
 async def session_events(
     session_id: str,
+    request: Request,
     token: Optional[str] = Query(
         default=None,
         description="Bearer token for session authentication (alternative to Authorization header)"
@@ -287,7 +322,8 @@ async def session_events(
         _subscribers.setdefault(session_id, [])
 
     async def event_generator():
-        async for event in EventBus.subscribe(session_id):
+        last_event_id = request.headers.get("last-event-id")
+        async for event in EventBus.subscribe(session_id, last_event_id=last_event_id):
             yield event
 
     return EventSourceResponse(event_generator())
@@ -318,44 +354,71 @@ async def send_message(
     })
     ChatSessionRepository.update_updated_at(db, session_id)
 
-    with _lock:
-        _buffers.setdefault(session_id, [])
-        _subscribers.setdefault(session_id, [])
+    EventBus.reset_session(session_id)
 
     async def run_workflow():
         try:
-            orchestrator = OrchestratorService(db)
+            def execute_workflow() -> tuple[Dict[str, Any], str]:
+                bg_db = SessionLocal()
+                try:
+                    orchestrator = OrchestratorService(bg_db)
 
-            def event_callback(event_type: str, data: Dict[str, Any]) -> None:
-                EventBus.emit(session_id, event_type, data)
+                    def event_callback(event_type: str, data: Dict[str, Any]) -> None:
+                        EventBus.emit(session_id, event_type, data)
 
-            result = await asyncio.to_thread(
-                orchestrator.run_chat_workflow,
-                session_id=session_id,
-                message=message,
-                lang=lang,
-                event_callback=event_callback,
-            )
+                    result = orchestrator.run_chat_workflow(
+                        session_id=session_id,
+                        message=message,
+                        lang=lang,
+                        event_callback=event_callback,
+                    )
 
-            assistant_content = result.get("response") or result.get("final_report") or ""
-            ChatMessageRepository.create(db, {
-                "session_id": session_id,
-                "role": "assistant",
-                "content": assistant_content,
-                "lang": lang,
-            })
-            ChatSessionRepository.update_updated_at(db, session_id)
+                    assistant_content = (
+                        result.get("response")
+                        or result.get("final_report")
+                        or result.get("report")
+                        or ""
+                    )
+                    if assistant_content:
+                        ChatMessageRepository.create(bg_db, {
+                            "session_id": session_id,
+                            "role": "assistant",
+                            "content": assistant_content,
+                            "lang": lang,
+                        })
+                        ChatSessionRepository.update_updated_at(bg_db, session_id)
+                    return result, assistant_content
+                finally:
+                    bg_db.close()
+
+            result, assistant_content = await asyncio.to_thread(execute_workflow)
 
             if result.get("status") == "failed":
                 EventBus.emit(session_id, "attempt.failed", {
                     "error": result.get("error") or result.get("error_message") or "Unknown error",
                 })
             else:
-                EventBus.emit(session_id, "attempt.completed", {
+                completion_payload = {
                     "run_id": result.get("run_id", session_id),
                     "intent": result.get("intent", "unknown"),
+                    "status": result.get("status", "completed"),
                     "summary": assistant_content[:200] if assistant_content else "",
-                })
+                    "response": assistant_content,
+                }
+                for key in (
+                    "final_report",
+                    "report",
+                    "metrics",
+                    "user_profile",
+                    "proposed_portfolio",
+                    "validation_result",
+                    "llm_commentary",
+                    "market_news",
+                    "visualization_url",
+                ):
+                    if result.get(key) is not None:
+                        completion_payload[key] = result[key]
+                EventBus.emit(session_id, "attempt.completed", completion_payload)
 
         except Exception as exc:
             logger.exception(f"Workflow error for session {session_id}")

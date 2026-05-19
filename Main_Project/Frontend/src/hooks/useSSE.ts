@@ -179,7 +179,15 @@ export function useSSE(options: UseSSEOptions = {}) {
           case 'done':
           case 'attempt.completed': {
             handlers['attempt.completed']?.(data);
-            const reportContent = String(data.summary || data.final_report || data.report || store.streamingText || '');
+            const reportContent = String(
+              data.final_report ||
+                data.report ||
+                data.response ||
+                data.content ||
+                data.summary ||
+                store.streamingText ||
+                '',
+            );
             const runIdentifier = getRunId(data, raw);
             const finalRunId = runIdentifier && runIdentifier !== 'undefined' ? runIdentifier : `local-${Date.now()}`;
             const metrics = (data.metrics as Record<string, unknown>) || undefined;
