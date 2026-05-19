@@ -66,14 +66,23 @@ def test_stock_analysis_removes_generic_disclaimer_lines():
         "# Report\n\n"
         "Useful analysis.\n\n"
         "**Disclaimer:** This analysis is for informational purposes only and does not constitute financial advice.\n"
+        "**Tuyên bố miễn trừ trách nhiệm:**\n"
+        "Báo cáo này chỉ mang tính chất tham khảo và không cấu thành lời khuyên đầu tư. "
+        "Đầu tư chứng khoán luôn tiềm ẩn rủi ro mất vốn. "
+        "Nhà đầu tư nên tự tìm hiểu hoặc tham vấn chuyên gia tài chính trước khi đưa ra quyết định.\n\n"
+        "## Keep This\n"
+        "More analysis.\n\n"
         "**Tuyên bố miễn trừ trách nhiệm:** Phân tích này chỉ nhằm mục đích thông tin và không cấu thành lời khuyên tài chính."
     )
 
     cleaned = _remove_disclaimer_lines(text)
 
     assert "Useful analysis" in cleaned
+    assert "More analysis" in cleaned
     assert "Disclaimer" not in cleaned
     assert "miễn trừ trách nhiệm" not in cleaned
+    assert "Báo cáo này chỉ mang tính chất tham khảo" not in cleaned
+    assert "Phân tích này chỉ nhằm mục đích thông tin" not in cleaned
 
 
 def test_general_and_stock_analysis_have_state_and_routing_modules():
@@ -168,8 +177,10 @@ async def test_send_message_uses_background_db_and_emits_full_completion(monkeyp
     orchestrator_instance.run_chat_workflow.return_value = {
         "status": "completed",
         "response": full_response,
-        "intent": "general_chat",
+        "intent": "portfolio",
         "run_id": "run-1",
+        "proposed_portfolio": {"FPT": 1.0},
+        "metrics": {"portfolio": {"sharpe_ratio": 1.2}},
     }
     orchestrator_cls = MagicMock(return_value=orchestrator_instance)
 
@@ -191,6 +202,11 @@ async def test_send_message_uses_background_db_and_emits_full_completion(monkeyp
     orchestrator_cls.assert_called_once_with(background_db)
     assert create_message.call_args_list[0].args[0] is request_db
     assert create_message.call_args_list[1].args[0] is background_db
+    assistant_payload = create_message.call_args_list[1].args[1]
+    assert assistant_payload["metadata_json"]["run_id"] == "run-1"
+    assert assistant_payload["metadata_json"]["intent"] == "portfolio"
+    assert assistant_payload["metadata_json"]["showFullReport"] is True
+    assert assistant_payload["metadata_json"]["proposed_portfolio"] == {"FPT": 1.0}
     background_db.close.assert_called_once()
 
     stream = sessions.EventBus.subscribe(session_id)

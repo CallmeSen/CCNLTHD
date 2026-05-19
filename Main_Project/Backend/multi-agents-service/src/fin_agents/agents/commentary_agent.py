@@ -31,9 +31,6 @@ class CommentaryAgent:
         human_template_vi = "Ngữ cảnh:\n- Hồ sơ người dùng: {profile}\n- Danh mục đề xuất: {portfolio}\n- Chỉ số: {metrics}\n- Xác thực: {validation}\n- Tin tức thị trường: {news}\n- Lý do: {reasoning}"
         human_template_en = "Context:\n- User Profile: {profile}\n- Proposed Portfolio: {portfolio}\n- Metrics: {metrics}\n- Validation: {validation}\n- Market News: {news}\n- Reasoning: {reasoning}"
         human_template = human_template_vi if lang == "vi" else human_template_en
-        disclaimer_vi = "\n\n**Tuyên bố miễn trừ trách nhiệm:** Đây là phân tích được tạo bởi AI và không cấu thành lời khuyên tài chính."
-        disclaimer_en = "\n\n**Disclaimer:** This is an AI-generated analysis and does not constitute financial advice."
-        disclaimer = disclaimer_vi if lang == "vi" else disclaimer_en
         user_profile = state.get("user_profile") or {}
         portfolio = state.get("proposed_portfolio") or {}
         metrics = state.get("metrics") or {}
@@ -66,8 +63,6 @@ class CommentaryAgent:
                 "news": news,
                 "reasoning": llm_reasoning,
             })
-            if "không phải là lời khuyên tài chính" not in commentary.lower() and "miễn trừ trách nhiệm" not in commentary.lower() and "disclaimer" not in commentary.lower():
-                commentary += disclaimer
             return {"llm_commentary": commentary, "step": self.name}
         except Exception as e:
             logger.error(f"Error generating commentary: {e}")

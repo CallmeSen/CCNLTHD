@@ -271,6 +271,29 @@ class TestStructureOutputReport:
         report = structure_output_report(state)
         assert "Disclaimer" in report or "disclaimer" in report.lower()
 
+    def test_llm_commentary_disclaimer_is_not_duplicated(self):
+        state = {
+            "lang": "vi",
+            "user_profile": {},
+            "proposed_portfolio": {"FPT": 1.0},
+            "metrics": {},
+            "validation_result": {},
+            "llm_commentary": (
+                "Danh mục tập trung vào FPT.\n\n"
+                "Tuyên bố miễn trừ trách nhiệm: Báo cáo này chỉ mang tính chất tham khảo và không cấu thành lời khuyên đầu tư. "
+                "Đầu tư chứng khoán luôn tiềm ẩn rủi ro mất vốn. "
+                "Nhà đầu tư nên tự tìm hiểu hoặc tham vấn chuyên gia tài chính trước khi đưa ra quyết định.\n\n"
+                "Tuyên bố miễn trừ trách nhiệm: Phân tích này chỉ nhằm mục đích thông tin và không cấu thành lời khuyên tài chính."
+            ),
+        }
+
+        report = structure_output_report(state)
+
+        assert "Danh mục tập trung vào FPT" in report
+        assert report.count("Tuyên bố miễn trừ trách nhiệm") == 1
+        assert "Báo cáo này chỉ mang tính chất tham khảo" not in report
+        assert "Phân tích này chỉ nhằm mục đích thông tin" not in report
+
     def test_capm_parameters_included(self, sample_portfolio, sample_metrics):
         state = {
             "user_profile": {},

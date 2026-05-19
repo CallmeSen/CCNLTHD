@@ -14,13 +14,13 @@ Graph:
 
 import json
 import logging
-import re
 from typing import Any, Dict
 
 from langgraph.graph import StateGraph, END
 
 from src.fin_agents.agents import get_agent
 from src.fin_agents.agents.agent_loader import get_shared_llm
+from src.fin_agents.core.text_sanitizer import remove_disclaimer_blocks
 from src.fin_agents.graphs.workflow.stock_analysis.prompts import (
     PARSE_TICKERS_SYSTEM_EN,
     PARSE_TICKERS_SYSTEM_VI,
@@ -38,11 +38,6 @@ from src.fin_agents.graphs.workflow.stock_analysis.state import StockAnalysisSta
 from src.fin_agents.graphs.workflow.intent_router import _extract_ticker_candidates
 
 logger = logging.getLogger(__name__)
-
-DISCLAIMER_LINE_PATTERNS = (
-    re.compile(r"^\s*\*{0,2}Disclaimer:\*{0,2}.*(?:financial advice|informational purposes).*", re.IGNORECASE),
-    re.compile(r"^\s*\*{0,2}Tuyên bố miễn trừ trách nhiệm:\*{0,2}.*(?:lời khuyên|mục đích thông tin|tham khảo).*", re.IGNORECASE),
-)
 
 
 # ---------------------------------------------------------------------------
@@ -202,12 +197,7 @@ def _lookup_ticker(company_name: str, lang: str) -> str | None:
 
 def _remove_disclaimer_lines(text: str) -> str:
     """Remove generic disclaimer lines from stock-analysis chat output."""
-    lines = text.splitlines()
-    filtered = [
-        line for line in lines
-        if not any(pattern.search(line.strip()) for pattern in DISCLAIMER_LINE_PATTERNS)
-    ]
-    return "\n".join(filtered).strip()
+    return remove_disclaimer_blocks(text)
 
 
 def general_chat_fallback(state: StockAnalysisState) -> Dict[str, Any]:

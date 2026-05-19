@@ -82,7 +82,6 @@ Instructions:
 - **CITATION REQUIREMENT**: Whenever you reference, mention, or base any claim or recommendation on specific market news from the "Market News" section, you MUST explicitly cite it using the format [News: "<brief quote or reference to the specific news item>"]. This applies to every claim tied to news — sector outlook, momentum signals, sector rotation, macro conditions, etc.
 - Mention the validation outcome. If issues were found, briefly explain them clearly.
 - Keep the tone informative and objective.
-- **Include a disclaimer that this is not financial advice.**
 - Output only the commentary text."""
 
 # --------------------------------------------------------------------------- #
@@ -96,7 +95,6 @@ Hướng dẫn:
 - **YÊU CẦU TRÍCH DẪN**: Bất cứ khi nào bạn tham chiếu, đề cập hoặc dựa trên bất kỳ khẳng định hay khuyến nghị nào về tin tức thị trường cụ thể từ phần "Market News", bạn PHẢI trích dẫn rõ ràng bằng định dạng [News: "<trích dẫn ngắn hoặc tham chiếu đến tin tức cụ thể>"]. Điều này áp dụng cho mọi khẳng định liên quan đến tin tức — triển vọng ngành, tín hiệu động lượng, xoay vòng ngành, điều kiện vĩ mô, v.v.
 - Đề cập kết quả xác thực. Nếu có vấn đề, hãy giải thích ngắn gọn.
 - Giữ giọng thông tin và khách quan.
-- **Bao gồm tuyên bố miễn trừ trách nhiệm rằng đây không phải là lời khuyên tài chính.**
 - Chỉ xuất văn bản bình luận."""
 
 GENERATE_COMMENTARY_SYSTEM = GENERATE_COMMENTARY_SYSTEM_EN

@@ -4,6 +4,8 @@ Markdown report formatter for portfolio generation output.
 import logging
 from typing import Dict
 
+from src.fin_agents.core.text_sanitizer import remove_disclaimer_blocks
+
 
 _REPORT_HEADERS_EN = {
     "title": "# Financial Portfolio Report",
@@ -111,7 +113,7 @@ def structure_output_report(state: Dict) -> str:
     proposed_portfolio = state.get("proposed_portfolio", {})
     metrics = state.get("metrics", {})
     validation = state.get("validation_result", {})
-    commentary = state.get("llm_commentary") or T["no_commentary"]
+    commentary = remove_disclaimer_blocks(state.get("llm_commentary") or T["no_commentary"])
     news = state.get("market_news", None)
     error_msg = state.get("error_message", None)
 

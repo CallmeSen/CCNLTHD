@@ -36,12 +36,51 @@ from src.fin_agents.db.models import ChatMessage
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
+_ASSISTANT_METADATA_KEYS = (
+    "run_id",
+    "intent",
+    "workflow",
+    "status",
+    "metrics",
+    "user_profile",
+    "proposed_portfolio",
+    "validation_result",
+    "llm_commentary",
+    "market_news",
+    "visualization_url",
+)
+
 
 def _normalize_lang(lang: Optional[str]) -> Optional[str]:
     if not lang:
         return None
     normalized = lang.strip().lower()
     return normalized if normalized in {"en", "vi"} else None
+
+
+def _build_assistant_metadata(result: Dict[str, Any]) -> Dict[str, Any]:
+    metadata: Dict[str, Any] = {}
+    for key in _ASSISTANT_METADATA_KEYS:
+        value = result.get(key)
+        if value is not None:
+            metadata[key] = value
+
+    if result.get("proposed_portfolio"):
+        metadata["showFullReport"] = True
+
+    return metadata
+
+
+def _chat_message_response(message: ChatMessage) -> ChatMessageResponse:
+    return ChatMessageResponse(
+        message_id=message.message_id,
+        session_id=message.session_id,
+        role=message.role,
+        content=message.content,
+        lang=message.lang,
+        metadata=message.metadata_json,
+        created_at=message.created_at,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -254,17 +293,7 @@ async def get_session(
         created_at=session.created_at,
         updated_at=session.updated_at,
         is_active=session.is_active,
-        messages=[
-            ChatMessageResponse(
-                message_id=m.message_id,
-                session_id=m.session_id,
-                role=m.role,
-                content=m.content,
-                lang=m.lang,
-                created_at=m.created_at,
-            )
-            for m in messages
-        ],
+        messages=[_chat_message_response(m) for m in messages],
     )
 
 
@@ -285,17 +314,7 @@ async def get_session_messages(
         created_at=session.created_at,
         updated_at=session.updated_at,
         is_active=session.is_active,
-        messages=[
-            ChatMessageResponse(
-                message_id=m.message_id,
-                session_id=m.session_id,
-                role=m.role,
-                content=m.content,
-                lang=m.lang,
-                created_at=m.created_at,
-            )
-            for m in messages
-        ],
+        messages=[_chat_message_response(m) for m in messages],
     )
 
 
@@ -380,11 +399,13 @@ async def send_message(
                         or ""
                     )
                     if assistant_content:
+                        metadata = _build_assistant_metadata(result)
                         ChatMessageRepository.create(bg_db, {
                             "session_id": session_id,
                             "role": "assistant",
                             "content": assistant_content,
                             "lang": lang,
+                            "metadata_json": metadata or None,
                         })
                         ChatSessionRepository.update_updated_at(bg_db, session_id)
                     return result, assistant_content

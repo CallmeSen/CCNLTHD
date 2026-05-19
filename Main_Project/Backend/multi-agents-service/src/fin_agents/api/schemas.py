@@ -190,6 +190,7 @@ class ChatMessageResponse(BaseModel):
     role: str
     content: str
     lang: Optional[str] = None
+    metadata: Optional[dict] = None
     created_at: datetime
 
     class Config:

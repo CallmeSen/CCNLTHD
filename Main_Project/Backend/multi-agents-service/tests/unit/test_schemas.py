@@ -34,9 +34,17 @@ class TestChatMessageResponse:
             role="assistant",
             content="Duoc, toi se phan tich ngay.",
             lang="vi",
+            metadata={
+                "run_id": "STK202605160001",
+                "intent": "portfolio",
+                "proposed_portfolio": {"FPT": 1.0},
+                "showFullReport": True,
+            },
             created_at=datetime(2026, 5, 16, 12, 1, 0),
         )
         assert msg.role == "assistant"
+        assert msg.metadata["run_id"] == "STK202605160001"
+        assert msg.metadata["showFullReport"] is True
 
     def test_message_without_lang(self):
         msg = ChatMessageResponse(

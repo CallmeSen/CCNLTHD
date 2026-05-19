@@ -363,7 +363,9 @@ class OrchestratorService:
                     message, lang, personalization, emit,
                 )
             elif intent == "portfolio":
-                return self.run_stock_workflow(initial_request=message, lang=lang, event_callback=emit)
+                result = self.run_stock_workflow(initial_request=message, lang=lang, event_callback=emit)
+                result["intent"] = "portfolio"
+                return result
             else:
                 return self._run_general_chat(
                     message, lang, history, personalization, emit,
