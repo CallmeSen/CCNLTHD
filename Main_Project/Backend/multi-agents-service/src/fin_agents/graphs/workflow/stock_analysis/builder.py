@@ -14,34 +14,35 @@ Graph:
 
 import json
 import logging
-from typing import Any, Dict, TypedDict
+import re
+from typing import Any, Dict
 
 from langgraph.graph import StateGraph, END
 
+from src.fin_agents.agents import get_agent
+from src.fin_agents.agents.agent_loader import get_shared_llm
 from src.fin_agents.graphs.workflow.stock_analysis.prompts import (
     PARSE_TICKERS_SYSTEM_EN,
     PARSE_TICKERS_SYSTEM_VI,
     STOCK_ANALYSIS_SYSTEM_EN,
     STOCK_ANALYSIS_SYSTEM_VI,
 )
-from src.fin_agents.graphs.workflow.stock_advisory.agents.agent_loader import get_shared_llm
+from src.fin_agents.graphs.workflow.stock_analysis.routing import (
+    route_after_data,
+    route_after_metrics,
+    route_after_news,
+    route_after_parse,
+    route_after_resolve,
+)
+from src.fin_agents.graphs.workflow.stock_analysis.state import StockAnalysisState
 from src.fin_agents.graphs.workflow.intent_router import _extract_ticker_candidates
 
 logger = logging.getLogger(__name__)
 
-
-class StockAnalysisState(TypedDict, total=False):
-    message: str
-    lang: str
-    tickers: list[str]
-    company_names: list[str]
-    goal: str
-    personalization_context: Dict[str, Any]
-    market_news: str
-    financial_data: Dict[str, Any]
-    metrics: Dict[str, Any]
-    report: str
-    error_message: str
+DISCLAIMER_LINE_PATTERNS = (
+    re.compile(r"^\s*\*{0,2}Disclaimer:\*{0,2}.*(?:financial advice|informational purposes).*", re.IGNORECASE),
+    re.compile(r"^\s*\*{0,2}Tuyên bố miễn trừ trách nhiệm:\*{0,2}.*(?:lời khuyên|mục đích thông tin|tham khảo).*", re.IGNORECASE),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +200,16 @@ def _lookup_ticker(company_name: str, lang: str) -> str | None:
         return None
 
 
+def _remove_disclaimer_lines(text: str) -> str:
+    """Remove generic disclaimer lines from stock-analysis chat output."""
+    lines = text.splitlines()
+    filtered = [
+        line for line in lines
+        if not any(pattern.search(line.strip()) for pattern in DISCLAIMER_LINE_PATTERNS)
+    ]
+    return "\n".join(filtered).strip()
+
+
 def general_chat_fallback(state: StockAnalysisState) -> Dict[str, Any]:
     """
     Called when no tickers could be resolved.
@@ -258,25 +269,20 @@ def general_chat_fallback(state: StockAnalysisState) -> Dict[str, Any]:
 
 
 def fetch_news(state: StockAnalysisState) -> Dict[str, Any]:
-    """Fetch relevant market news using Tavily."""
-    from src.fin_agents.core.finance.data_fetcher import fetch_market_news as _fetch_news
+    """Fetch relevant market news using the shared news agent."""
     tickers = state.get("tickers", [])
-    lang = state.get("lang", "en")
     goal = state.get("goal", "")
 
     context_state = {
         "user_profile": {"goal": goal, "risk_tolerance": "medium"},
         "asset_universe": tickers,
     }
-    result = _fetch_news(context_state)
-    return result
+    return get_agent("fetch_market_news").invoke(context_state)
 
 
 def fetch_data(state: StockAnalysisState) -> Dict[str, Any]:
-    """Fetch financial data for the identified tickers."""
-    from src.fin_agents.core.finance.data_fetcher import fetch_data_node as _fetch_data
+    """Fetch financial data for the identified tickers using the shared data agent."""
     tickers = state.get("tickers", [])
-    personalization = state.get("personalization_context", {})
 
     if not tickers:
         return {"financial_data": {}, "error_message": "No tickers to fetch data for."}
@@ -289,12 +295,11 @@ def fetch_data(state: StockAnalysisState) -> Dict[str, Any]:
             "time_horizon": "1y",
         },
     }
-    return _fetch_data(context_state)
+    return get_agent("fetch_data").invoke(context_state)
 
 
 def calculate_metrics(state: StockAnalysisState) -> Dict[str, Any]:
-    """Calculate financial metrics for the fetched data."""
-    from src.fin_agents.core.finance.metrics import calculate_metrics_node as _calc_metrics
+    """Calculate financial metrics using the shared metrics agent."""
     data = state.get("financial_data", {})
     if not data:
         return {"metrics": {}, "error_message": "No financial data to calculate metrics from."}
@@ -302,7 +307,7 @@ def calculate_metrics(state: StockAnalysisState) -> Dict[str, Any]:
         "financial_data": data,
         "proposed_portfolio": None,
     }
-    return _calc_metrics(context_state)
+    return get_agent("calculate_metrics").invoke(context_state)
 
 
 def structure_output(state: StockAnalysisState) -> Dict[str, Any]:
@@ -350,12 +355,7 @@ def structure_output(state: StockAnalysisState) -> Dict[str, Any]:
             "metrics": metrics_json,
             "news": news,
         })
-
-        disclaimer_en = "\n\n**Disclaimer:** This analysis is for informational purposes only and does not constitute financial advice."
-        disclaimer_vi = "\n\n**Tuyên bố miễn trừ trách nhiệm:** Phân tích này chỉ nhằm mục đích thông tin và không cấu thành lời khuyên tài chính."
-        disclaimer = disclaimer_vi if lang == "vi" else disclaimer_en
-        if "disclaimer" not in report.lower()[:200]:
-            report += disclaimer
+        report = _remove_disclaimer_lines(report)
 
         logger.info(f"Stock analysis report generated ({len(report)} chars)")
         return {"report": report}
@@ -383,44 +383,6 @@ def handle_error(state: StockAnalysisState) -> Dict[str, Any]:
             "Please try again or contact support."
         )
     }
-
-
-# ---------------------------------------------------------------------------
-# Routing
-# ---------------------------------------------------------------------------
-
-def route_after_parse(state: StockAnalysisState) -> str:
-    if state.get("error_message"):
-        return "general_chat_fallback"
-    return "resolve_company_names"
-
-
-def route_after_resolve(state: StockAnalysisState) -> str:
-    if state.get("error_message"):
-        return "general_chat_fallback"
-    if not state.get("tickers"):
-        return "general_chat_fallback"
-    return "fetch_news"
-
-
-def route_after_news(state: StockAnalysisState) -> str:
-    if state.get("error_message"):
-        return "handle_error"
-    return "fetch_data"
-
-
-def route_after_data(state: StockAnalysisState) -> str:
-    if state.get("error_message"):
-        return "handle_error"
-    if not state.get("financial_data"):
-        return "handle_error"
-    return "calculate_metrics"
-
-
-def route_after_metrics(state: StockAnalysisState) -> str:
-    if state.get("error_message"):
-        return "handle_error"
-    return "structure_output"
 
 
 # ---------------------------------------------------------------------------

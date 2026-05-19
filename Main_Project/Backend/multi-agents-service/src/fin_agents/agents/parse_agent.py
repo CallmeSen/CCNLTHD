@@ -8,8 +8,10 @@ from typing import Any, Dict, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
-from ..states.workflow_state import StockAdvisoryState
-from ..prompts import PARSE_USER_SYSTEM_EN, PARSE_USER_SYSTEM_VI
+from src.fin_agents.graphs.workflow.stock_advisory.prompts import (
+    PARSE_USER_SYSTEM_EN,
+    PARSE_USER_SYSTEM_VI,
+)
 from .agent_loader import get_shared_llm
 
 logger = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ class ParseAgent:
         self._llm = llm if llm is not None else get_shared_llm()
         self._config = config or {}
 
-    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
+    def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
         lang = state.get("lang", "en")
         system_prompt = PARSE_USER_SYSTEM_VI if lang == "vi" else PARSE_USER_SYSTEM_EN
         human_template_vi = "Đây là yêu cầu của người dùng: {request}\n\nChỉ xuất JSON hợp lệ khớp với schema. Không thêm bất kỳ văn bản nào trước hoặc sau JSON."
@@ -102,7 +104,7 @@ class ParseAgent:
     def output_keys(self) -> tuple[str, ...]:
         return ("user_profile", "asset_universe", "error_message")
 
-    def route_next(self, state: StockAdvisoryState) -> str:
+    def route_next(self, state: Dict[str, Any]) -> str:
         if state.get("error_message"):
             return "handle_error"
         if not state.get("asset_universe"):

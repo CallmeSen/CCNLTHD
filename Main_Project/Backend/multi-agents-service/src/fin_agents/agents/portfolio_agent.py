@@ -7,8 +7,10 @@ from typing import Any, Dict, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
-from ..states.workflow_state import StockAdvisoryState
-from ..prompts import PROPOSE_PORTFOLIO_SYSTEM_EN, PROPOSE_PORTFOLIO_SYSTEM_VI
+from src.fin_agents.graphs.workflow.stock_advisory.prompts import (
+    PROPOSE_PORTFOLIO_SYSTEM_EN,
+    PROPOSE_PORTFOLIO_SYSTEM_VI,
+)
 from . import agent_loader  # noqa: F401 — registers _shared_llm on load
 
 from .agent_loader import get_shared_llm
@@ -26,7 +28,7 @@ class PortfolioAgent:
         self._llm = llm if llm is not None else get_shared_llm()
         self._config = config or {}
 
-    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
+    def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
         lang = state.get("lang", "en")
         system_prompt = PROPOSE_PORTFOLIO_SYSTEM_VI if lang == "vi" else PROPOSE_PORTFOLIO_SYSTEM_EN
         human_template_vi = "Hồ sơ người dùng:\n{user_profile}\n\nTài sản có sẵn: {assets}\n\nChỉ số tài sản:\n{metrics}\n\nTin tức thị trường:\n{news}"
@@ -144,7 +146,7 @@ class PortfolioAgent:
     def output_keys(self) -> tuple[str, ...]:
         return ("proposed_portfolio", "llm_commentary", "error_message", "step")
 
-    def route_next(self, state: StockAdvisoryState) -> str:
+    def route_next(self, state: Dict[str, Any]) -> str:
         if state.get("error_message"):
             return "handle_error"
         if not state.get("proposed_portfolio"):

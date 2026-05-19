@@ -1,4 +1,4 @@
-"""Base Protocol for all agents in the stock advisory workflow."""
+"""Base Protocol for shared financial workflow agents."""
 from typing import Any, Dict, Protocol, runtime_checkable
 
 

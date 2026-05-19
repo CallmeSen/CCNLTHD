@@ -45,10 +45,11 @@ def _detect_lang(text: str) -> str:
         "tháng", "ngày", "tuổi", "sinh", "năm", "trong", "ra", "vào",
     ]
     vi_ascii_keywords = [
+        "xin chao", "chao ban", "chao", "cam on", "ban oi",
         "phan tich", "co phieu", "dau tu", "danh muc", "rui ro", "loi nhuan",
         "thi truong", "chung khoan", "tai chinh", "ngan hang", "co tuc",
         "lai suat", "cho toi", "toi muon", "tao", "tong hop", "bao cao",
-        "tu van", "giup toi", "nen mua", "nen ban",
+        "tu van", "giup toi", "giup minh", "minh muon", "toi can", "nen mua", "nen ban",
     ]
     en_keywords = [
         "analyze", "stock", "invest", "portfolio", "risk", "return",

@@ -1,4 +1,4 @@
-"""Agents module for the stock advisory workflow.
+"""Shared agents for financial workflows.
 
 Each agent is a self-contained unit that:
 - Has a unique ``name`` and ``description``
@@ -6,14 +6,16 @@ Each agent is a self-contained unit that:
 - Declares ``output_keys``
 - Provides ``route_next(state) -> str`` for per-agent routing
 
-Import agents through this module or via AgentRegistry.
+Workflows should import agents through this module or via AgentRegistry so
+instances can be reused instead of recreated.
 """
 from .base import AgentProtocol
 from .registry import AgentRegistry
-from .agent_loader import load_agents
+from .agent_loader import get_agent, load_agents
 
 __all__ = [
     "AgentProtocol",
     "AgentRegistry",
+    "get_agent",
     "load_agents",
 ]

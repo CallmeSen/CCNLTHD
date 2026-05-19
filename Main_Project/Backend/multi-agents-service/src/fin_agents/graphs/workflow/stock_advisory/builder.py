@@ -11,7 +11,7 @@ import logging
 from langgraph.graph import StateGraph, END
 
 from src.fin_agents.graphs.workflow.stock_advisory.states.workflow_state import StockAdvisoryState
-from src.fin_agents.graphs.workflow.stock_advisory.agents import AgentRegistry, load_agents
+from src.fin_agents.agents import AgentRegistry, load_agents
 from src.fin_agents.graphs.workflow.stock_advisory.routing import RoutingRegistry
 
 logger = logging.getLogger(__name__)

@@ -64,7 +64,7 @@ def _process_image(storage_path: str, original_name: str) -> Dict[str, Any]:
 
     try:
         from langchain_core.messages import HumanMessage
-        from src.fin_agents.graphs.workflow.stock_advisory.agents.agent_loader import get_shared_llm
+        from src.fin_agents.agents.agent_loader import get_shared_llm
 
         llm = get_shared_llm()
         vision_prompt = (
@@ -125,7 +125,7 @@ def _process_document(storage_path: str, mime_type: str, original_name: str) -> 
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_core.output_parsers import JsonOutputParser
 
-        from src.fin_agents.graphs.workflow.stock_advisory.agents.agent_loader import get_shared_llm
+        from src.fin_agents.agents.agent_loader import get_shared_llm
 
         llm = get_shared_llm()
         system_prompt = (

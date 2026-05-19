@@ -15,6 +15,32 @@ def test_intent_fallback_routes_general_stock_and_portfolio():
     assert _fallback_intent("Tao danh muc dau tu cho toi") == "portfolio"
 
 
+def test_intent_prompts_escape_json_braces():
+    from langchain_core.prompts import ChatPromptTemplate
+
+    from src.fin_agents.graphs.workflow.intent_router import (
+        INTENT_SYSTEM_PROMPT_EN,
+        INTENT_SYSTEM_PROMPT_VI,
+    )
+
+    for system_prompt in (INTENT_SYSTEM_PROMPT_EN, INTENT_SYSTEM_PROMPT_VI):
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("human", "{message}"),
+        ])
+        formatted = prompt.format_messages(message="hello")
+        assert '"intent"' in formatted[0].content
+
+
+def test_chat_language_detection_handles_vietnamese_and_english():
+    from src.fin_agents.core.orchestrator import _detect_lang
+
+    assert _detect_lang("chào bạn") == "vi"
+    assert _detect_lang("xin chao ban") == "vi"
+    assert _detect_lang("hello friend") == "en"
+    assert _detect_lang("Analyze AAPL for me") == "en"
+
+
 def test_stock_analysis_parse_tickers_falls_back_without_llm(monkeypatch):
     from src.fin_agents.graphs.workflow.stock_analysis import builder
 
@@ -31,6 +57,73 @@ def test_stock_analysis_parse_tickers_falls_back_without_llm(monkeypatch):
 
     assert result["tickers"] == ["FPT"]
     assert "error_message" not in result
+
+
+def test_stock_analysis_removes_generic_disclaimer_lines():
+    from src.fin_agents.graphs.workflow.stock_analysis.builder import _remove_disclaimer_lines
+
+    text = (
+        "# Report\n\n"
+        "Useful analysis.\n\n"
+        "**Disclaimer:** This analysis is for informational purposes only and does not constitute financial advice.\n"
+        "**Tuyên bố miễn trừ trách nhiệm:** Phân tích này chỉ nhằm mục đích thông tin và không cấu thành lời khuyên tài chính."
+    )
+
+    cleaned = _remove_disclaimer_lines(text)
+
+    assert "Useful analysis" in cleaned
+    assert "Disclaimer" not in cleaned
+    assert "miễn trừ trách nhiệm" not in cleaned
+
+
+def test_general_and_stock_analysis_have_state_and_routing_modules():
+    from src.fin_agents.graphs.workflow.general_chat.routing import route_after_chat
+    from src.fin_agents.graphs.workflow.general_chat.state import GeneralChatState
+    from src.fin_agents.graphs.workflow.stock_analysis.routing import (
+        route_after_parse,
+        route_after_resolve,
+    )
+    from src.fin_agents.graphs.workflow.stock_analysis.state import StockAnalysisState
+
+    general_state: GeneralChatState = {"message": "hello"}
+    stock_state: StockAnalysisState = {"tickers": ["FPT"]}
+
+    assert route_after_chat(general_state) == "END"
+    assert route_after_parse({"error_message": "missing ticker"}) == "general_chat_fallback"
+    assert route_after_resolve(stock_state) == "fetch_news"
+
+
+def test_stock_analysis_reuses_shared_market_agents(monkeypatch):
+    from src.fin_agents.graphs.workflow.stock_analysis import builder
+
+    calls = []
+
+    class StubAgent:
+        def __init__(self, name):
+            self.name = name
+
+        def invoke(self, state):
+            calls.append((self.name, state))
+            if self.name == "fetch_market_news":
+                return {"market_news": "news"}
+            if self.name == "fetch_data":
+                return {"financial_data": {"FPT": "data"}}
+            if self.name == "calculate_metrics":
+                return {"metrics": {"FPT": {"sharpe_ratio": 1.0}}}
+            return {}
+
+    monkeypatch.setattr(builder, "get_agent", lambda name: StubAgent(name))
+
+    assert builder.fetch_news({"tickers": ["FPT"], "goal": "analysis"}) == {"market_news": "news"}
+    assert builder.fetch_data({"tickers": ["FPT"], "goal": "analysis"}) == {"financial_data": {"FPT": "data"}}
+    assert builder.calculate_metrics({"financial_data": {"FPT": "data"}}) == {
+        "metrics": {"FPT": {"sharpe_ratio": 1.0}}
+    }
+    assert [name for name, _ in calls] == [
+        "fetch_market_news",
+        "fetch_data",
+        "calculate_metrics",
+    ]
 
 
 @pytest.mark.asyncio

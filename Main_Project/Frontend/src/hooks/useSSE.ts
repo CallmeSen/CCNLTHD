@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useAgentStore } from '../store/useAgentStore';
 import { getSessionEventUrl, sessionApi } from '../services/sessionApi';
 import { saveReportHistory } from '../services/reportHistory';
 import { isMockApiEnabled } from '../config/runtimeEnv';
+import { getProposedPortfolio, normalizeIntent, shouldShowPortfolioReport } from '../lib/reportVisibility';
 import type { ParsedSSEMessage, ToolCallEntry } from '../types/agent';
 
 interface UseSSEOptions {
@@ -12,6 +13,7 @@ interface UseSSEOptions {
 }
 
 type EventHandlers = Partial<{
+  intent: (data: Record<string, unknown>) => void;
   text_delta: (data: Record<string, unknown>) => void;
   thinking_done: (data: Record<string, unknown>) => void;
   tool_call: (data: Record<string, unknown>) => void;
@@ -40,6 +42,13 @@ function getEventText(data: Record<string, unknown>) {
 function getRunId(data: Record<string, unknown>, raw: ParsedSSEMessage) {
   const id = data.run_id || data.runId || data.run_dir || data.id || raw.run_id || raw.runId;
   return id ? String(id) : '';
+}
+
+function closeEventSource(eventSourceRef: MutableRefObject<EventSource | null>) {
+  if (eventSourceRef.current) {
+    eventSourceRef.current.close();
+    eventSourceRef.current = null;
+  }
 }
 
 export function useSSE(options: UseSSEOptions = {}) {
@@ -111,6 +120,10 @@ export function useSSE(options: UseSSEOptions = {}) {
         onEvent?.(raw);
 
         switch (eventType) {
+          case 'intent':
+            handlers.intent?.(data);
+            break;
+
           case 'message':
           case 'text_delta': {
             const delta = getEventText(data);
@@ -176,7 +189,6 @@ export function useSSE(options: UseSSEOptions = {}) {
             });
             break;
 
-          case 'done':
           case 'attempt.completed': {
             handlers['attempt.completed']?.(data);
             const reportContent = String(
@@ -191,8 +203,11 @@ export function useSSE(options: UseSSEOptions = {}) {
             const runIdentifier = getRunId(data, raw);
             const finalRunId = runIdentifier && runIdentifier !== 'undefined' ? runIdentifier : `local-${Date.now()}`;
             const metrics = (data.metrics as Record<string, unknown>) || undefined;
+            const intent = normalizeIntent(data.intent || data.workflow || data.workflow_type);
+            const proposedPortfolio = getProposedPortfolio(data.proposed_portfolio);
+            const showFullReport = shouldShowPortfolioReport(intent, proposedPortfolio, data.showFullReport);
 
-            if (reportContent) {
+            if (reportContent && showFullReport) {
               try {
                 saveReportHistory({
                   run_id: finalRunId,
@@ -203,7 +218,7 @@ export function useSSE(options: UseSSEOptions = {}) {
                   summary: data.summary ? String(data.summary) : undefined,
                   metrics: metrics || null,
                   user_profile: (data.user_profile as Record<string, unknown>) || null,
-                  proposed_portfolio: (data.proposed_portfolio as Record<string, number>) || null,
+                  proposed_portfolio: proposedPortfolio,
                   validation_result: (data.validation_result as Record<string, unknown>) || null,
                   llm_commentary: data.llm_commentary ? String(data.llm_commentary) : null,
                   market_news: data.market_news ? String(data.market_news) : null,
@@ -215,8 +230,19 @@ export function useSSE(options: UseSSEOptions = {}) {
               }
             }
 
-            store.finishStreaming(reportContent, finalRunId, metrics);
-            store.setSseStatus('connected');
+            store.finishStreaming(reportContent, showFullReport ? finalRunId : undefined, metrics, {
+              intent,
+              showFullReport,
+              proposed_portfolio: proposedPortfolio,
+            });
+            store.setSseStatus('disconnected');
+            closeEventSource(eventSourceRef);
+            break;
+          }
+
+          case 'done': {
+            store.setSseStatus('disconnected');
+            closeEventSource(eventSourceRef);
             break;
           }
 

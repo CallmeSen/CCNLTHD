@@ -141,12 +141,14 @@ export const useAgentStore = create<AgentStoreState>()(
           status: 'idle',
         }),
 
-      finishStreaming: (finalContent, runId, metrics) => {
+      finishStreaming: (finalContent, runId, metrics, metadata) => {
         const content = finalContent || get().streamingText;
         if (!content) {
           set({ streamingText: '', isStreaming: false, status: 'idle' });
           return;
         }
+
+        const showFullReport = Boolean(metadata?.showFullReport && runId);
 
         set((state) => ({
           messages: [
@@ -155,7 +157,10 @@ export const useAgentStore = create<AgentStoreState>()(
               id: makeId('answer'),
               type: 'answer',
               content,
-              runId,
+              runId: showFullReport ? runId : undefined,
+              intent: metadata?.intent,
+              showFullReport,
+              proposed_portfolio: metadata?.proposed_portfolio,
               metrics,
               timestamp: Date.now(),
             },
@@ -182,6 +187,10 @@ export const useAgentStore = create<AgentStoreState>()(
 
           const currentToolCalls = get().toolCalls;
           const currentSessionId = get().sessionId;
+          if (currentSessionId === sessionId && get().status === 'streaming') {
+            set({ sessionLoading: false });
+            return;
+          }
           const isSameSession = currentSessionId === sessionId && currentToolCalls.length > 0;
 
           let persistedToolCalls: ToolCallEntry[] = [];

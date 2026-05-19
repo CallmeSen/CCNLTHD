@@ -5,7 +5,7 @@ from .base import AgentProtocol
 
 
 class AgentRegistry:
-    """Central registry for all agents in the stock advisory workflow.
+    """Central registry for shared workflow agents.
 
     Agents self-register at import time. The registry provides
     lookup, listing, and execution-order capabilities.

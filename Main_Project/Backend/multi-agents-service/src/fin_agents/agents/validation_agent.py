@@ -2,7 +2,6 @@
 import logging
 from typing import Any, Dict
 
-from ..states.workflow_state import StockAdvisoryState
 from src.fin_agents.core.finance.metrics import (
     validate_portfolio_calculations,
     calculate_financial_metrics,
@@ -20,7 +19,7 @@ class ValidationAgent:
     def __init__(self, config: Dict = None):
         self._config = config or {}
 
-    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
+    def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
         portfolio = state.get("proposed_portfolio")
         metrics = state.get("metrics")
         financial_data = state.get("financial_data")
@@ -53,7 +52,7 @@ class ValidationAgent:
     def output_keys(self) -> tuple[str, ...]:
         return ("validation_result", "metrics", "step")
 
-    def route_next(self, state: StockAdvisoryState) -> str:
+    def route_next(self, state: Dict[str, Any]) -> str:
         if state.get("error_message"):
             return "handle_error"
         validation = state.get("validation_result", {})

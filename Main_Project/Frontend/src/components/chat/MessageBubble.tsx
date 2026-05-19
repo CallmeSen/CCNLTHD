@@ -125,6 +125,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
     ...parsedContent.newsItems,
     ...parseMarketNewsField((message as AgentMessage & { market_news?: string | null }).market_news),
   ]);
+  const shouldShowFullReport = Boolean(message.showFullReport && message.runId);
 
   return (
     <div className="flex gap-3 animate-slide-up">
@@ -167,7 +168,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
           {new Date(message.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
         </p>
 
-        {message.runId && (
+        {shouldShowFullReport && (
           <Link
             to={`/report/${encodeURIComponent(message.runId)}`}
             className="inline-flex items-center gap-1 mt-2 text-xs text-primary hover:underline"

@@ -16,7 +16,7 @@ from typing import Literal
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from src.fin_agents.graphs.workflow.stock_advisory.agents.agent_loader import get_shared_llm
+from src.fin_agents.agents.agent_loader import get_shared_llm
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ INTENT_SYSTEM_PROMPT_EN = """You are an intent classifier for a financial chatbo
 3. "portfolio" - explicitly asks for portfolio generation, allocation, rebalancing, or recommendations across assets.
 4. "unknown" - cannot classify confidently.
 
-Return JSON only: {"intent": "general_chat|stock_analysis|portfolio|unknown"}.
+Return JSON only: {{"intent": "general_chat|stock_analysis|portfolio|unknown"}}.
 If a stock ticker or company is mentioned, prefer stock_analysis. Only use portfolio when the user explicitly asks for a portfolio or allocation."""
 
 INTENT_SYSTEM_PROMPT_VI = """Ban la bo phan loai y dinh cho chatbot tai chinh. Hay phan loai tin nhan nguoi dung thanh dung mot intent:
@@ -53,7 +53,7 @@ INTENT_SYSTEM_PROMPT_VI = """Ban la bo phan loai y dinh cho chatbot tai chinh. H
 3. "portfolio" - yeu cau tao danh muc, phan bo, tai can bang, hoac khuyen nghi tren nhieu tai san.
 4. "unknown" - khong phan loai duoc.
 
-Chi tra ve JSON: {"intent": "general_chat|stock_analysis|portfolio|unknown"}.
+Chi tra ve JSON: {{"intent": "general_chat|stock_analysis|portfolio|unknown"}}.
 Neu co ma co phieu hoac ten cong ty, uu tien stock_analysis. Chi dung portfolio khi nguoi dung noi ro ve danh muc hoac phan bo."""
 
 

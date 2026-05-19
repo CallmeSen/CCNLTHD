@@ -8,13 +8,13 @@ from unittest.mock import MagicMock, patch
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
-from fin_agents.graphs.workflow.stock_advisory.agents.parse_agent import ParseAgent
-from fin_agents.graphs.workflow.stock_advisory.agents.portfolio_agent import PortfolioAgent
-from fin_agents.graphs.workflow.stock_advisory.agents.validation_agent import ValidationAgent
-from fin_agents.graphs.workflow.stock_advisory.agents.metrics_agent import MetricsAgent
+from src.fin_agents.agents.parse_agent import ParseAgent
+from src.fin_agents.agents.portfolio_agent import PortfolioAgent
+from src.fin_agents.agents.validation_agent import ValidationAgent
+from src.fin_agents.agents.metrics_agent import MetricsAgent
 
-_PARSE_LLM      = "fin_agents.graphs.workflow.stock_advisory.agents.parse_agent.get_shared_llm"
-_PORTFOLIO_LLM  = "fin_agents.graphs.workflow.stock_advisory.agents.portfolio_agent.get_shared_llm"
+_PARSE_LLM      = "src.fin_agents.agents.parse_agent.get_shared_llm"
+_PORTFOLIO_LLM  = "src.fin_agents.agents.portfolio_agent.get_shared_llm"
 
 
 def _fake_json_llm(response_dict: dict) -> RunnableLambda:

@@ -40,6 +40,30 @@ class _SharedLLM:
 _shared_llm = _SharedLLM()
 
 
+def _agent_classes() -> Dict[str, type]:
+    """Import agent classes lazily to avoid circular imports."""
+    from .parse_agent import ParseAgent
+    from .news_agent import NewsAgent
+    from .data_agent import DataAgent
+    from .metrics_agent import MetricsAgent
+    from .portfolio_agent import PortfolioAgent
+    from .validation_agent import ValidationAgent
+    from .commentary_agent import CommentaryAgent
+    from .report_agent import ReportAgent, ErrorAgent
+
+    return {
+        "parse_user_request": ParseAgent,
+        "fetch_market_news": NewsAgent,
+        "fetch_data": DataAgent,
+        "calculate_metrics": MetricsAgent,
+        "propose_portfolio": PortfolioAgent,
+        "validate_portfolio": ValidationAgent,
+        "generate_commentary": CommentaryAgent,
+        "structure_output": ReportAgent,
+        "handle_error": ErrorAgent,
+    }
+
+
 def load_agents(config: Optional[Dict[str, Any]] = None) -> Dict[str, AgentProtocol]:
     """
     Load and instantiate agents based on the provided config.
@@ -58,31 +82,11 @@ def load_agents(config: Optional[Dict[str, Any]] = None) -> Dict[str, AgentProto
     Dict[str, AgentProtocol]
         Mapping of agent name -> instantiated agent instance.
     """
+    use_registry_cache = config is None
     if config is None:
         config = _load_config()
 
-    # Import agent classes lazily to avoid circular imports
-    from .parse_agent import ParseAgent
-    from .news_agent import NewsAgent
-    from .data_agent import DataAgent
-    from .metrics_agent import MetricsAgent
-    from .portfolio_agent import PortfolioAgent
-    from .validation_agent import ValidationAgent
-    from .commentary_agent import CommentaryAgent
-    from .report_agent import ReportAgent, ErrorAgent
-
-    agent_classes: Dict[str, type] = {
-        "parse_user_request": ParseAgent,
-        "fetch_market_news": NewsAgent,
-        "fetch_data": DataAgent,
-        "calculate_metrics": MetricsAgent,
-        "propose_portfolio": PortfolioAgent,
-        "validate_portfolio": ValidationAgent,
-        "generate_commentary": CommentaryAgent,
-        "structure_output": ReportAgent,
-        "handle_error": ErrorAgent,
-    }
-
+    agent_classes = _agent_classes()
     loaded: Dict[str, AgentProtocol] = {}
     agents_config = config.get("agents", {})
 
@@ -90,11 +94,42 @@ def load_agents(config: Optional[Dict[str, Any]] = None) -> Dict[str, AgentProto
         agent_cfg = agents_config.get(agent_id, {})
         if not agent_cfg.get("enabled", True):
             continue
+        if use_registry_cache:
+            try:
+                instance = AgentRegistry.get(agent_id)
+                loaded[agent_id] = instance
+                continue
+            except KeyError:
+                pass
         instance = agent_cls(config=agent_cfg)
         AgentRegistry.register(instance)
         loaded[agent_id] = instance
 
     return loaded
+
+
+def get_agent(agent_id: str, config: Optional[Dict[str, Any]] = None) -> AgentProtocol:
+    """Return a registered agent, creating only that agent when needed."""
+    try:
+        return AgentRegistry.get(agent_id)
+    except KeyError:
+        pass
+
+    if config is None:
+        config = _load_config()
+
+    agent_classes = _agent_classes()
+    if agent_id not in agent_classes:
+        available = ", ".join(agent_classes.keys())
+        raise KeyError(f"Agent '{agent_id}' is unknown. Available: {available}")
+
+    agent_cfg = config.get("agents", {}).get(agent_id, {})
+    if not agent_cfg.get("enabled", True):
+        raise KeyError(f"Agent '{agent_id}' is disabled in configuration.")
+
+    instance = agent_classes[agent_id](config=agent_cfg)
+    AgentRegistry.register(instance)
+    return instance
 
 
 def _load_config() -> Dict[str, Any]:

@@ -2,7 +2,6 @@
 import logging
 from typing import Any, Dict
 
-from ..states.workflow_state import StockAdvisoryState
 from src.fin_agents.core.finance.data_fetcher import fetch_market_news
 
 logger = logging.getLogger(__name__)
@@ -17,7 +16,7 @@ class NewsAgent:
     def __init__(self, config: Dict = None):
         self._config = config or {}
 
-    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
+    def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
         result = fetch_market_news(state)
         if not result:
             return {"market_news": None, "step": self.name}
@@ -28,5 +27,5 @@ class NewsAgent:
     def output_keys(self) -> tuple[str, ...]:
         return ("market_news", "step")
 
-    def route_next(self, state: StockAdvisoryState) -> str:
+    def route_next(self, state: Dict[str, Any]) -> str:
         return "fetch_data"

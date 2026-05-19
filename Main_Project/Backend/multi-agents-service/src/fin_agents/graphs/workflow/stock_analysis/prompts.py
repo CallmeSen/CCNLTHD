@@ -44,7 +44,6 @@ Write a comprehensive but readable analysis covering:
 5. Analyst commentary
 
 Keep it 4-10 paragraphs. Use data from the provided metrics.
-Include a brief disclaimer at the end.
 
 Format as Markdown."""
 
@@ -58,6 +57,5 @@ Viết báo cáo toàn diện nhưng dễ đọc gồm:
 5. Bình luận từ chuyên gia
 
 Giữ 4-10 đoạn. Sử dụng dữ liệu từ các chỉ số được cung cấp.
-Kèm tuyên bố miễn trừ trách nhiệm ngắn ở cuối.
 
 Định dạng Markdown."""

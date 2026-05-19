@@ -6,8 +6,10 @@ from typing import Any, Dict, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from ..states.workflow_state import StockAdvisoryState
-from ..prompts import GENERATE_COMMENTARY_SYSTEM_EN, GENERATE_COMMENTARY_SYSTEM_VI
+from src.fin_agents.graphs.workflow.stock_advisory.prompts import (
+    GENERATE_COMMENTARY_SYSTEM_EN,
+    GENERATE_COMMENTARY_SYSTEM_VI,
+)
 from .agent_loader import get_shared_llm
 
 logger = logging.getLogger(__name__)
@@ -23,7 +25,7 @@ class CommentaryAgent:
         self._llm = llm if llm is not None else get_shared_llm()
         self._config = config or {}
 
-    def invoke(self, state: StockAdvisoryState) -> Dict[str, Any]:
+    def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
         lang = state.get("lang", "en")
         system_prompt = GENERATE_COMMENTARY_SYSTEM_VI if lang == "vi" else GENERATE_COMMENTARY_SYSTEM_EN
         human_template_vi = "Ngữ cảnh:\n- Hồ sơ người dùng: {profile}\n- Danh mục đề xuất: {portfolio}\n- Chỉ số: {metrics}\n- Xác thực: {validation}\n- Tin tức thị trường: {news}\n- Lý do: {reasoning}"
@@ -75,5 +77,5 @@ class CommentaryAgent:
     def output_keys(self) -> tuple[str, ...]:
         return ("llm_commentary", "step")
 
-    def route_next(self, state: StockAdvisoryState) -> str:
+    def route_next(self, state: Dict[str, Any]) -> str:
         return "structure_output"

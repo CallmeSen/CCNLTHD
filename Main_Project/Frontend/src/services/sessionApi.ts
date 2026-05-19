@@ -1,6 +1,7 @@
 import { apiClient, TOKEN_KEY } from './apiClient';
 import { API_BASE_URL, isMockApiEnabled } from '../config/runtimeEnv';
 import { saveReportHistory } from './reportHistory';
+import { getProposedPortfolio, normalizeIntent, shouldShowPortfolioReport } from '../lib/reportVisibility';
 import type {
   AgentMessage,
   AnalyzeRequest,
@@ -29,7 +30,15 @@ function detectMessageLanguage(message: string): 'en' | 'vi' {
   const viKeywords = [
     'toi',
     'minh',
+    'xin chao',
+    'chao',
+    'chao ban',
+    'cam on',
     'cho toi',
+    'toi can',
+    'minh muon',
+    'giup minh',
+    'ban oi',
     'phan tich',
     'co phieu',
     'danh muc',
@@ -60,14 +69,26 @@ function isMockSession(sessionId?: string | null) {
 function toAgentMessage(message: ChatMessageItem | any, index: number): AgentMessage {
   const role = message.role || message.type;
   const type = role === 'user' ? 'user' : role === 'assistant' ? 'answer' : role || 'answer';
+  const metadata = message.metadata || {};
+  const intent = normalizeIntent(message.intent || metadata.intent || metadata.workflow);
+  const proposedPortfolio = getProposedPortfolio(message.proposed_portfolio || metadata.proposed_portfolio);
+  const showFullReport = shouldShowPortfolioReport(
+    intent,
+    proposedPortfolio,
+    message.showFullReport ?? metadata.showFullReport,
+  );
+  const runId = message.run_id || message.runId || metadata.run_id;
 
   return {
     id: String(message.id || message.message_id || `db-msg-${index}`),
     type,
     content: String(message.content || ''),
     timestamp: message.created_at ? new Date(message.created_at).getTime() : Number(message.timestamp || Date.now()),
-    runId: message.run_id || message.runId || message.metadata?.run_id,
-    metrics: message.metrics || message.metadata?.metrics,
+    runId: showFullReport ? runId : undefined,
+    intent,
+    showFullReport,
+    proposed_portfolio: proposedPortfolio,
+    metrics: message.metrics || metadata.metrics,
   };
 }
 

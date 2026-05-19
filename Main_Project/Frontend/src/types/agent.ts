@@ -34,6 +34,9 @@ export interface AgentMessage {
   status?: ToolCallStatus | string;
   elapsed_ms?: number;
   runId?: string;
+  intent?: string;
+  showFullReport?: boolean;
+  proposed_portfolio?: Record<string, number> | null;
   metrics?: Record<string, unknown>;
   equityCurve?: Array<{ time?: string | number; date?: string; equity: number; drawdown?: number }>;
   shadowId?: string;
@@ -166,7 +169,12 @@ export interface AgentStoreState {
   setSseStatus: (status: SSEStatus) => void;
   clearMessages: () => void;
   clearStreaming: () => void;
-  finishStreaming: (finalContent: string, runId?: string, metrics?: Record<string, unknown>) => void;
+  finishStreaming: (
+    finalContent: string,
+    runId?: string,
+    metrics?: Record<string, unknown>,
+    metadata?: Pick<AgentMessage, 'intent' | 'showFullReport' | 'proposed_portfolio'>,
+  ) => void;
   loadSession: (sessionId: string) => Promise<void>;
 }
 

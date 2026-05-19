@@ -6,7 +6,7 @@ No portfolio suggestions, no metrics -- just natural responses.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict
 
 from langgraph.graph import StateGraph, END
 
@@ -14,18 +14,11 @@ from src.fin_agents.graphs.workflow.general_chat.prompts import (
     GENERAL_CHAT_SYSTEM_EN,
     GENERAL_CHAT_SYSTEM_VI,
 )
-from src.fin_agents.graphs.workflow.stock_advisory.agents.agent_loader import get_shared_llm
+from src.fin_agents.graphs.workflow.general_chat.routing import route_after_chat
+from src.fin_agents.graphs.workflow.general_chat.state import GeneralChatState
+from src.fin_agents.agents.agent_loader import get_shared_llm
 
 logger = logging.getLogger(__name__)
-
-
-class GeneralChatState(TypedDict, total=False):
-    """State for the general chat workflow."""
-    message: str
-    lang: str
-    conversation_history: List[Dict[str, str]]
-    personalization_context: Dict[str, Any]
-    response: str
 
 
 def chat_node(state: GeneralChatState) -> Dict[str, Any]:
@@ -87,7 +80,7 @@ def build_general_chat_graph() -> StateGraph:
     workflow = StateGraph(GeneralChatState)
     workflow.add_node("chat", chat_node)
     workflow.set_entry_point("chat")
-    workflow.add_edge("chat", END)
+    workflow.add_conditional_edges("chat", route_after_chat, {"END": END})
     return workflow
 
 

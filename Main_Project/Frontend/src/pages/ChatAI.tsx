@@ -74,6 +74,7 @@ export default function ChatAI() {
   const sseStatus = useAgentStore((state) => state.sseStatus);
 
   const { sendMessage, abort, disconnect } = useSSE();
+  const inputDisabled = status === 'streaming' || sessionLoading;
 
   const urlSessionId = searchParams.get('session');
   const lastUserIndex = useMemo(() => {
@@ -123,9 +124,9 @@ export default function ChatAI() {
       return;
     }
     if (ignoredUrlSessionRef.current === urlSessionId) return;
-    if (urlSessionId === sessionId && (status === 'streaming' || toolCalls.length > 0)) return;
+    if (urlSessionId === sessionId && (messages.length > 0 || status === 'streaming' || toolCalls.length > 0)) return;
     useAgentStore.getState().loadSession(urlSessionId);
-  }, [sessionId, status, urlSessionId, toolCalls.length]);
+  }, [messages.length, sessionId, status, urlSessionId, toolCalls.length]);
 
   useEffect(() => {
     scrollToBottom();
@@ -175,7 +176,7 @@ export default function ChatAI() {
   const runPrompt = useCallback(
     async (prompt: string) => {
       const text = prompt.trim();
-      if (!text || status === 'streaming') return;
+      if (!text || status === 'streaming' || sessionLoading) return;
 
       const store = useAgentStore.getState();
       store.clearToolCalls();
@@ -207,7 +208,7 @@ export default function ChatAI() {
         toast.error('Không thể gửi tin nhắn');
       }
     },
-    [forceScrollToBottom, sendMessage, setSearchParams, status],
+    [forceScrollToBottom, sendMessage, sessionLoading, setSearchParams, status],
   );
 
   const handleSubmit = (event: FormEvent) => {
@@ -357,7 +358,7 @@ export default function ChatAI() {
                 runPrompt(input);
               }
             }}
-            disabled={status === 'streaming'}
+            disabled={inputDisabled}
             rows={1}
           />
           <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
@@ -371,7 +372,7 @@ export default function ChatAI() {
                 <Square className="w-4 h-4" />
               </button>
             ) : (
-              <button type="submit" disabled={!input.trim()} className="btn-primary w-9 h-9 !p-0" title="Gửi">
+              <button type="submit" disabled={!input.trim() || inputDisabled} className="btn-primary w-9 h-9 !p-0" title="Gửi">
                 <Send className="w-4 h-4" />
               </button>
             )}
