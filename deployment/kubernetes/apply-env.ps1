@@ -268,7 +268,7 @@ kubectl create namespace $Namespace --dry-run=client -o yaml | kubectl apply -f 
 Apply-FromEnvFile -Kind "secret" -Name "backend-secrets" -Values $backendSecrets
 Apply-FromEnvFile -Kind "secret" -Name "multi-agents-secrets" -Values $multiSecrets
 Apply-FromEnvFile -Kind "secret" -Name "mail-secrets" -Values $mailSecrets
-Apply-FromEnvFile -Kind "configmap" -Name "frontend-env" -Values $frontendConfig
+Apply-FromEnvFile -Kind "secret" -Name "frontend-env" -Values $frontendConfig
 
 if (-not $SkipLocalIngressStatusPatch) {
   Set-LocalIngressStatus -Name $IngressName -Address $LocalIngressAddress

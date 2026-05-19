@@ -20,7 +20,7 @@ spec:
         - name: frontend
           image: registry.gitlab.com/callmesen-group/ccnlthd/frontend:latest
           envFrom:
-            - configMapRef:
+            - secretRef:
                 name: frontend-env
           ports:
             - containerPort: 80

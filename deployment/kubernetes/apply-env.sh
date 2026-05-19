@@ -243,16 +243,15 @@ if ! grep -q '^VITE_MOCK_API=' "$frontend_env_file"; then
   printf '%s\n' 'VITE_MOCK_API=false' >> "$frontend_env_file"
 fi
 
-kubectl create configmap frontend-env \
+kubectl create secret generic frontend-env \
   -n "$NAMESPACE" \
   --from-env-file "$frontend_env_file" \
   --dry-run=client -o yaml | kubectl apply -f -
-annotate_env_resource configmap frontend-env
+annotate_env_resource secret frontend-env
 patch_local_ingress_status
 
 echo "Applied Kubernetes env resources from environment/.env files. Values hidden."
-kubectl get secret backend-secrets multi-agents-secrets mail-secrets -n "$NAMESPACE"
-kubectl get configmap frontend-env -n "$NAMESPACE"
+kubectl get secret backend-secrets multi-agents-secrets mail-secrets frontend-env -n "$NAMESPACE"
 
 if [ "$RESTART" = "true" ]; then
   kubectl rollout restart statefulset/postgres-ma -n "$NAMESPACE"

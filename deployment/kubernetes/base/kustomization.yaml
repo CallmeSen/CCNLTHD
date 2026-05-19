@@ -3,7 +3,9 @@ kind: Kustomization
 
 resources:
   - namespaces/namespace.yaml
+  - namespaces/vault-namespace.yaml
   # - secrets/backend-secrets.yaml
+  - external-secrets/vault-tokenreview-rbac.yaml
   - configmaps/postgres-initdb-config.yaml
   - configmaps/backend-config.yaml
   - configmaps/frontend-config.yaml

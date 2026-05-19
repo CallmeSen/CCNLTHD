@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - ../../base
+  - external-secrets/vault-external-secrets.yaml
 
 commonLabels:
   environment: production

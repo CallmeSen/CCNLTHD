@@ -33,8 +33,8 @@
 #     ORACLE_USER           → ubuntu
 #     ORACLE_SSH_KEY        → type: File — nội dung private key .pem (chmod 600)
 #
-#   Kubernetes deploy (protected):
-#     KUBECONFIG            → base64-encoded kubeconfig cho cluster local
+#   Cluster bootstrap (manual, outside CI):
+#     KUBECONFIG            → kubeconfig for kubectl/helm setup when needed
 #
 #   Optional (có default):
 #     LANGCHAIN_PROJECT     → default: invest-advisor-ci
@@ -704,11 +704,11 @@ docker:multi-agents-service:
 #   Không cần docker stage. Code được build trực tiếp trên VM.
 #   Cần: ORACLE_HOST, ORACLE_USER, ORACLE_SSH_KEY (type: File).
 #
-# Luồng 2 — ArgoCD / Kubernetes (deploy:manifest + deploy:secrets):
+# Luồng 2 — ArgoCD / Kubernetes (deploy:manifest + External Secrets):
 #   Cần docker stage đã push images lên registry trước.
 #   deploy:manifest: cập nhật image tag trong k8s/*.yaml → commit → ArgoCD tự sync.
-#   deploy:secrets:  kubectl apply Secret vào cluster.
-#   Cần: KUBECONFIG (base64), GITLAB_API_TOKEN (write_repository scope).
+#   Secrets: External Secrets Operator reads Vault and creates Kubernetes Secrets.
+#   Cần: GITLAB_API_TOKEN (write_repository scope); ESO/Vault handles runtime secrets.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Luồng 1: Oracle Cloud VM ──────────────────────────────────────────────────
@@ -801,18 +801,12 @@ deploy:manifest:
         echo "Pushed. ArgoCD will sync automatically."
       fi
 
-# Apply Kubernetes Secrets vào cluster (idempotent via --dry-run=client | apply).
-deploy:secrets:
+# Legacy secret apply flow is disabled; ESO now reconciles Secrets from Vault.
+.deploy:secrets:legacy:
   stage: deploy
   image: bitnami/kubectl:latest
   timeout: 5 minutes
-  when: manual
   rules:
-    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
-  before_script:
-    - mkdir -p ~/.kube
-    - echo "$KUBECONFIG" | base64 -d > ~/.kube/config
-    - chmod 600 ~/.kube/config
-    - kubectl create namespace investadvisor --dry-run=client -o yaml | kubectl apply -f -
+    - when: never
   script:
-    - sh deployment/kubernetes/apply-env.sh
+    - echo "Disabled. External Secrets Operator manages Kubernetes Secrets from Vault."
