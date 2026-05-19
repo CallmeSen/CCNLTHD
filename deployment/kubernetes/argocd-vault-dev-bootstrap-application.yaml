@@ -1,29 +1,26 @@
+# Local/dev Vault bootstrap only. Production Vault policies and auth roles
+# should be managed by hardened Vault IaC or an approved secrets platform flow.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: investadvisor
+  name: vault-dev-bootstrap
   namespace: argocd
   labels:
-    app.kubernetes.io/name: investadvisor
+    app.kubernetes.io/name: vault-dev-bootstrap
     app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/part-of: investadvisor
+    app.kubernetes.io/component: secrets-store-bootstrap
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   project: default
   source:
     repoURL: https://gitlab.com/callmesen-group/CCNLTHD.git
     targetRevision: main
-    path: deployment/kubernetes/overlays/prod
+    path: deployment/kubernetes/platform/vault-dev-bootstrap
   destination:
     server: https://kubernetes.default.svc
-    namespace: investadvisor
-  ignoreDifferences:
-    - group: apps
-      kind: StatefulSet
-      jsonPointers:
-        - /spec/persistentVolumeClaimRetentionPolicy
-        - /spec/volumeClaimTemplates
-        - /spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt
+    namespace: vault
   syncPolicy:
     automated:
       prune: true
@@ -31,9 +28,7 @@ spec:
       allowEmpty: false
     syncOptions:
       - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
       - ServerSideApply=true
-      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:

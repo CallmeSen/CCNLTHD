@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-dev-bootstrap
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault-dev-bootstrap
+    app.kubernetes.io/part-of: investadvisor
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-dev-bootstrap
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault-dev-bootstrap
+    app.kubernetes.io/part-of: investadvisor
+data:
+  bootstrap.sh: |
+    #!/usr/bin/env sh
+    set -eu
+
+    export VAULT_ADDR="${VAULT_ADDR:-http://vault.vault.svc.cluster.local:8200}"
+    export VAULT_TOKEN="${VAULT_TOKEN:-root}"
+
+    until vault status >/dev/null 2>&1; do
+      sleep 2
+    done
+
+    vault secrets enable -path=secret -version=2 kv >/tmp/vault-enable-kv.log 2>&1 || true
+    vault auth enable kubernetes >/tmp/vault-enable-kubernetes.log 2>&1 || true
+
+    vault write auth/kubernetes/config \
+      kubernetes_host="https://kubernetes.default.svc" \
+      kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+    cat >/tmp/investadvisor-dev.hcl <<'EOF'
+    path "secret/data/investadvisor/dev/*" {
+      capabilities = ["read"]
+    }
+
+    path "secret/metadata/investadvisor/dev/*" {
+      capabilities = ["read", "list"]
+    }
+    EOF
+
+    cat >/tmp/investadvisor-prod.hcl <<'EOF'
+    path "secret/data/investadvisor/prod/*" {
+      capabilities = ["read"]
+    }
+
+    path "secret/metadata/investadvisor/prod/*" {
+      capabilities = ["read", "list"]
+    }
+    EOF
+
+    vault policy write investadvisor-dev /tmp/investadvisor-dev.hcl
+    vault policy write investadvisor-prod /tmp/investadvisor-prod.hcl
+
+    vault write auth/kubernetes/role/investadvisor-dev \
+      bound_service_account_names=external-secrets \
+      bound_service_account_namespaces=external-secrets \
+      audience=vault \
+      policies=investadvisor-dev \
+      ttl=24h
+
+    vault write auth/kubernetes/role/investadvisor-prod \
+      bound_service_account_names=external-secrets \
+      bound_service_account_namespaces=external-secrets \
+      audience=vault \
+      policies=investadvisor-prod \
+      ttl=24h
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-dev-bootstrap
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault-dev-bootstrap
+    app.kubernetes.io/part-of: investadvisor
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vault-dev-bootstrap
+        app.kubernetes.io/part-of: investadvisor
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: vault-dev-bootstrap
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.21.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: VAULT_ADDR
+              value: http://vault.vault.svc.cluster.local:8200
+            - name: VAULT_TOKEN
+              value: root
+          command:
+            - /bin/sh
+            - /scripts/bootstrap.sh
+          volumeMounts:
+            - name: bootstrap-script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: bootstrap-script
+          configMap:
+            name: vault-dev-bootstrap
+            defaultMode: 0755

@@ -32,7 +32,17 @@ helm status external-secrets -n external-secrets
 helm search repo hashicorp/vault
 ```
 
-For ArgoCD-managed installs, apply the Helm Application first:
+For ArgoCD-managed installs, prefer the declarative app-of-apps in Git:
+
+```sh
+kubectl apply -f deployment/kubernetes/argocd-platform-application.yaml
+```
+
+The root Application syncs Vault dev/local, the Vault auth bootstrap, External
+Secrets Operator, and the `investadvisor` workload Application from
+`deployment/kubernetes`.
+
+If you need to apply only the ESO child Application during troubleshooting:
 
 ```sh
 kubectl apply -f deployment/kubernetes/argocd-external-secrets-application.yaml
@@ -60,3 +70,6 @@ account, and allow the `vault` audience.
 
 Each ExternalSecret extracts all keys from its matching Vault path, so keep the
 `frontend` paths limited to intended `VITE_*` values.
+
+The `install-external-secrets.*` scripts are a direct Helm bootstrap helper.
+They are not the preferred GitOps path once ArgoCD is available.

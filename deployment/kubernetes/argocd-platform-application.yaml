@@ -1,39 +1,28 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: investadvisor
+  name: investadvisor-platform
   namespace: argocd
   labels:
-    app.kubernetes.io/name: investadvisor
+    app.kubernetes.io/name: investadvisor-platform
     app.kubernetes.io/managed-by: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    app.kubernetes.io/part-of: investadvisor
 spec:
   project: default
   source:
     repoURL: https://gitlab.com/callmesen-group/CCNLTHD.git
     targetRevision: main
-    path: deployment/kubernetes/overlays/prod
+    path: deployment/kubernetes
   destination:
     server: https://kubernetes.default.svc
-    namespace: investadvisor
-  ignoreDifferences:
-    - group: apps
-      kind: StatefulSet
-      jsonPointers:
-        - /spec/persistentVolumeClaimRetentionPolicy
-        - /spec/volumeClaimTemplates
-        - /spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt
+    namespace: argocd
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
       allowEmpty: false
     syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
       - ServerSideApply=true
-      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:
