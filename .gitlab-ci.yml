@@ -632,9 +632,33 @@ test:langsmith:multi-agents:
     DOCKER_TLS_CERTDIR: ""
     DOCKER_BUILDKIT: "1"
     BUILDKIT_PROGRESS: "plain"
+    DOCKER_PUSH_RETRIES: "3"
+    DOCKER_PUSH_RETRY_DELAY: "20"
   before_script:
     - docker info
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - |
+      docker_push_retry() {
+        image="$1"
+        attempts="${DOCKER_PUSH_RETRIES:-3}"
+        delay="${DOCKER_PUSH_RETRY_DELAY:-20}"
+
+        for attempt in $(seq 1 "$attempts"); do
+          docker push "$image"
+          status=$?
+
+          if [ "$status" -eq 0 ]; then
+            return 0
+          fi
+
+          if [ "$attempt" -eq "$attempts" ]; then
+            return "$status"
+          fi
+
+          echo "docker push failed for $image on attempt $attempt/$attempts; retrying in ${delay}s..."
+          sleep "$delay"
+        done
+      }
   rules:
     - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
     - if: $CI_COMMIT_TAG =~ /^v.*/
@@ -644,49 +668,49 @@ docker:user-service:
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/user-service"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/user-service/
-    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+    - docker_push_retry "$IMAGE:$IMAGE_TAG" && docker_push_retry "$IMAGE:latest"
 
 docker:portfolio-service:
   extends: .docker-template
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/portfolio-service"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/portfolio-service/
-    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+    - docker_push_retry "$IMAGE:$IMAGE_TAG" && docker_push_retry "$IMAGE:latest"
 
 docker:notification-service:
   extends: .docker-template
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/notification-service"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/notification-service/
-    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+    - docker_push_retry "$IMAGE:$IMAGE_TAG" && docker_push_retry "$IMAGE:latest"
 
 docker:api-gateway:
   extends: .docker-template
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/api-gateway"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/api-gateway/
-    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+    - docker_push_retry "$IMAGE:$IMAGE_TAG" && docker_push_retry "$IMAGE:latest"
 
 docker:eureka-server:
   extends: .docker-template
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/eureka-server"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/eureka-server/
-    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+    - docker_push_retry "$IMAGE:$IMAGE_TAG" && docker_push_retry "$IMAGE:latest"
 
 docker:market-data-service:
   extends: .docker-template
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/market-data-service"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/market-data-service/
-    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+    - docker_push_retry "$IMAGE:$IMAGE_TAG" && docker_push_retry "$IMAGE:latest"
 
 docker:frontend:
   extends: .docker-template
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/frontend"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Frontend/
-    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+    - docker_push_retry "$IMAGE:$IMAGE_TAG" && docker_push_retry "$IMAGE:latest"
 
 docker:multi-agents-service:
   extends: .docker-template
@@ -694,7 +718,7 @@ docker:multi-agents-service:
   script:
     - IMAGE="$CI_REGISTRY_IMAGE/multi-agents-service"
     - docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" Main_Project/Backend/multi-agents-service/
-    - docker push "$IMAGE:$IMAGE_TAG" && docker push "$IMAGE:latest"
+    - docker_push_retry "$IMAGE:$IMAGE_TAG" && docker_push_retry "$IMAGE:latest"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE: DEPLOY — 2 luồng độc lập, cả 2 đều when: manual
