@@ -11,6 +11,7 @@ import {
   User,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { formatAppTime } from '../../lib/dateTime';
 import { normalizeInlineMarkdownTables } from '../../lib/markdown';
 import { dedupeNewsItems, parseContentWithMarketNews, parseMarketNewsField } from '../../lib/marketNews';
 import type { AgentMessage } from '../../types/agent';
@@ -113,7 +114,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
         <div className="flex-1 max-w-[80%] rounded-2xl px-4 py-3 bg-primary text-primary-foreground rounded-tr-sm">
           <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">{message.content}</p>
           <p className="text-[10px] mt-1.5 text-primary-foreground/70">
-            {new Date(message.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+            {formatAppTime(message.timestamp)}
           </p>
         </div>
       </div>
@@ -165,7 +166,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
         </div>
 
         <p className="text-[10px] mt-1.5 text-muted-foreground/60">
-          {new Date(message.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+          {formatAppTime(message.timestamp)}
         </p>
 
         {shouldShowFullReport && (

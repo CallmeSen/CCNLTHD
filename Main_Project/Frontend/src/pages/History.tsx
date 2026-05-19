@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { sessionApi } from '../services/sessionApi';
 import { listStoredReports, type StoredReportEntry } from '../services/reportHistory';
+import { formatAppDateTime, parseAppTimestamp } from '../lib/dateTime';
 import { cn } from '../lib/utils';
 import type { HistoryItem } from '../types/agent';
 
@@ -27,10 +28,7 @@ type HistoryRow = (HistoryItem | StoredReportEntry) & {
 };
 
 function normalizeTimestamp(value: string | number | undefined) {
-  if (!value) return Date.now();
-  if (typeof value === 'number') return value;
-  const parsed = new Date(value).getTime();
-  return Number.isNaN(parsed) ? Date.now() : parsed;
+  return parseAppTimestamp(value);
 }
 
 function StatusBadge({ status = 'completed' }: { status?: string }) {
@@ -194,7 +192,7 @@ export default function HistoryPage() {
                   <span className="text-xs text-muted-foreground font-mono">{item.run_id}</span>
                   <span className="text-muted-foreground/30">•</span>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(normalizeTimestamp(item.timestamp)).toLocaleString('vi-VN')}
+                    {formatAppDateTime(normalizeTimestamp(item.timestamp))}
                   </span>
                   {item.source && <span className="badge badge-neutral">{item.source}</span>}
                 </div>

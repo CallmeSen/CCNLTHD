@@ -1,6 +1,7 @@
 import { apiClient, TOKEN_KEY } from './apiClient';
 import { API_BASE_URL, isMockApiEnabled } from '../config/runtimeEnv';
 import { saveReportHistory } from './reportHistory';
+import { parseAppTimestamp } from '../lib/dateTime';
 import { getProposedPortfolio, normalizeIntent, shouldShowPortfolioReport } from '../lib/reportVisibility';
 import type {
   AgentMessage,
@@ -83,7 +84,7 @@ function toAgentMessage(message: ChatMessageItem | any, index: number): AgentMes
     id: String(message.id || message.message_id || `db-msg-${index}`),
     type,
     content: String(message.content || ''),
-    timestamp: message.created_at ? new Date(message.created_at).getTime() : Number(message.timestamp || Date.now()),
+    timestamp: message.created_at ? parseAppTimestamp(message.created_at) : Number(message.timestamp || Date.now()),
     runId: showFullReport ? runId : undefined,
     intent,
     showFullReport,

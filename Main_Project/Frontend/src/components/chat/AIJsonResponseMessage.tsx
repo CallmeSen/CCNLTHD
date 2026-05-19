@@ -23,6 +23,7 @@ import {
   AlertCircle,
   XCircle,
 } from 'lucide-react';
+import { formatAppTime } from '../../lib/dateTime';
 import { normalizeInlineMarkdownTables } from '../../lib/markdown';
 
 /**
@@ -347,11 +348,7 @@ export const AIJsonResponseMessage: React.FC<AIJsonResponseMessageProps> = ({
         {/* Timestamp */}
         {timestamp && (
           <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-400 text-right">
-            {new Date(timestamp).toLocaleTimeString('vi-VN', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            })}
+            {formatAppTime(timestamp, { second: '2-digit' })}
           </div>
         )}
       </div>

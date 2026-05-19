@@ -19,18 +19,19 @@ import { WelcomeScreen } from '../components/chat/WelcomeScreen';
 import { MessageBubble } from '../components/chat/MessageBubble';
 import { ThinkingTimeline } from '../components/chat/ThinkingTimeline';
 import { ConversationTimeline } from '../components/chat/ConversationTimeline';
+import { formatAppDateTime, parseAppTimestamp } from '../lib/dateTime';
 import type { AgentMessage, ChatSessionListItem } from '../types/agent';
 
 function exportMarkdown(messages: AgentMessage[]) {
   const lines = [
     '# Xuất hội thoại',
     '',
-    `Thời gian xuất: ${new Date().toLocaleString('vi-VN')}`,
+    `Thời gian xuất: ${formatAppDateTime(Date.now())}`,
     '',
   ];
 
   for (const message of messages) {
-    const time = new Date(message.timestamp).toLocaleString('vi-VN');
+    const time = formatAppDateTime(message.timestamp);
     if (message.type === 'user') {
       lines.push(`## Người dùng (${time})`, '', message.content, '');
     } else if (message.type === 'answer' || message.type === 'run_complete') {
@@ -57,6 +58,7 @@ export default function ChatAI() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const rafRef = useRef(0);
   const ignoredUrlSessionRef = useRef<string | null>(null);
+  const loadedUrlSessionRef = useRef<string | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionListItem[]>([]);
@@ -121,12 +123,15 @@ export default function ChatAI() {
   useEffect(() => {
     if (!urlSessionId) {
       ignoredUrlSessionRef.current = null;
+      loadedUrlSessionRef.current = null;
       return;
     }
     if (ignoredUrlSessionRef.current === urlSessionId) return;
-    if (urlSessionId === sessionId && (messages.length > 0 || status === 'streaming' || toolCalls.length > 0)) return;
+    if (loadedUrlSessionRef.current === urlSessionId && urlSessionId === sessionId) return;
+    if (urlSessionId === sessionId && status === 'streaming') return;
+    loadedUrlSessionRef.current = urlSessionId;
     useAgentStore.getState().loadSession(urlSessionId);
-  }, [messages.length, sessionId, status, urlSessionId, toolCalls.length]);
+  }, [sessionId, status, urlSessionId, toolCalls.length]);
 
   useEffect(() => {
     scrollToBottom();
@@ -139,7 +144,7 @@ export default function ChatAI() {
       const data = await sessionApi.getSessions();
       setSessions(
         [...data].sort(
-          (a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime(),
+          (a, b) => parseAppTimestamp(b.updated_at || b.created_at) - parseAppTimestamp(a.updated_at || a.created_at),
         ),
       );
     } catch (err) {
@@ -157,6 +162,7 @@ export default function ChatAI() {
 
   const selectSession = async (id: string) => {
     ignoredUrlSessionRef.current = null;
+    loadedUrlSessionRef.current = id;
     disconnect();
     setSessionsOpen(false);
     setSearchParams({ session: id }, { replace: true });
@@ -165,6 +171,7 @@ export default function ChatAI() {
 
   const startNewChat = () => {
     ignoredUrlSessionRef.current = urlSessionId;
+    loadedUrlSessionRef.current = null;
     disconnect();
     useAgentStore.getState().reset();
     setInput('');
@@ -443,7 +450,7 @@ export default function ChatAI() {
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>{item.is_active === 1 ? 'Đang hoạt động' : 'Đã đóng'}</span>
                           <span>
-                            {new Date(item.updated_at || item.created_at).toLocaleString('vi-VN', {
+                            {formatAppDateTime(item.updated_at || item.created_at, {
                               day: '2-digit',
                               month: '2-digit',
                               hour: '2-digit',
