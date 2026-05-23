@@ -24,3 +24,33 @@ target/
 *.war
 deployment/kubernetes/base/secrets/backend-secrets.yaml
 /deployment/kubernetes/base/secrets
+
+# Terraform local state and runtime files
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ansible Proxmox local secrets and generated files
+deployment/ansible/proxmox/inventories/proxmox.yml
+deployment/ansible/proxmox/group_vars/all/vault.yml
+deployment/ansible/proxmox/.vault-pass
+deployment/ansible/proxmox/artifacts/
+deployment/ansible/proxmox/.ansible/
+deployment/ansible/proxmox/.venv/
+deployment/ansible/proxmox/private_keys/
+deployment/ansible/proxmox/*.pem
+deployment/ansible/proxmox/*.key
+*.retry
+*.kubeconfig
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub

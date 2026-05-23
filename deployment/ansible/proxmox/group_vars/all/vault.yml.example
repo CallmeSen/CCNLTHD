@@ -1,0 +1,37 @@
+---
+# Copy this file to vault.yml, replace every CHANGEME value, then encrypt it:
+#   ansible-vault encrypt group_vars/all/vault.yml
+
+vault_proxmox_api_user: "root@pam"
+vault_proxmox_api_token_id: "CHANGEME-token-id"
+vault_proxmox_api_token_secret: "CHANGEME-token-secret"
+
+vault_vm_ciuser: "ubuntu"
+vault_vm_ssh_private_key_file: "~/.ssh/id_ed25519"
+vault_vm_ssh_public_key: "ssh-ed25519 CHANGEME_PUBLIC_KEY ansible-control"
+
+vault_gitlab_registry_username: "CHANGEME"
+vault_gitlab_registry_token: "CHANGEME"
+
+vault_argocd_repo_username: "CHANGEME"
+vault_argocd_repo_token: "CHANGEME"
+
+vault_hashicorp_token: "root"
+
+vault_app_secrets:
+  backend:
+    DB_PASSWORD: "CHANGEME"
+    JWT_SECRET: "CHANGEME-at-least-32-characters"
+    VNSTOCK_API_KEY: "CHANGEME"
+    POSTGRES_MA_PASSWORD: "CHANGEME"
+  multi_agents:
+    DATABASE_URL: "postgresql://user:CHANGEME@postgres-ma.investadvisor.svc.cluster.local:5432/financial_advisor"
+    OPENROUTER_API_KEY: "CHANGEME"
+    OPENAI_API_KEY: "CHANGEME"
+    TAVILY_API_KEY: "CHANGEME"
+    SECRET_KEY: "CHANGEME"
+  mail:
+    MAIL_USERNAME: "CHANGEME"
+    MAIL_PASSWORD: "CHANGEME"
+  frontend:
+    VITE_API_URL: "/api"

@@ -1,0 +1,54 @@
+---
+all:
+  vars:
+    ansible_user: "{{ vault_vm_ciuser }}"
+    ansible_ssh_private_key_file: "{{ vault_vm_ssh_private_key_file }}"
+    ansible_python_interpreter: /usr/bin/python3
+
+    proxmox_api_host: pve.example.local
+    proxmox_api_user: "{{ vault_proxmox_api_user }}"
+    proxmox_api_token_id: "{{ vault_proxmox_api_token_id }}"
+    proxmox_api_token_secret: "{{ vault_proxmox_api_token_secret }}"
+    proxmox_validate_certs: false
+    proxmox_node: pve-node-1
+    proxmox_template: ubuntu-2404-cloudinit-template
+    proxmox_storage: local-lvm
+    proxmox_disk_format: raw
+    proxmox_bridge: vmbr0
+
+    vm_gateway: 192.0.2.1
+    vm_nameservers:
+      - 1.1.1.1
+      - 8.8.8.8
+    vm_searchdomains:
+      - homelab.example
+    vm_disk_name: scsi0
+    # Proxmox resize syntax is incremental. If your template disk is 20G,
+    # +60G gives an 80G target disk.
+    vm_disk_resize: +60G
+    vm_default_cores: 4
+    vm_default_memory: 8192
+
+  children:
+    k3s_server:
+      hosts:
+        ia-k3s-server-01:
+          ansible_host: 192.0.2.11
+          proxmox_vmid: 301
+          vm_ip_cidr: 192.0.2.11/24
+          vm_disk_target_size: 80G
+          k3s_control_node: true
+
+    k3s_agent:
+      hosts:
+        ia-k3s-agent-01:
+          ansible_host: 192.0.2.12
+          proxmox_vmid: 302
+          vm_ip_cidr: 192.0.2.12/24
+          vm_disk_target_size: 80G
+          k3s_control_node: false
+
+    k3s_cluster:
+      children:
+        k3s_server:
+        k3s_agent:

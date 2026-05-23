@@ -1,0 +1,28 @@
+---
+- name: Install ingress-nginx into K3s
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Add ingress-nginx Helm repo
+      kubernetes.core.helm_repository:
+        name: ingress-nginx
+        repo_url: https://kubernetes.github.io/ingress-nginx
+
+    - name: Install ingress-nginx
+      kubernetes.core.helm:
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ ingress_nginx_release_name }}"
+        chart_ref: "{{ ingress_nginx_chart_ref }}"
+        chart_version: "{{ ingress_nginx_chart_version | default(omit, true) }}"
+        release_namespace: "{{ ingress_nginx_namespace }}"
+        create_namespace: true
+        wait: true
+        values:
+          controller:
+            ingressClass: nginx
+            ingressClassResource:
+              name: nginx
+              enabled: true
+              default: true

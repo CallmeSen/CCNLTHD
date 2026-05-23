@@ -1,0 +1,18 @@
+---
+- name: Provision Proxmox VMs
+  ansible.builtin.import_playbook: provision_vms.yml
+
+- name: Install K3s
+  ansible.builtin.import_playbook: install_k3s.yml
+
+- name: Install ingress-nginx
+  ansible.builtin.import_playbook: install_ingress_nginx.yml
+
+- name: Create GitLab registry pull secret
+  ansible.builtin.import_playbook: create_registry_secret.yml
+
+- name: Bootstrap ArgoCD
+  ansible.builtin.import_playbook: bootstrap_argocd.yml
+
+- name: Seed app secrets into HashiCorp Vault
+  ansible.builtin.import_playbook: seed_hashicorp_vault.yml

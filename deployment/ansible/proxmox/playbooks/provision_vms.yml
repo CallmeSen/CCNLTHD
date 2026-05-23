@@ -1,0 +1,87 @@
+---
+- name: Clone and configure K3s VMs on Proxmox
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Clone VM from cloud-init template
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        validate_certs: "{{ proxmox_validate_certs }}"
+        node: "{{ proxmox_node }}"
+        clone: "{{ proxmox_template }}"
+        newid: "{{ hostvars[item].proxmox_vmid }}"
+        name: "{{ item }}"
+        storage: "{{ proxmox_storage }}"
+        full: true
+        format: "{{ proxmox_disk_format }}"
+        timeout: 900
+        state: present
+      loop: "{{ groups['k3s_cluster'] }}"
+      no_log: true
+
+    - name: Configure VM CPU, memory, network, and cloud-init
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        validate_certs: "{{ proxmox_validate_certs }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ hostvars[item].proxmox_vmid }}"
+        name: "{{ item }}"
+        cores: "{{ hostvars[item].vm_cores | default(vm_default_cores) }}"
+        memory: "{{ hostvars[item].vm_memory | default(vm_default_memory) }}"
+        agent: enabled=1
+        onboot: true
+        ciuser: "{{ vault_vm_ciuser }}"
+        sshkeys: "{{ vault_vm_ssh_public_key }}"
+        searchdomains: "{{ vm_searchdomains }}"
+        nameservers: "{{ vm_nameservers }}"
+        net:
+          net0: "virtio,bridge={{ proxmox_bridge }}"
+        ipconfig:
+          ipconfig0: "ip={{ hostvars[item].vm_ip_cidr }},gw={{ vm_gateway }}"
+        update: true
+        update_unsafe: true
+      loop: "{{ groups['k3s_cluster'] }}"
+      no_log: true
+
+    - name: Resize primary VM disk
+      community.proxmox.proxmox_disk:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        validate_certs: "{{ proxmox_validate_certs }}"
+        vmid: "{{ hostvars[item].proxmox_vmid }}"
+        disk: "{{ vm_disk_name }}"
+        size: "{{ hostvars[item].vm_disk_resize | default(vm_disk_resize) }}"
+        state: resized
+      loop: "{{ groups['k3s_cluster'] }}"
+      no_log: true
+
+    - name: Start VM
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        validate_certs: "{{ proxmox_validate_certs }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ hostvars[item].proxmox_vmid }}"
+        state: started
+      loop: "{{ groups['k3s_cluster'] }}"
+      no_log: true
+
+    - name: Wait for SSH on new VMs
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[item].ansible_host }}"
+        port: 22
+        timeout: 600
+        delay: 10
+      loop: "{{ groups['k3s_cluster'] }}"

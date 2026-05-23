@@ -1,0 +1,47 @@
+---
+- name: Install ArgoCD and bootstrap GitOps root application
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Add Argo Helm repo
+      kubernetes.core.helm_repository:
+        name: argo
+        repo_url: https://argoproj.github.io/argo-helm
+
+    - name: Install ArgoCD
+      kubernetes.core.helm:
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ argocd_release_name }}"
+        chart_ref: "{{ argocd_chart_ref }}"
+        chart_version: "{{ argocd_chart_version | default(omit, true) }}"
+        release_namespace: "{{ argocd_namespace }}"
+        create_namespace: true
+        wait: true
+
+    - name: Add private Git repository credentials when enabled
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: investadvisor-git-repository
+            namespace: "{{ argocd_namespace }}"
+            labels:
+              argocd.argoproj.io/secret-type: repository
+          stringData:
+            type: git
+            url: "{{ argocd_repo_url }}"
+            username: "{{ vault_argocd_repo_username }}"
+            password: "{{ vault_argocd_repo_token }}"
+      when: argocd_repo_private | bool
+      no_log: true
+
+    - name: Apply ArgoCD app-of-apps manifest
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        src: "{{ argocd_platform_application_manifest }}"

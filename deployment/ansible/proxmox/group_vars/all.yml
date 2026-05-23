@@ -1,0 +1,50 @@
+---
+repo_root: "{{ playbook_dir }}/../../../.."
+generated_artifacts_dir: "{{ repo_root }}/deployment/ansible/proxmox/artifacts"
+kubeconfig_path: "{{ generated_artifacts_dir }}/k3s.kubeconfig"
+
+k3s_become: true
+k3s_build_cluster: true
+k3s_release_version: stable
+k3s_registration_address: "{{ hostvars[groups['k3s_server'][0]].ansible_host }}"
+k3s_server:
+  disable:
+    - traefik
+  write-kubeconfig-mode: "0644"
+k3s_agent: {}
+
+ingress_nginx_namespace: ingress-nginx
+ingress_nginx_release_name: ingress-nginx
+ingress_nginx_chart_ref: ingress-nginx/ingress-nginx
+ingress_nginx_chart_version: ""
+
+argocd_namespace: argocd
+argocd_release_name: argocd
+argocd_chart_ref: argo/argo-cd
+argocd_chart_version: ""
+argocd_repo_url: https://gitlab.com/callmesen-group/CCNLTHD.git
+argocd_repo_private: false
+argocd_platform_application_manifest: "{{ repo_root }}/deployment/kubernetes/argocd-platform-application.yaml"
+
+investadvisor_namespace: investadvisor
+gitlab_registry_server: registry.gitlab.com
+gitlab_registry_secret_name: gitlab-registry
+
+hashicorp_vault_namespace: vault
+hashicorp_vault_pod: vault-0
+hashicorp_vault_addr: http://127.0.0.1:8200
+hashicorp_vault_kv_mount: secret
+hashicorp_vault_environment: dev
+hashicorp_vault_secret_sets:
+  - name: backend
+    path: "investadvisor/{{ hashicorp_vault_environment }}/backend"
+    data: "{{ vault_app_secrets.backend }}"
+  - name: multi-agents
+    path: "investadvisor/{{ hashicorp_vault_environment }}/multi-agents"
+    data: "{{ vault_app_secrets.multi_agents }}"
+  - name: mail
+    path: "investadvisor/{{ hashicorp_vault_environment }}/mail"
+    data: "{{ vault_app_secrets.mail }}"
+  - name: frontend
+    path: "investadvisor/{{ hashicorp_vault_environment }}/frontend"
+    data: "{{ vault_app_secrets.frontend }}"
