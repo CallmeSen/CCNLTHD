@@ -1,6 +1,6 @@
 ---
 # Copy this file to vault.yml, replace every CHANGEME value, then encrypt it:
-#   ansible-vault encrypt group_vars/all/vault.yml
+#   ansible-vault encrypt inventories/group_vars/all/vault.yml
 
 vault_proxmox_api_user: "root@pam"
 vault_proxmox_api_token_id: "CHANGEME-token-id"

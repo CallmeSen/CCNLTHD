@@ -8,6 +8,9 @@
 - name: Install ingress-nginx
   ansible.builtin.import_playbook: install_ingress_nginx.yml
 
+- name: Install platform CRDs
+  ansible.builtin.import_playbook: install_platform_crds.yml
+
 - name: Create GitLab registry pull secret
   ansible.builtin.import_playbook: create_registry_secret.yml
 

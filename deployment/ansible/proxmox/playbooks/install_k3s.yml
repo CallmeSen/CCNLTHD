@@ -3,6 +3,20 @@
   hosts: k3s_cluster
   become: true
   gather_facts: true
+  vars:
+    k3s_become: true
+    k3s_become_for_all: true
+    k3s_become_for_install_dir: true
+    k3s_become_for_package_install: true
+    k3s_become_for_usr_local_bin: true
+    k3s_build_cluster: true
+    k3s_release_version: stable
+    k3s_registration_address: "{{ hostvars[groups['k3s_server'][0]].ansible_host }}"
+    k3s_server:
+      disable:
+        - traefik
+      write-kubeconfig-mode: "0644"
+    k3s_agent: {}
 
   roles:
     - role: xanmanning.k3s
@@ -12,6 +26,10 @@
   become: true
   gather_facts: false
   run_once: true
+  vars:
+    repo_root: "{{ playbook_dir }}/../../../.."
+    generated_artifacts_dir: "{{ repo_root }}/deployment/ansible/proxmox/artifacts"
+    kubeconfig_path: "{{ generated_artifacts_dir }}/k3s.kubeconfig"
 
   tasks:
     - name: Ensure local artifacts directory exists

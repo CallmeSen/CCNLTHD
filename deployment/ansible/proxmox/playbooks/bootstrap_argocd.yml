@@ -3,6 +3,17 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../../../.."
+    generated_artifacts_dir: "{{ repo_root }}/deployment/ansible/proxmox/artifacts"
+    kubeconfig_path: "{{ generated_artifacts_dir }}/k3s.kubeconfig"
+    argocd_namespace: argocd
+    argocd_release_name: argocd
+    argocd_chart_ref: argo/argo-cd
+    argocd_chart_version: ""
+    argocd_repo_url: https://gitlab.com/callmesen-group/CCNLTHD.git
+    argocd_repo_private: false
+    argocd_platform_application_manifest: "{{ repo_root }}/deployment/kubernetes/argocd-platform-application.yaml"
 
   tasks:
     - name: Add Argo Helm repo

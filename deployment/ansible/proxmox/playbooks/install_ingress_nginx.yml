@@ -3,6 +3,14 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../../../.."
+    generated_artifacts_dir: "{{ repo_root }}/deployment/ansible/proxmox/artifacts"
+    kubeconfig_path: "{{ generated_artifacts_dir }}/k3s.kubeconfig"
+    ingress_nginx_namespace: ingress-nginx
+    ingress_nginx_release_name: ingress-nginx
+    ingress_nginx_chart_ref: ingress-nginx/ingress-nginx
+    ingress_nginx_chart_version: ""
 
   tasks:
     - name: Add ingress-nginx Helm repo

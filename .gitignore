@@ -41,6 +41,7 @@ override.tf.json
 # Ansible Proxmox local secrets and generated files
 deployment/ansible/proxmox/inventories/proxmox.yml
 deployment/ansible/proxmox/group_vars/all/vault.yml
+deployment/ansible/proxmox/inventories/group_vars/all/vault.yml
 deployment/ansible/proxmox/.vault-pass
 deployment/ansible/proxmox/artifacts/
 deployment/ansible/proxmox/.ansible/

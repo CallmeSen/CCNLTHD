@@ -34,6 +34,7 @@
         node: "{{ proxmox_node }}"
         vmid: "{{ hostvars[item].proxmox_vmid }}"
         name: "{{ item }}"
+        cpu: "{{ hostvars[item].vm_cpu_type | default(vm_cpu_type | default('host')) }}"
         cores: "{{ hostvars[item].vm_cores | default(vm_default_cores) }}"
         memory: "{{ hostvars[item].vm_memory | default(vm_default_memory) }}"
         agent: enabled=1

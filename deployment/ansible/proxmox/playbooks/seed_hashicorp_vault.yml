@@ -3,6 +3,28 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../../../.."
+    generated_artifacts_dir: "{{ repo_root }}/deployment/ansible/proxmox/artifacts"
+    kubeconfig_path: "{{ generated_artifacts_dir }}/k3s.kubeconfig"
+    hashicorp_vault_namespace: vault
+    hashicorp_vault_pod: vault-0
+    hashicorp_vault_addr: http://127.0.0.1:8200
+    hashicorp_vault_kv_mount: secret
+    hashicorp_vault_environment: dev
+    hashicorp_vault_secret_sets:
+      - name: backend
+        path: "investadvisor/{{ hashicorp_vault_environment }}/backend"
+        data: "{{ vault_app_secrets.backend }}"
+      - name: multi-agents
+        path: "investadvisor/{{ hashicorp_vault_environment }}/multi-agents"
+        data: "{{ vault_app_secrets.multi_agents }}"
+      - name: mail
+        path: "investadvisor/{{ hashicorp_vault_environment }}/mail"
+        data: "{{ vault_app_secrets.mail }}"
+      - name: frontend
+        path: "investadvisor/{{ hashicorp_vault_environment }}/frontend"
+        data: "{{ vault_app_secrets.frontend }}"
 
   tasks:
     - name: Wait for Vault dev pod to exist
@@ -37,18 +59,6 @@
 
     - name: Write secret set into HashiCorp Vault
       ansible.builtin.command:
-        argv:
-          - kubectl
-          - --kubeconfig
-          - "{{ kubeconfig_path }}"
-          - -n
-          - "{{ hashicorp_vault_namespace }}"
-          - exec
-          - "{{ hashicorp_vault_pod }}"
-          - --
-          - sh
-          - -c
-          - "cat >/tmp/{{ item.name }}.json && VAULT_ADDR={{ hashicorp_vault_addr }} VAULT_TOKEN={{ vault_hashicorp_token }} vault kv put {{ hashicorp_vault_kv_mount }}/{{ item.path }} @/tmp/{{ item.name }}.json && rm -f /tmp/{{ item.name }}.json"
-        stdin: "{{ item.data | to_json }}"
+        argv: "{{ ['kubectl', '--kubeconfig', kubeconfig_path, '-n', hashicorp_vault_namespace, 'exec', hashicorp_vault_pod, '--', 'env', 'VAULT_ADDR=' ~ hashicorp_vault_addr, 'VAULT_TOKEN=' ~ vault_hashicorp_token, 'vault', 'kv', 'put', hashicorp_vault_kv_mount ~ '/' ~ item.path] + (item.data | dict2items | map(attribute='key') | zip(item.data | dict2items | map(attribute='value') | map('string')) | map('join', '=') | list) }}"
       loop: "{{ hashicorp_vault_secret_sets }}"
       no_log: true

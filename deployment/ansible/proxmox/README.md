@@ -8,7 +8,7 @@ The intended flow is:
 1. Create an Ubuntu LXC on Proxmox manually for the Ansible control node.
 2. Run `scripts/bootstrap-control-node.sh` inside this folder on that LXC.
 3. Copy the example inventory and vault files to local, ignored files.
-4. Encrypt `group_vars/all/vault.yml` with `ansible-vault`.
+4. Encrypt `inventories/group_vars/all/vault.yml` with `ansible-vault`.
 5. Run the playbooks to clone K3s VMs, install K3s, install ingress-nginx,
    bootstrap ArgoCD, create GitLab image pull secrets, and seed dev secrets
    into HashiCorp Vault.
@@ -18,14 +18,14 @@ The intended flow is:
 Commit these files:
 
 - `inventories/proxmox.example.yml`
-- `group_vars/all.yml`
-- `group_vars/all/vault.yml.example`
+- `inventories/group_vars/all.yml`
+- `inventories/group_vars/all/vault.yml.example`
 - playbooks, scripts, and this README
 
 Do not commit these files:
 
 - `inventories/proxmox.yml`
-- `group_vars/all/vault.yml`
+- `inventories/group_vars/all/vault.yml`
 - `.vault-pass`
 - private SSH keys
 - generated kubeconfigs under `artifacts/`
@@ -50,17 +50,17 @@ Create local files from examples:
 
 ```bash
 cp inventories/proxmox.example.yml inventories/proxmox.yml
-cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+cp inventories/group_vars/all/vault.yml.example inventories/group_vars/all/vault.yml
 ```
 
 Edit `inventories/proxmox.yml` with real Proxmox host, node, storage, bridge,
 VM IDs, static IP addresses, and disk resize value. The example uses
 `vm_disk_resize: +60G`, intended for a 20G template disk to end at roughly 80G.
 
-Edit `group_vars/all/vault.yml` with real secrets, then encrypt it:
+Edit `inventories/group_vars/all/vault.yml` with real secrets, then encrypt it:
 
 ```bash
-ansible-vault encrypt group_vars/all/vault.yml
+ansible-vault encrypt inventories/group_vars/all/vault.yml
 ```
 
 For non-interactive local runs, create a local vault password file:
@@ -98,6 +98,7 @@ You can also run individual playbooks:
 ansible-playbook -i inventories/proxmox.yml playbooks/provision_vms.yml --ask-vault-pass
 ansible-playbook -i inventories/proxmox.yml playbooks/install_k3s.yml --ask-vault-pass
 ansible-playbook -i inventories/proxmox.yml playbooks/install_ingress_nginx.yml --ask-vault-pass
+ansible-playbook -i inventories/proxmox.yml playbooks/install_platform_crds.yml --ask-vault-pass
 ansible-playbook -i inventories/proxmox.yml playbooks/create_registry_secret.yml --ask-vault-pass
 ansible-playbook -i inventories/proxmox.yml playbooks/bootstrap_argocd.yml --ask-vault-pass
 ansible-playbook -i inventories/proxmox.yml playbooks/seed_hashicorp_vault.yml --ask-vault-pass

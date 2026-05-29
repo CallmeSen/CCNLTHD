@@ -1,0 +1,259 @@
+---
+- name: Install platform CRDs used by app manifests
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../../../.."
+    generated_artifacts_dir: "{{ repo_root }}/deployment/ansible/proxmox/artifacts"
+    kubeconfig_path: "{{ generated_artifacts_dir }}/k3s.kubeconfig"
+
+    keda_namespace: keda
+    keda_release_name: keda
+    keda_chart_ref: kedacore/keda
+    keda_chart_version: ""
+
+    monitoring_namespace: monitoring
+    prometheus_release_name: prom
+    prometheus_chart_ref: prometheus-community/kube-prometheus-stack
+    prometheus_chart_version: ""
+
+    vpa_version: "1.6.0"
+    vpa_base_url: "https://raw.githubusercontent.com/kubernetes/autoscaler/vertical-pod-autoscaler-{{ vpa_version }}/vertical-pod-autoscaler/deploy"
+    vpa_cert_dir: "{{ generated_artifacts_dir }}/vpa-certs"
+    vpa_components:
+      - vpa-v1-crd-gen.yaml
+      - vpa-rbac.yaml
+      - updater-deployment.yaml
+      - recommender-deployment.yaml
+      - admission-controller-service.yaml
+
+  tasks:
+    - name: Add KEDA Helm repo
+      kubernetes.core.helm_repository:
+        name: kedacore
+        repo_url: https://kedacore.github.io/charts
+
+    - name: Install KEDA
+      kubernetes.core.helm:
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ keda_release_name }}"
+        chart_ref: "{{ keda_chart_ref }}"
+        chart_version: "{{ keda_chart_version | default(omit, true) }}"
+        release_namespace: "{{ keda_namespace }}"
+        create_namespace: true
+        wait: true
+
+    - name: Add prometheus-community Helm repo
+      kubernetes.core.helm_repository:
+        name: prometheus-community
+        repo_url: https://prometheus-community.github.io/helm-charts
+
+    - name: Install kube-prometheus-stack
+      kubernetes.core.helm:
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ prometheus_release_name }}"
+        chart_ref: "{{ prometheus_chart_ref }}"
+        chart_version: "{{ prometheus_chart_version | default(omit, true) }}"
+        release_namespace: "{{ monitoring_namespace }}"
+        create_namespace: true
+        wait: true
+        timeout: 900s
+
+    - name: Install VPA components
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - apply
+          - -f
+          - "{{ vpa_base_url }}/{{ item }}"
+      loop: "{{ vpa_components }}"
+      changed_when: true
+
+    - name: Ensure VPA cert artifact directory exists
+      ansible.builtin.file:
+        path: "{{ vpa_cert_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Write VPA CA openssl config
+      ansible.builtin.copy:
+        dest: "{{ vpa_cert_dir }}/ca.conf"
+        mode: "0600"
+        content: |
+          [req]
+          prompt = no
+          distinguished_name = req_distinguished_name
+          x509_extensions = v3_ca
+          [req_distinguished_name]
+          CN = vpa_webhook_ca
+          [v3_ca]
+          subjectAltName = DNS:vpa_webhook_ca
+          basicConstraints = critical,CA:TRUE
+          keyUsage = critical,keyCertSign,cRLSign
+
+    - name: Write VPA server openssl config
+      ansible.builtin.copy:
+        dest: "{{ vpa_cert_dir }}/server.conf"
+        mode: "0600"
+        content: |
+          [req]
+          prompt = no
+          req_extensions = v3_req
+          distinguished_name = req_distinguished_name
+          [req_distinguished_name]
+          CN = vpa-webhook.kube-system.svc
+          [ v3_req ]
+          basicConstraints = CA:FALSE
+          keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+          extendedKeyUsage = clientAuth, serverAuth
+          subjectAltName = DNS:vpa-webhook.kube-system.svc
+
+    - name: Generate VPA CA key
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - genrsa
+          - -out
+          - "{{ vpa_cert_dir }}/caKey.pem"
+          - "2048"
+        creates: "{{ vpa_cert_dir }}/caKey.pem"
+
+    - name: Generate VPA CA cert
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -x509
+          - -new
+          - -nodes
+          - -key
+          - "{{ vpa_cert_dir }}/caKey.pem"
+          - -days
+          - "100000"
+          - -out
+          - "{{ vpa_cert_dir }}/caCert.pem"
+          - -config
+          - "{{ vpa_cert_dir }}/ca.conf"
+        creates: "{{ vpa_cert_dir }}/caCert.pem"
+
+    - name: Generate VPA server key
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - genrsa
+          - -out
+          - "{{ vpa_cert_dir }}/serverKey.pem"
+          - "2048"
+        creates: "{{ vpa_cert_dir }}/serverKey.pem"
+
+    - name: Generate VPA server CSR
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -new
+          - -key
+          - "{{ vpa_cert_dir }}/serverKey.pem"
+          - -out
+          - "{{ vpa_cert_dir }}/server.csr"
+          - -config
+          - "{{ vpa_cert_dir }}/server.conf"
+        creates: "{{ vpa_cert_dir }}/server.csr"
+
+    - name: Generate VPA server cert
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - x509
+          - -req
+          - -in
+          - "{{ vpa_cert_dir }}/server.csr"
+          - -CA
+          - "{{ vpa_cert_dir }}/caCert.pem"
+          - -CAkey
+          - "{{ vpa_cert_dir }}/caKey.pem"
+          - -CAcreateserial
+          - -out
+          - "{{ vpa_cert_dir }}/serverCert.pem"
+          - -days
+          - "100000"
+          - -extensions
+          - v3_req
+          - -extfile
+          - "{{ vpa_cert_dir }}/server.conf"
+        creates: "{{ vpa_cert_dir }}/serverCert.pem"
+
+    - name: Apply VPA TLS secret
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl --kubeconfig {{ kubeconfig_path | quote }} create secret generic vpa-tls-certs \
+          --namespace kube-system \
+          --from-file=caKey.pem={{ (vpa_cert_dir ~ '/caKey.pem') | quote }} \
+          --from-file=caCert.pem={{ (vpa_cert_dir ~ '/caCert.pem') | quote }} \
+          --from-file=serverKey.pem={{ (vpa_cert_dir ~ '/serverKey.pem') | quote }} \
+          --from-file=serverCert.pem={{ (vpa_cert_dir ~ '/serverCert.pem') | quote }} \
+          --dry-run=client -o yaml | kubectl --kubeconfig {{ kubeconfig_path | quote }} apply -f -
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Install VPA admission controller deployment
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - apply
+          - -f
+          - "{{ vpa_base_url }}/admission-controller-deployment.yaml"
+      changed_when: true
+
+    - name: Restart VPA admission controller
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -n
+          - kube-system
+          - rollout
+          - restart
+          - deployment/vpa-admission-controller
+      changed_when: true
+
+    - name: Wait for VPA deployments
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -n
+          - kube-system
+          - rollout
+          - status
+          - "deployment/{{ item }}"
+          - --timeout=180s
+      loop:
+        - vpa-admission-controller
+        - vpa-recommender
+        - vpa-updater
+      changed_when: false
+
+    - name: Verify app platform CRDs exist
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - get
+          - crd
+          - "{{ item }}"
+      loop:
+        - scaledobjects.keda.sh
+        - triggerauthentications.keda.sh
+        - verticalpodautoscalers.autoscaling.k8s.io
+        - servicemonitors.monitoring.coreos.com
+      changed_when: false

@@ -26,6 +26,7 @@ all:
     # Proxmox resize syntax is incremental. If your template disk is 20G,
     # +60G gives an 80G target disk.
     vm_disk_resize: +60G
+    vm_cpu_type: host
     vm_default_cores: 4
     vm_default_memory: 8192
 
